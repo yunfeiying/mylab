@@ -17,6 +17,31 @@ class MobileEditor {
         }
     }
 
+    loadNote(noteId, noteData) {
+        // Switch to Editor View
+        if (window.mobileCore) {
+            window.mobileCore.navigateTo('editor');
+        }
+
+        // Fill Data
+        const titleEl = document.querySelector('.editor-title');
+        const bodyEl = document.querySelector('.editor-body');
+
+        if (titleEl) titleEl.textContent = noteData.title || 'Untitled';
+        if (bodyEl) {
+            // Check if content is HTML or plain text
+            const content = noteData.content || noteData.text || '';
+            if (content.includes('<') && content.includes('>')) {
+                bodyEl.innerHTML = content;
+            } else {
+                bodyEl.innerText = content;
+            }
+        }
+
+        // Store current note ID context
+        this.currentNoteId = noteId;
+    }
+
     setupEditorEvents() {
         // Listen for Slash Commands
         this.editor.addEventListener('keydown', (e) => {
@@ -31,6 +56,63 @@ class MobileEditor {
                 this.editor.textContent = '';
             }
         });
+
+        // Auto-Save on Input (Debounced)
+        let saveTimeout;
+        const triggerSave = () => {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => this.saveNote(), 1000);
+        };
+
+        this.editor.addEventListener('input', triggerSave);
+        const titleEl = document.querySelector('.editor-title');
+        if (titleEl) {
+            titleEl.addEventListener('input', triggerSave);
+        }
+    }
+
+    initNewNote() {
+        this.currentNoteId = null;
+        const titleEl = document.querySelector('.editor-title');
+        const bodyEl = document.querySelector('.editor-body');
+        if (titleEl) titleEl.innerText = ''; // Use innerText for div/h1
+        if (bodyEl) bodyEl.innerHTML = '';
+        if (window.mobileCore) window.mobileCore.navigateTo('editor');
+    }
+
+    async saveNote() {
+        if (!window.appStorage) return;
+
+        const titleEl = document.querySelector('.editor-title');
+        const title = titleEl ? (titleEl.value || titleEl.innerText) : 'Untitled';
+        const content = this.editor.innerHTML;
+        const text = this.editor.innerText;
+
+        // Don't save purely empty notes (unless it's an update to existing)
+        if (!this.currentNoteId && !title && !text.trim()) return;
+
+        const noteId = this.currentNoteId || `note-${Date.now()}`;
+
+        const noteData = {
+            id: noteId,
+            title: title || 'Untitled',
+            content: content,
+            text: text,
+            date: new Date().toLocaleDateString(),
+            timestamp: Date.now(),
+            type: 'note' // Explicit type for classification
+        };
+
+        const update = {};
+        update[noteId] = noteData;
+
+        await window.appStorage.set(update);
+        this.currentNoteId = noteId; // Set ID so subsequent saves are updates
+        console.log('Saved note:', noteId);
+
+        // Refresh lists implicitly (optional, or wait for view switch)
+        // Refresh lists implicitly (optional, or wait for view switch)
+        if (window.mobileCore) window.mobileCore.renderApp();
     }
 
     async handleAIToolbarClick() {

@@ -33,20 +33,40 @@ window.mobileSync = {
         const reader = new FileReader();
         reader.onload = async (e) => {
             try {
+                // 1. Parse JSON
                 const data = JSON.parse(e.target.result);
-                if (confirm(`Restore ${Object.keys(data).length} notes? This overwrites current data.`)) {
-                    if (window.appStorage) {
-                        await window.appStorage.clear();
-                        await window.appStorage.set(data);
+                const keys = Object.keys(data);
+
+                if (keys.length === 0) {
+                    alert('❌ File is empty!');
+                    return;
+                }
+
+                if (!confirm(`Found ${keys.length} items. Overwrite current data and import?`)) return;
+
+                // 2. Clear Old Data
+                if (window.appStorage) {
+                    await window.appStorage.clear();
+
+                    // 3. Write New Data
+                    await window.appStorage.set(data);
+
+                    // 4. Verify Write
+                    const verify = await window.appStorage.getAll();
+                    const count = Object.keys(verify).length;
+
+                    if (count === 0) {
+                        alert('CRITICAL ERROR: Database is empty after write! Import failed.');
                     } else {
-                        localStorage.clear();
-                        Object.keys(data).forEach(k => localStorage.setItem(k, data[k]));
+                        alert(`🎉 Success! Verified ${count} items. Reloading automatically...`);
+                        setTimeout(() => location.reload(), 2000);
                     }
-                    alert('✅ Restored!');
-                    location.reload();
+                } else {
+                    alert('❌ Error: storage-bridge (window.appStorage) is missing!');
                 }
             } catch (err) {
-                alert('Invalid File');
+                alert('❌ Import Crashed:\n' + err.message);
+                console.error(err);
             }
         };
         reader.readAsText(file);

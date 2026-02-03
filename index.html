@@ -9,7 +9,8 @@
     <link rel="stylesheet" href="mobile.css">
     <link rel="manifest" href="mobile-manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2965/2965358.png">
 </head>
 
@@ -45,53 +46,10 @@
                 <div class="list-title" style="font-size:14px; color:#8e8e93; margin-top:20px; margin-bottom:10px;">
                     SMART FEED</div>
 
-                <!-- Chat Item -->
-                <div class="note-card" onclick="mobileCore.navigateTo('chat')">
-                    <div class="note-row-top">
-                        <span class="note-icon" style="margin-right:8px; display:flex; color:#007aff;">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-                                viewBox="0 0 24 24">
-                                <path
-                                    d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                            </svg>
-                        </span>
-                        <span class="note-title">Project Alpha Team</span>
-                        <span class="note-time">9:00 AM</span>
-                    </div>
-                    <div class="note-preview">Latest updates on the new design language...</div>
-                </div>
-
-                <!-- Note Item -->
-                <div class="note-card" onclick="mobileCore.navigateTo('editor')">
-                    <div class="note-row-top">
-                        <span class="note-icon" style="margin-right:8px; display:flex; color:#ff9500;">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-                                viewBox="0 0 24 24">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                        </span>
-                        <span class="note-title">Meeting Notes</span>
-                        <span class="note-time">Yesterday</span>
-                    </div>
-                    <div class="note-preview">Action items from weekly sync...</div>
-                </div>
-
-                <!-- Article Item -->
-                <div class="note-card" onclick="mobileCore.navigateTo('reader-detail')">
-                    <div class="note-row-top">
-                        <span class="note-icon" style="margin-right:8px; display:flex; color:#af52de;">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
-                                viewBox="0 0 24 24">
-                                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                            </svg>
-                        </span>
-                        <span class="note-title">The Future of AI</span>
-                        <span class="note-time">2 days ago</span>
-                    </div>
-                    <div class="note-preview">An insightful read on emerging trends...</div>
-                </div>
+                <div class="list-title" style="font-size:14px; color:#8e8e93; margin-top:20px; margin-bottom:10px;">
+                    SMART FEED</div>
+                <!-- Dynamic Content Will Be Injected Here -->
+                <div id="home-dyn-list"></div>
             </main>
         </div>
 
@@ -171,45 +129,17 @@
                 </button>
             </header>
             <main class="notes-list-content">
-                <!-- Folders -->
-                <div style="padding:10px 0; display:flex; gap:20px; border-bottom:1px solid #eee;">
-                    <div style="text-align:center; flex:1;">
-                        <div style="font-size:24px; color:#007aff; display:flex; justify-content:center;">
-                            <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5"
-                                viewBox="0 0 24 24">
-                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                            </svg>
-                        </div>
-                        <div style="font-size:12px; margin-top:4px;">Personal</div>
-                    </div>
-                    <div style="text-align:center; flex:1;">
-                        <div style="font-size:24px; color:#007aff; display:flex; justify-content:center;">
-                            <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5"
-                                viewBox="0 0 24 24">
-                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                            </svg>
-                        </div>
-                        <div style="font-size:12px; margin-top:4px;">Work</div>
-                    </div>
-                </div>
-                <!-- Notes -->
-                <div class="list-title" style="margin-top:20px;">Recent Notes</div>
-                <div class="note-card" onclick="mobileCore.navigateTo('editor')">
-                    <div class="note-row-top">
-                        <span class="note-title">Shopping List</span>
-                        <span class="note-time">Mon</span>
-                    </div>
-                    <div class="note-preview">Milk, eggs, bread, coffee...</div>
-                </div>
+                <div id="notes-dyn-list"></div>
             </main>
         </div>
 
         <!-- ============================== -->
-        <!-- SUB-VIEW: CHAT (Full Screen) -->
+        <!-- 5. VIEW CHAT (Tab / Full Screen) -->
         <!-- ============================== -->
-        <div id="view-chat-detail" class="app-view full-screen-view">
+        <div id="view-chat" class="app-view">
             <header class="gemini-header">
-                <button class="header-btn back-btn" onclick="mobileCore.goBack()">
+                <!-- Back Button for Full Screen Mode -->
+                <button class="header-btn back-btn" onclick="mobileCore.exitChat()">
                     <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M15 18l-6-6 6-6" />
                     </svg>
@@ -260,16 +190,28 @@
         </div>
 
         <!-- ============================== -->
+        <!-- 3. VIEW READER (List) -->
+        <!-- ============================== -->
+        <div id="view-reader" class="app-view">
+            <header class="gemini-header">
+                <h1 class="header-title">Reading List</h1>
+            </header>
+            <main class="reading-list-content" style="padding:16px; overflow-y:auto;">
+                <div id="reader-dyn-list"></div>
+            </main>
+        </div>
+
+        <!-- ============================== -->
         <!-- SUB-VIEW: EDITOR (Full Screen) -->
         <!-- ============================== -->
         <div id="view-editor" class="app-view full-screen-view">
             <header class="gemini-header">
-                <button class="header-btn back-btn" onclick="mobileCore.goBack()">
+                <button class="header-btn back-btn" onclick="mobileEditor.saveNote(); mobileCore.goBack()">
                     <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M15 18l-6-6 6-6" />
                     </svg>
                 </button>
-                <div style="flex:1; text-align:center; font-weight:600;">Project Plan</div>
+                <input class="editor-title" placeholder="Title" value="Untitled">
                 <!-- Editor Menu -->
                 <button class="header-btn">
                     <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -372,15 +314,26 @@
         <!-- ============================== -->
         <nav class="bottom-tab-bar" id="main-tab-bar">
             <!-- 1. Home (Highlights) -->
-            <button class="tab-btn active" data-target="view-home" onclick="mobileCore.switchTab(this)">
+            <button class="tab-btn active" data-target="view-home">
                 <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                     <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
                 <span style="font-size:10px; margin-top:2px;">Home</span>
             </button>
+
+            <!-- 1.5 Chat -->
+            <button class="tab-btn" data-target="view-chat">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <!-- Chat Bubble Icon -->
+                    <path
+                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+                <span style="font-size:10px; margin-top:2px;">Chat</span>
+            </button>
+
             <!-- 2. Search -->
-            <button class="tab-btn" data-target="view-search" onclick="mobileCore.switchTab(this)">
+            <button class="tab-btn" data-target="view-search">
                 <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <circle cx="11" cy="11" r="8" />
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -388,7 +341,7 @@
                 <span style="font-size:10px; margin-top:2px;">Search</span>
             </button>
             <!-- 3. Reader -->
-            <button class="tab-btn" data-target="view-reader" onclick="mobileCore.switchTab(this)">
+            <button class="tab-btn" data-target="view-reader">
                 <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
                     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
@@ -396,7 +349,7 @@
                 <span style="font-size:10px; margin-top:2px;">Reader</span>
             </button>
             <!-- 4. Notes -->
-            <button class="tab-btn" data-target="view-notes" onclick="mobileCore.switchTab(this)">
+            <button class="tab-btn" data-target="view-notes">
                 <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
@@ -425,7 +378,7 @@
                 <span>WebDAV Sync</span>
             </button>
             <button class="action-btn" id="act-export">
-                <span class="action-icon">📤</span>
+                <span class="action-icon">�</span>
                 <span>Backup to File</span>
             </button>
             <button class="action-btn" id="act-import">
@@ -444,15 +397,20 @@
     <!-- Hidden Input for Import -->
     <input type="file" id="file-import-input" accept=".json" style="display:none" />
 
-    <!-- Scripts -->
+    <!-- Scripts - STRICT ORDER REQUIRED -->
+    <!-- 1. Database & Storage Layer -->
     <script src="modules/idb-utils.js"></script>
     <script src="modules/storage-bridge.js"></script>
+
+    <!-- 2. Core Utils -->
     <script src="ai-core-mobile.js"></script>
     <script src="modules/memory-agent.js"></script>
-    <script src="mobile-core.js"></script>
-    <script src="mobile-chat.js"></script>
-    <script src="mobile-sync.js"></script>
+
+    <!-- 3. App Logic -->
+    <script src="mobile-sync.js"></script> <!-- Must be before core if core uses it lightly, or core binds it -->
     <script src="mobile-gdrive.js"></script>
+    <script src="mobile-core.js"></script> <!-- Core binds events -->
+    <script src="mobile-chat.js"></script>
     <script src="mobile-editor.js"></script>
 
     <script>
