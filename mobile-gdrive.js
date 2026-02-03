@@ -95,27 +95,45 @@ class MobileGDrive {
     }
 
     async sync() {
+        // 1. Diagnostics: Check for Google Connectivity
+        console.log('Starting GDrive Sync Diagnostic...');
+
+        if (typeof gapi === 'undefined' || typeof google === 'undefined') {
+            const msg = "❌ Google Services Blocked!\n\nYour network cannot reach 'apis.google.com'.\n\nTO FIX THIS:\n1. Enable a VPN.\n2. Use Safari/Chrome (not WeChat or system-webview).\n3. Or use 'WebDAV Sync' (JianGuoYun) for a stable experience in China.";
+            alert(msg);
+            console.error('GAPI or GIS scripts failed to load due to network restrictions.');
+            return;
+        }
+
         if (!this.CLIENT_ID) return this.handleAuthClick();
 
-        // Timeout Promise to prevent infinite loading
+        // 2. Timeout for Auth Flow
         const timeoutError = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout: Login window blocked or closed.\nPlease try syncing in Safari browser first.")), 15000)
+            setTimeout(() => reject(new Error("Sync Timeout: Auth window blocked or network too slow.")), 20000)
         );
 
         try {
-            // Show Loading
+            // Show Loading UI
             const toast = document.createElement('div');
             toast.id = 'sync-toast';
-            toast.innerText = '🔄 Syncing with Google Drive...';
-            toast.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:20px;background:rgba(0,0,0,0.8);color:white;border-radius:10px;z-index:9999;transition:opacity 0.3s;';
+            toast.innerHTML = '<div style="margin-bottom:10px;">🔄 Communicating with Google...</div><small style="opacity:0.7;">Make sure VPN is active</small>';
+            toast.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:25px;background:rgba(0,0,0,0.9);color:white;border-radius:15px;z-index:9999;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.3);';
             document.body.appendChild(toast);
 
-            // Race between Auth and Timeout
+            // Wait for Auth to complete
             await Promise.race([this.handleAuthClick(), timeoutError]);
 
-            // 1. Search File
-            const q = `name = '${this.fileName}' and trashed = false`;
+            if (!gapi.client || !gapi.client.drive) {
+                // Try one-time re-init if gapi is there but client isn't
+                await gapi.client.init({
+                    apiKey: this.API_KEY,
+                    discoveryDocs: [this.DISCOVERY_DOC],
+                });
+            }
+
+            // 3. Search for Backup File
             const response = await gapi.client.drive.files.list({
+                'q': `name = '${this.fileName}' and trashed = false`,
                 'pageSize': 1,
                 'fields': "files(id, name)",
             });
@@ -123,47 +141,34 @@ class MobileGDrive {
             const files = response.result.files;
             const fileId = (files && files.length > 0) ? files[0].id : null;
 
-            // 2. Download Cloud Data
+            // 4. Download and Merge
             let cloudData = {};
             if (fileId) {
                 const fileRes = await gapi.client.drive.files.get({
                     fileId: fileId,
                     alt: 'media'
                 });
-                cloudData = fileRes.result;
+                cloudData = typeof fileRes.result === 'string' ? JSON.parse(fileRes.result) : fileRes.result;
             }
 
-            // 3. Merge (Simple: Cloud wins + Keep Local unique)
-            let localData = {};
-            if (window.appStorage && window.appStorage.getAll) {
-                localData = await window.appStorage.getAll();
-            } else {
-                localData = { ...localStorage };
-            }
-
+            let localData = await window.appStorage.getAll();
             const merged = { ...cloudData, ...localData };
 
-            // Save to Local
-            if (window.appStorage) {
-                await window.appStorage.clear();
-                await window.appStorage.set(merged);
-            } else {
-                localStorage.clear();
-                Object.keys(merged).forEach(k => localStorage.setItem(k, merged[k]));
-            }
+            // 5. Save Locally
+            await window.appStorage.clear();
+            await window.appStorage.set(merged);
 
-            // 4. Upload Merged Back
+            // 6. Upload back to Cloud
             const fileContent = JSON.stringify(merged);
             const metadata = { name: this.fileName, mimeType: 'application/json' };
-
             const accessToken = gapi.client.getToken().access_token;
+
             const form = new FormData();
             form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
             form.append('file', new Blob([fileContent], { type: 'application/json' }));
 
             let method = 'POST';
             let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-
             if (fileId) {
                 method = 'PATCH';
                 url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
@@ -175,15 +180,18 @@ class MobileGDrive {
                 body: form
             });
 
-            document.body.removeChild(toast);
-            alert(`✅ Google Drive Sync Complete!\nMerged ${Object.keys(merged).length} items.`);
+            if (toast) toast.remove();
+            alert(`✅ Success! Sync complete (${Object.keys(merged).length} items merged).`);
             location.reload();
 
         } catch (err) {
-            console.error(err);
-            const t = document.getElementById('sync-toast');
-            if (t) t.remove();
-            alert('Sync Failed: ' + (err.message || JSON.stringify(err)));
+            console.error('Detailed Sync Error:', err);
+            if (document.getElementById('sync-toast')) document.getElementById('sync-toast').remove();
+
+            let errMsg = err.message || "Unknown error";
+            if (errMsg.includes("gapi is not defined")) errMsg = "Google scripts failed to load. Use a VPN.";
+
+            alert('Sync Interrupted: ' + errMsg);
         }
     }
 }

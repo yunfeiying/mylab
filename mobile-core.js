@@ -11,7 +11,7 @@ class MobileApp {
             home: document.getElementById('view-home'),
             chat: document.getElementById('view-chat'),
             search: document.getElementById('view-search'),
-            reader: document.getElementById('view-reader'),
+            reading: document.getElementById('view-reading'),
             notes: document.getElementById('view-notes')
         };
 
@@ -24,7 +24,7 @@ class MobileApp {
         this.setupTabNavigation();
         this.activeTab = 'home';
         this.setupGlobalEvents();
-        console.log('MobileCore V5.3 Initialized');
+        console.log('MobileCore Cloned Version Initialized');
     }
 
     setupGlobalEvents() {
@@ -103,9 +103,10 @@ class MobileApp {
     }
 
     switchTab(tabName) {
-        // --- Full Screen Logic ---
+        // Hide Tab Bar for specific views to provide a focused experience
+        const hideTabsFor = ['chat', 'reading', 'notes', 'search'];
         if (this.tabBar) {
-            if (tabName === 'chat') {
+            if (hideTabsFor.includes(tabName)) {
                 this.tabBar.style.display = 'none';
             } else {
                 this.tabBar.style.display = 'flex';
@@ -131,7 +132,9 @@ class MobileApp {
         }
 
         this.activeTab = tabName;
-        if (tabName === 'home' || tabName === 'notes' || tabName === 'reader') this.renderApp();
+        // Always scroll to top on tab switch
+        window.scrollTo(0, 0);
+        if (tabName === 'home' || tabName === 'notes' || tabName === 'reading') this.renderApp();
     }
 
     exitChat() {
@@ -161,7 +164,7 @@ class MobileApp {
     async renderApp() {
         const homeList = document.querySelector('#view-home .notes-list-content') || document.getElementById('view-home');
         const notesList = document.querySelector('#view-notes .notes-list-content') || document.getElementById('view-notes');
-        const readerList = document.querySelector('#view-reader .reading-list-content') || document.getElementById('view-reader');
+        const readingList = document.querySelector('#view-reading .notes-list-content') || document.getElementById('view-reading');
 
         // Setup Containers
         let homeDyn = document.getElementById('home-dyn-list');
@@ -178,16 +181,16 @@ class MobileApp {
             notesList.appendChild(notesDyn);
         }
 
-        let readerDyn = document.getElementById('reader-dyn-list');
-        if (readerList && !readerDyn) {
-            readerDyn = document.createElement('div');
-            readerDyn.id = 'reader-dyn-list';
-            readerList.appendChild(readerDyn);
+        let readingDyn = document.getElementById('reading-dyn-list');
+        if (readingList && !readingDyn) {
+            readingDyn = document.createElement('div');
+            readingDyn.id = 'reading-dyn-list';
+            readingList.appendChild(readingDyn);
         }
 
         if (homeDyn) homeDyn.innerHTML = '';
         if (notesDyn) notesDyn.innerHTML = '';
-        if (readerDyn) readerDyn.innerHTML = '';
+        if (readingDyn) readingDyn.innerHTML = '';
 
         try {
             let allData = {};
@@ -199,7 +202,6 @@ class MobileApp {
 
             // AUTO-INJECT IF EMPTY
             if (allKeys.length === 0 && window.appStorage) {
-                console.log('Database empty, injecting welcome note...');
                 const welcomeNote = {
                     id: 'note_welcome_' + Date.now(),
                     title: 'Welcome to Highlighti',
@@ -212,126 +214,146 @@ class MobileApp {
                 allData = await window.appStorage.getAll();
             }
 
+            const flatList = [];
+            const noteKeys = [];
+            const highlightGroups = {}; // [NEW] Group highlights by URL/Source
+
             // 1. Helper to Process Item
             const processItem = (key, item, realType) => {
                 if (!item) return;
-                // Inherit URL from key if missing
-                if (!item.url && key.startsWith('http')) item.url = key;
 
-                let isNote = false;
-                if (realType) {
-                    isNote = (realType === 'note');
-                } else {
-                    if (item.type === 'note') isNote = true;
-                    else if (item.type === 'highlight') isNote = false;
-                    else if (!item.url && !item.uri && !item.pageUrl) isNote = true;
+                // CRITICAL FIX: If item is a string, wrap it in an object so we can add properties
+                let processedItem = item;
+                if (typeof item === 'string') {
+                    processedItem = { text: item, type: 'note', id: key };
+                } else if (typeof item !== 'object') {
+                    return; // Skip other non-objects
                 }
 
-                // Add hidden metadata for sorting helper
-                item._debug_key = key;
+                processedItem._debug_key = key;
 
-                if (isNote) noteKeys.push(item);
-                else highlightKeys.push(item);
+                // Identify if it's a Note or Highlight
+                const rawUrl = processedItem.url || processedItem.uri || processedItem.pageUrl || '';
+                const sourceKey = rawUrl || processedItem.title || processedItem.pageTitle || 'Unknown Source';
 
-                // Add to flat list for sorting
-                flatList.push(item);
+                let isNote = !rawUrl;
+                if (processedItem.type === 'note') isNote = true;
+                if (processedItem.type === 'highlight' || realType === 'highlight') isNote = false;
+
+                if (isNote) {
+                    noteKeys.push(processedItem);
+                } else {
+                    // Grouping Logic
+                    if (!highlightGroups[sourceKey]) {
+                        let hostname = processedItem.hostname || '';
+                        if (!hostname && rawUrl && rawUrl.startsWith('http')) {
+                            try { hostname = new URL(rawUrl).hostname; } catch (e) { hostname = 'Web Clip'; }
+                        }
+
+                        highlightGroups[sourceKey] = {
+                            isGroup: true,
+                            id: sourceKey,
+                            title: processedItem.title || processedItem.pageTitle || 'Web Highlights',
+                            url: rawUrl,
+                            hostname: hostname || 'Web Clip',
+                            items: [],
+                            updatedAt: processedItem.updatedAt || processedItem.timestamp || processedItem.createdAt || processedItem.date || 0
+                        };
+                    }
+                    highlightGroups[sourceKey].items.push(processedItem);
+
+                    const itemTs = new Date(processedItem.updatedAt || processedItem.timestamp || processedItem.createdAt || processedItem.date || 0).getTime();
+                    const groupTs = new Date(highlightGroups[sourceKey].updatedAt).getTime();
+                    if (itemTs > groupTs) highlightGroups[sourceKey].updatedAt = processedItem.updatedAt || processedItem.timestamp || processedItem.createdAt || processedItem.date;
+                }
+
+                flatList.push(processedItem);
             };
 
-            const flatList = [];
-            const noteKeys = [];
-            const highlightKeys = [];
-
-            let processedCount = 0;
-            let errorMsg = '';
-
+            // 2. Iterate Data
             Object.keys(allData).forEach(k => {
                 try {
-                    // Skip settings/config keys
-                    if (k.startsWith('ai_') || k.startsWith('webdav_') || k.startsWith('sync_') || k === 'settings' || k === 'notes') return;
+                    if (k.startsWith('ai_') || k.startsWith('webdav_') || k.startsWith('sync_') || k === 'settings') return;
 
                     let val = allData[k];
                     if (!val) return;
 
-                    // Handle string values
                     if (typeof val === 'string') {
-                        // Try to parse as JSON
-                        try {
-                            val = JSON.parse(val);
-                        } catch (e) {
-                            // If it's not JSON, treat it as a simple text note
-                            val = { text: val, type: 'note', id: k };
-                        }
+                        try { val = JSON.parse(val); }
+                        catch (e) { val = { text: val, type: 'note', id: k }; }
                     }
 
                     if (Array.isArray(val)) {
-                        val.forEach(child => processItem(k, child, child ? child.type : undefined));
+                        val.forEach(child => processItem(k, child, (child && typeof child === 'object') ? child.type : undefined));
                     } else if (val && typeof val === 'object') {
-                        processItem(k, val, val.type);
+                        // Special container 'notes' handling
+                        if (k === 'notes' && !val.type && !val.content) {
+                            Object.entries(val).forEach(([subK, subV]) => {
+                                processItem(subK, subV, (subV && typeof subV === 'object') ? subV.type : undefined);
+                            });
+                        } else {
+                            processItem(k, val, val.type || (k.startsWith('http') ? 'highlight' : 'note'));
+                        }
                     }
-                    processedCount++;
-                } catch (loopErr) {
-                    errorMsg = `Error at key ${k}: ${loopErr.message}`;
-                }
+                } catch (e) { console.warn('Item error:', e); }
             });
 
-            // 2. Sort Flat List
-            let sortedAll = [];
-            try {
-                sortedAll = flatList.sort((a, b) => {
-                    const tA = a.updatedAt || a.timestamp || a.createdAt || a.date || 0;
-                    const tB = b.updatedAt || b.timestamp || b.createdAt || b.date || 0;
-                    return (new Date(tB).getTime() || 0) - (new Date(tA).getTime() || 0);
-                });
-            } catch (sortErr) {
-                debugPanel.innerText += `\nSort Error: ${sortErr.message}`;
+            // 3. Sort Everything
+            const getTs = (item) => {
+                if (!item) return 0;
+                const t = item.updatedAt || item.timestamp || item.createdAt || item.date || 0;
+                return new Date(t).getTime() || 0;
+            };
+
+            const isToday = (ts) => {
+                const d = new Date(ts);
+                const now = new Date();
+                return d.getDate() === now.getDate() &&
+                    d.getMonth() === now.getMonth() &&
+                    d.getFullYear() === now.getFullYear();
+            };
+
+            flatList.sort((a, b) => getTs(b) - getTs(a));
+            noteKeys.sort((a, b) => getTs(b) - getTs(a));
+
+            // Sort grouped highlights by latest activity
+            const sortedGroups = Object.values(highlightGroups).sort((a, b) => {
+                return (new Date(b.updatedAt).getTime() || 0) - (new Date(a.updatedAt).getTime() || 0);
+            });
+
+            // Enhanced Home logic: Today, otherwise Recent
+            let homeItems = flatList.filter(item => isToday(getTs(item)));
+            let feedTitle = 'TODAY';
+
+            if (homeItems.length === 0) {
+                homeItems = flatList.slice(0, 10);
+                feedTitle = 'RECENT ACTIVITY';
             }
 
-            // 3. Distribute Keys (Items)
-            const homeItems = sortedAll.slice(0, 50);
+            const homeHeaderTitle = document.querySelector('#view-home .list-title');
+            if (homeHeaderTitle) homeHeaderTitle.textContent = feedTitle;
 
-            // DEBUG: Update panel with flatList info
-            debugPanel.innerText += `\nFlatList: ${flatList.length} | HomeItems: ${homeItems.length}`;
+            console.log(`Render stats: Total=${flatList.length}, Feed=${homeItems.length}, Notes=${noteKeys.length}, Groups=${sortedGroups.length}`);
 
-            // --- RENDER HOME (Recent 50) ---
+            // --- Independent Renders ---
             if (homeDyn) {
-                if (homeItems.length === 0) {
-                    homeDyn.innerHTML = `
-                        <div style="text-align:center;padding:50px 20px;color:#999;font-family:sans-serif;">
-                            <div style="font-size:32px;margin-bottom:10px;">👋</div>
-                            <div style="font-weight:600;font-size:18px;color:#333;margin-bottom:5px;">Welcome</div>
-                            <div style="font-size:14px;">Your recent items will appear here.</div>
-                        </div>`;
-                } else {
-                    homeItems.forEach(item => this.renderCard(homeDyn, item.id || item._debug_key, item));
-                }
+                homeDyn.innerHTML = '';
+                if (homeItems.length === 0) homeDyn.innerHTML = '<div style="padding:40px;text-align:center;color:#999;">Welcome! No content found.</div>';
+                else homeItems.forEach(item => this.renderCard(homeDyn, item._debug_key, item));
             }
 
-            // --- RENDER NOTES ---
             if (notesDyn) {
-                // Filter Note Objects from sorted list
-                const sortedNotes = sortedAll.filter(i => noteKeys.includes(i));
-                if (sortedNotes.length === 0) {
-                    // Empty State
-                    notesDyn.innerHTML = `<div style="text-align:center;padding:40px;color:#999;" onclick="window.mobileEditor.initNewNote()">
-                        <div>📝</div>
-                        <div>No notes yet.</div>
-                        <div style="color:#007aff;margin-top:5px;">Create New +</div>
-                     </div>`;
-                } else {
-                    sortedNotes.forEach(item => this.renderCard(notesDyn, item.id || item._debug_key, item));
-                }
+                notesDyn.innerHTML = '';
+                if (noteKeys.length === 0) notesDyn.innerHTML = '<div style="padding:40px;text-align:center;color:#999;">No Notes</div>';
+                else noteKeys.forEach(item => this.renderCard(notesDyn, item._debug_key, item));
             }
 
-            // --- RENDER READER ---
-            if (readerDyn) {
-                const sortedHighlights = sortedAll.filter(i => highlightKeys.includes(i));
-                if (sortedHighlights.length === 0) {
-                    readerDyn.innerHTML = `<div style="text-align:center;padding:40px;color:#999;">
-                        <div>📚</div>
-                        <div>Reading list is empty.</div>
-                    </div>`;
+            if (readingDyn) {
+                readingDyn.innerHTML = '';
+                if (sortedGroups.length === 0) {
+                    readingDyn.innerHTML = `<div style="padding:40px;text-align:center;color:#999;">No Highlights Found.<br><small style="opacity:0.5;">(Total entries: ${Object.keys(allData).length})</small></div>`;
                 } else {
-                    sortedHighlights.forEach(item => this.renderCard(readerDyn, item.id || item._debug_key, item));
+                    sortedGroups.forEach(group => this.renderCard(readingDyn, group.id, group));
                 }
             }
 
@@ -348,7 +370,12 @@ class MobileApp {
         });
     }
 
-    openReaderDetail(item) {
+    openReaderDetail(group) {
+        // If it's a single item not wrapped in a group, wrap it
+        if (!group.isGroup) {
+            group = { items: [group], title: group.title || 'Highlight', hostname: group.hostname || 'Web Clip' };
+        }
+
         const view = document.getElementById('view-reader-detail');
         if (!view) return;
 
@@ -356,24 +383,31 @@ class MobileApp {
         const metaEl = view.querySelector('.note-time');
         const bodyEl = view.querySelector('.editor-body');
 
-        if (titleEl) titleEl.textContent = item.title || 'Untitled Highlight';
-        if (metaEl) metaEl.textContent = (item.hostname || 'Web Clip') + ' • ' + (item.date || 'Unknown Date');
+        if (titleEl) titleEl.textContent = group.title || 'Web Highlights';
+        if (metaEl) metaEl.textContent = (group.hostname || 'Web Clip') + ' • ' + group.items.length + ' highlights';
 
         if (bodyEl) {
-            const text = item.text || item.content || '';
-            let html = `<blockquote style="border-left:4px solid #007aff; padding-left:16px; margin:0; font-size:18px; line-height:1.6; color:#333;">${text}</blockquote>`;
+            let html = '';
 
-            if (item.comment || item.note) {
-                const comment = item.comment || item.note;
-                html += `<div style="margin-top:24px; padding:16px; background:#f2f2f7; border-radius:12px;">
-                    <div style="font-weight:600; font-size:14px; color:#007aff; margin-bottom:4px;">YOUR NOTE</div>
-                    <div style="font-size:16px;">${comment}</div>
-                </div>`;
-            }
+            group.items.forEach((item, idx) => {
+                const text = item.content || item.text || item.quote || item.highlight || item.body || '';
+                html += `<div style="margin-bottom: 32px; position: relative;">
+                    <div style="font-size: 12px; color: #8e8e93; margin-bottom: 8px;">HIGHLIGHT #${idx + 1}</div>
+                    <blockquote style="border-left:4px solid #007aff; padding-left:16px; margin:0; font-size:18px; line-height:1.6; color:#333;">${text}</blockquote>`;
 
-            if (item.url) {
-                html += `<div style="margin-top:40px; text-align:center;">
-                    <a href="${item.url}" target="_blank" style="display:inline-block; padding:12px 24px; background:#007aff; color:white; text-decoration:none; border-radius:24px; font-weight:500;">Visit Source Website</a>
+                if (item.comment || item.note) {
+                    const comment = item.comment || item.note;
+                    html += `<div style="margin-top:16px; padding:12px; background:#f2f2f7; border-radius:10px; font-size:16px;">
+                        <span style="font-weight:600; font-size:12px; color:#007aff; display:block; margin-bottom:4px;">NOTE</span>
+                        ${comment}
+                    </div>`;
+                }
+                html += `</div>`;
+            });
+
+            if (group.url) {
+                html += `<div style="margin-top:40px; text-align:center; padding-bottom: 40px;">
+                    <a href="${group.url}" target="_blank" style="display:inline-block; padding:12px 24px; background:#007aff; color:white; text-decoration:none; border-radius:24px; font-weight:500;">Visit Source Website</a>
                 </div>`;
             }
 
@@ -384,35 +418,48 @@ class MobileApp {
     }
 
     renderCard(container, key, item) {
-        const text = item.content || item.text || '';
-        const title = item.title || text.substring(0, 50) || 'Untitled';
-        const date = item.date || 'Just now';
+        if (!container) return;
+
+        const isGroup = !!item.isGroup;
+        const text = isGroup
+            ? (item.items[0].content || item.items[0].text || '')
+            : (item.content || item.text || item.quote || item.highlight || item.body || '');
+
+        const title = item.title || item.pageTitle || (text ? text.substring(0, 50) : 'Untitled');
+        const date = isGroup
+            ? (new Date(item.updatedAt).toLocaleDateString())
+            : (item.date || item.createdAt || (item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Just now'));
 
         const card = document.createElement('div');
         card.className = 'note-card';
-        card.onclick = () => {
-            // Determine Type
-            let isNote = false;
-            if (item.type === 'note') isNote = true;
-            else if (item.type === 'highlight') isNote = false;
-            else if (!item.url && !item.uri && !item.pageUrl) isNote = true;
 
-            if (isNote) {
-                if (window.mobileEditor && typeof window.mobileEditor.loadNote === 'function') {
-                    window.mobileEditor.loadNote(key, item);
-                }
-            } else {
+        card.onclick = () => {
+            if (isGroup) {
                 this.openReaderDetail(item);
+            } else {
+                const hasUrl = item.url || item.uri || item.pageUrl || (key && key.startsWith('http'));
+                let isNote = !hasUrl;
+                if (item.type === 'note') isNote = true;
+                if (item.type === 'highlight') isNote = false;
+
+                if (isNote) {
+                    if (window.mobileEditor && typeof window.mobileEditor.loadNote === 'function') {
+                        window.mobileEditor.loadNote(key, item);
+                    }
+                } else {
+                    this.openReaderDetail(item);
+                }
             }
         };
 
-        // Text-Only Minimalist Design
+        const badge = isGroup ? `<span style="background: #007aff; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left:8px;">${item.items.length}</span>` : '';
+
         card.innerHTML = `
             <div class="note-row-top">
-                <span class="note-title">${title}</span>
+                <span class="note-title" style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</span>
                 <span class="note-time">${date}</span>
             </div>
-            <div class="note-preview">${text.substring(0, 100)}</div>
+            <div class="note-preview">${badge} ${text ? text.substring(0, 100) : 'No content available'}</div>
         `;
         container.appendChild(card);
     }
