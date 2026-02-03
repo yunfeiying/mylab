@@ -64,6 +64,15 @@ class MobileApp {
         }
 
 
+        // Action: Google Drive Sync
+        const gdriveBtn = document.getElementById('act-gdrive');
+        if (gdriveBtn) {
+            gdriveBtn.onclick = () => {
+                closeSheet();
+                if (window.mobileGDrive) window.mobileGDrive.sync();
+            };
+        }
+
         // Action: WebDAV Sync
         const webDavBtn = document.getElementById('act-webdav');
         if (webDavBtn) {
