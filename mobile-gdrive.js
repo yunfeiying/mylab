@@ -36,8 +36,9 @@ class MobileGDrive {
                     console.log('✅ GAPI Configured');
                 } catch (e) {
                     console.error('❌ GAPI Init Error:', e);
-                    if (e.details && e.details.includes("API Key")) {
-                        alert("🔑 Google API Key 无效或配置错误。请检查 API Key 是否正确，以及是否在 Google Cloud 中启用了 'Google Drive API'。");
+                    // 400 error usually means API Key is invalid or Drive API not enabled
+                    if (e.status === 400 || (e.details && e.details.includes("API Key"))) {
+                        alert("🔑 Google API 配置错误 (400):\n1. 请确保已在 Cloud Console 启用 'Google Drive API'。\n2. 请检查 API Key 是否正确且未设置错误的限制。");
                     }
                 }
             });
@@ -96,7 +97,6 @@ class MobileGDrive {
             };
 
             // Request access token
-            // For PWA, we usually need to request consent on first use or if expired
             this.tokenClient.requestAccessToken({ prompt: '' });
         });
     }
@@ -107,7 +107,6 @@ class MobileGDrive {
             console.log('🔄 Google scripts missing, attempting re-injection...');
             this.loadScripts();
 
-            // Wait up to 5s for slow VPN
             const start = Date.now();
             while (Date.now() - start < 5000) {
                 if (typeof gapi !== 'undefined' && typeof google !== 'undefined') break;
@@ -115,7 +114,7 @@ class MobileGDrive {
             }
 
             if (typeof gapi === 'undefined' || typeof google === 'undefined') {
-                const msg = "🆘 Google Drive 同步受阻\n\n即使开启了VPN，您的浏览器仍然无法从 Google 服务器下载必要的插件(gapi)。\n\n解决办法：\n1. 请检查 VPN 是否为“全局代理”。\n2. 确保在 Safari 或 Chrome 中打开，不要在微信里点开。\n3. 点击确定后，我会尝试重新加载页面。";
+                const msg = "🆘 Google Drive 同步受阻\n\n即使开启了VPN，您的浏览器仍然无法从 Google 服务器下载必要的插件。\n\n解决办法：\n1. 请检查 VPN 是否为“全局代理”。\n2. 确保在 Safari 或 Chrome 中打开，不要在微信里点开。\n3. 点击确定后，我会尝试重新加载页面。";
                 alert(msg);
                 location.reload();
                 return;
@@ -126,7 +125,7 @@ class MobileGDrive {
 
         // 2. Timeout for Auth Flow
         const timeoutError = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Sync Timeout: Auth window blocked or network too slow.")), 20000)
+            setTimeout(() => reject(new Error("Sync Timeout: Auth window blocked or network too slow.")), 25000)
         );
 
         try {
@@ -141,7 +140,6 @@ class MobileGDrive {
             await Promise.race([this.handleAuthClick(), timeoutError]);
 
             if (!gapi.client || !gapi.client.drive) {
-                // Try one-time re-init if gapi is there but client isn't
                 await gapi.client.init({
                     apiKey: this.API_KEY,
                     discoveryDocs: [this.DISCOVERY_DOC],
@@ -206,7 +204,7 @@ class MobileGDrive {
             if (document.getElementById('sync-toast')) document.getElementById('sync-toast').remove();
 
             let errMsg = err.message || "Unknown error";
-            if (errMsg.includes("gapi is not defined")) errMsg = "Google scripts failed to load. Use a VPN.";
+            if (errMsg.includes("gapi is not defined")) errMsg = "Google 脚本加载失败，请检查 VPN。";
 
             alert('Sync Interrupted: ' + errMsg);
         }
