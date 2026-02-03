@@ -8,7 +8,7 @@ class MobileGDrive {
         this.CLIENT_ID = localStorage.getItem('gdrive_client_id') || '';
         this.API_KEY = localStorage.getItem('gdrive_api_key') || '';
         this.DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
-        this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        this.SCOPES = 'https://www.googleapis.com/auth/drive'; // Must be full drive to access Extension's files
         this.tokenClient = null;
         this.gapiInited = false;
         this.gisInited = false;
