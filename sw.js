@@ -1,6 +1,6 @@
 const CACHE_NAME = 'highlighti-mobile-v1';
 const ASSETS = [
-    './mobile.html',
+    './index.html',
     './mobile.css',
     './mobile-core.js',
     './mobile-chat.js',

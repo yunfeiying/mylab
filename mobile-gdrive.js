@@ -100,12 +100,17 @@ class MobileGDrive {
             console.log('🔄 Google scripts missing, attempting re-injection...');
             this.loadScripts();
 
-            // Wait up to 4 seconds for a last-minute load
-            await new Promise(r => setTimeout(r, 4000));
+            // Wait up to 5s for slow VPN
+            const start = Date.now();
+            while (Date.now() - start < 5000) {
+                if (typeof gapi !== 'undefined' && typeof google !== 'undefined') break;
+                await new Promise(r => setTimeout(r, 500));
+            }
 
             if (typeof gapi === 'undefined' || typeof google === 'undefined') {
-                const msg = "❌ Google Services Blocked!\n\nYour network cannot reach 'apis.google.com'.\n\nTO FIX THIS:\n1. Enable a VPN.\n2. REFRESH the page (important!)\n3. Use Safari/Chrome (not WeChat).\n4. Or use 'WebDAV Sync'.";
+                const msg = "🆘 Google Drive 同步受阻\n\n即使开启了VPN，您的浏览器仍然无法从 Google 服务器下载必要的插件(gapi)。\n\n解决办法：\n1. 请检查 VPN 是否为“全局代理”。\n2. 确保在 Safari 或 Chrome 中打开，不要在微信里点开。\n3. 点击确定后，我会尝试重新加载页面。";
                 alert(msg);
+                location.reload();
                 return;
             }
         }
