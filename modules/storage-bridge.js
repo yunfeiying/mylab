@@ -78,14 +78,40 @@ class UniversalStorage {
     }
 
     /**
+     * Get ALL data (Dump)
+     */
+    async getAll() {
+        if (this.isExtension) {
+            return new Promise((resolve) => chrome.storage.local.get(null, (res) => resolve(res)));
+        } else {
+            if (!window.idb) return { ...localStorage };
+
+            try {
+                const keys = await window.idb.keys();
+                const result = {};
+                for (const k of keys) {
+                    result[k] = await window.idb.get(k);
+                }
+                return result;
+            } catch (e) {
+                console.error('IDB Dump Error', e);
+                return {};
+            }
+        }
+    }
+
+    /**
      * Clear (Optional/Careful)
      */
     async clear() {
         if (this.isExtension) {
             return new Promise((resolve) => chrome.storage.local.clear(() => resolve()));
         } else {
-            // Not implemented for IDB to prevent accidental wipes
-            console.warn('[StorageBridge] clear() not implemented for Mobile/Web');
+            if (window.idb && window.idb.clear) {
+                await window.idb.clear();
+                console.log('[StorageBridge] IDB Cleared');
+            }
+            // Optional: localStorage.clear(); 
         }
     }
 }
