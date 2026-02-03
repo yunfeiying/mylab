@@ -1,7 +1,8 @@
 {
     "name": "Highlighti AI Note",
     "short_name": "Highlighti",
-    "start_url": "index.html",
+    "start_url": "/mylab/",
+    "scope": "/mylab/",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#ffffff",
