@@ -97,21 +97,27 @@ class MobileGDrive {
     async sync() {
         if (!this.CLIENT_ID) return this.handleAuthClick();
 
-        try {
-            await this.handleAuthClick(); // Get Token
+        // Timeout Promise to prevent infinite loading
+        const timeoutError = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout: Login window blocked or closed.\nPlease try syncing in Safari browser first.")), 15000)
+        );
 
+        try {
             // Show Loading
             const toast = document.createElement('div');
+            toast.id = 'sync-toast';
             toast.innerText = '🔄 Syncing with Google Drive...';
-            toast.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:20px;background:rgba(0,0,0,0.8);color:white;border-radius:10px;z-index:9999;';
+            toast.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:20px;background:rgba(0,0,0,0.8);color:white;border-radius:10px;z-index:9999;transition:opacity 0.3s;';
             document.body.appendChild(toast);
+
+            // Race between Auth and Timeout
+            await Promise.race([this.handleAuthClick(), timeoutError]);
 
             // 1. Search File
             const q = `name = '${this.fileName}' and trashed = false`;
             const response = await gapi.client.drive.files.list({
                 'pageSize': 1,
                 'fields': "files(id, name)",
-                'q': q
             });
 
             const files = response.result.files;
@@ -175,7 +181,8 @@ class MobileGDrive {
 
         } catch (err) {
             console.error(err);
-            if (document.body.contains(toast)) document.body.removeChild(toast); // Fix: check availability
+            const t = document.getElementById('sync-toast');
+            if (t) t.remove();
             alert('Sync Failed: ' + (err.message || JSON.stringify(err)));
         }
     }
