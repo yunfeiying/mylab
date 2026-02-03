@@ -416,19 +416,29 @@
     <!-- ============================== -->
     <div id="action-sheet-overlay" class="action-sheet-overlay hidden">
         <div class="action-sheet">
-            <div class="action-btn-group">
-                <button class="action-btn" id="act-sync">
-                    <span class="action-icon">☁️</span>
-                    <span>Sync Now</span>
-                </button>
-                <button class="action-btn" id="act-ai">
-                    <span class="action-icon">🤖</span>
-                    <span>AI Settings</span>
-                </button>
-            </div>
-            <button class="action-btn cancel-btn" id="act-cancel" style="margin-top:12px;">Cancel</button>
+            <button class="action-btn" id="act-webdav">
+                <span class="action-icon">☁️</span>
+                <span>WebDAV Sync</span>
+            </button>
+            <button class="action-btn" id="act-export">
+                <span class="action-icon">📤</span>
+                <span>Backup to File</span>
+            </button>
+            <button class="action-btn" id="act-import">
+                <span class="action-icon">📥</span>
+                <span>Restore from File</span>
+            </button>
+            <button class="action-btn" id="act-ai">
+                <span class="action-icon">🤖</span>
+                <span>AI Settings</span>
+            </button>
         </div>
+        <button class="action-btn cancel-btn" id="act-cancel" style="margin-top:12px;">Cancel</button>
     </div>
+    </div>
+
+    <!-- Hidden Input for Import -->
+    <input type="file" id="file-import-input" accept=".json" style="display:none" />
 
     <!-- Scripts -->
     <script src="modules/idb-utils.js"></script>
@@ -437,6 +447,7 @@
     <script src="modules/memory-agent.js"></script>
     <script src="mobile-core.js"></script>
     <script src="mobile-chat.js"></script>
+    <script src="mobile-sync.js"></script>
     <script src="mobile-editor.js"></script>
 
     <script>

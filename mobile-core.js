@@ -35,6 +35,9 @@ class MobileApp {
         const sheetOverlay = document.getElementById('action-sheet-overlay');
         const cancelBtn = document.getElementById('act-cancel');
         const syncBtn = document.getElementById('act-sync');
+        const exportBtn = document.getElementById('act-export');
+        const importBtn = document.getElementById('act-import');
+        const fileInput = document.getElementById('file-import-input');
         const aiBtn = document.getElementById('act-ai');
 
         const closeSheet = () => {
@@ -60,28 +63,62 @@ class MobileApp {
             };
         }
 
-        // Action: Sync
+
+        // Action: WebDAV Sync
+        const webDavBtn = document.getElementById('act-webdav');
+        if (webDavBtn) {
+            webDavBtn.onclick = () => {
+                closeSheet();
+                if (window.mobileSync) window.mobileSync.webDavSync();
+            };
+        }
+        // Action: Simulated Sync
         if (syncBtn) {
             syncBtn.onclick = () => {
                 closeSheet();
                 // Show a simple toast simulation
-                const tempToast = document.createElement('div');
-                tempToast.style.cssText = `
-                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                    background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 12px;
-                    z-index: 3000; text-align: center; font-size: 16px; min-width: 150px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.3); backdrop-filter: blur(10px);
-                `;
-                tempToast.innerHTML = `
-                    <div class="spin-anim" style="width:30px; height:30px; border:3px solid #fff; border-top:3px solid transparent; border-radius:50%; margin:0 auto 10px;"></div>
-                    <div>Syncing...</div>
-                `;
-                document.body.appendChild(tempToast);
+                // const tempToast = document.createElement('div');
+                // tempToast.style.cssText = `
+                //     position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                //     background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 12px;
+                //     z-index: 3000; text-align: center; font-size: 16px; min-width: 150px;
+                //     box-shadow: 0 10px 30px rgba(0,0,0,0.3); backdrop-filter: blur(10px);
+                // `;
+                // tempToast.innerHTML = `
+                //     <div class="spin-anim" style="width:30px; height:30px; border:3px solid #fff; border-top:3px solid transparent; border-radius:50%; margin:0 auto 10px;"></div>
+                //     <div>Syncing...</div>
+                // `;
+                // document.body.appendChild(tempToast);
 
-                setTimeout(() => {
-                    tempToast.innerHTML = '<div style="font-size:30px; margin-bottom:10px;">✅</div><div>Sync Complete!</div>';
-                    setTimeout(() => tempToast.remove(), 1500);
-                }, 1500);
+                // setTimeout(() => {
+                //     tempToast.innerHTML = '<div style="font-size:30px; margin-bottom:10px;">✅</div><div>Sync Complete!</div>';
+                //     setTimeout(() => tempToast.remove(), 1500);
+                // }, 1500);
+                alert('For real sync, please use Import/Export below.\n(WebDAV/GDrive CORS restricted in PWA)');
+            };
+        }
+
+        // Action: Export
+        if (exportBtn) {
+            exportBtn.onclick = () => {
+                closeSheet();
+                if (window.mobileSync) window.mobileSync.exportBackup();
+            };
+        }
+
+        // Action: Import
+        if (importBtn && fileInput) {
+            importBtn.onclick = () => {
+                closeSheet();
+                fileInput.click();
+            };
+
+            fileInput.onchange = (e) => {
+                if (e.target.files.length > 0) {
+                    if (window.mobileSync) window.mobileSync.importBackup(e.target.files[0]);
+                }
+                // Reset input
+                fileInput.value = '';
             };
         }
 
