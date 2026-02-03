@@ -95,14 +95,19 @@ class MobileGDrive {
     }
 
     async sync() {
-        // 1. Diagnostics: Check for Google Connectivity
-        console.log('Starting GDrive Sync Diagnostic...');
-
+        // 1. Diagnostics & Auto-Reload
         if (typeof gapi === 'undefined' || typeof google === 'undefined') {
-            const msg = "❌ Google Services Blocked!\n\nYour network cannot reach 'apis.google.com'.\n\nTO FIX THIS:\n1. Enable a VPN.\n2. Use Safari/Chrome (not WeChat or system-webview).\n3. Or use 'WebDAV Sync' (JianGuoYun) for a stable experience in China.";
-            alert(msg);
-            console.error('GAPI or GIS scripts failed to load due to network restrictions.');
-            return;
+            console.log('🔄 Google scripts missing, attempting re-injection...');
+            this.loadScripts();
+
+            // Wait up to 4 seconds for a last-minute load
+            await new Promise(r => setTimeout(r, 4000));
+
+            if (typeof gapi === 'undefined' || typeof google === 'undefined') {
+                const msg = "❌ Google Services Blocked!\n\nYour network cannot reach 'apis.google.com'.\n\nTO FIX THIS:\n1. Enable a VPN.\n2. REFRESH the page (important!)\n3. Use Safari/Chrome (not WeChat).\n4. Or use 'WebDAV Sync'.";
+                alert(msg);
+                return;
+            }
         }
 
         if (!this.CLIENT_ID) return this.handleAuthClick();
