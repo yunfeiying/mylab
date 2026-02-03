@@ -27,12 +27,19 @@ class MobileGDrive {
         script1.src = "https://apis.google.com/js/api.js";
         script1.onload = () => {
             gapi.load('client', async () => {
-                await gapi.client.init({
-                    apiKey: this.API_KEY,
-                    discoveryDocs: [this.DISCOVERY_DOC],
-                });
-                this.gapiInited = true;
-                console.log('✅ GAPI Configured');
+                try {
+                    await gapi.client.init({
+                        apiKey: this.API_KEY,
+                        discoveryDocs: [this.DISCOVERY_DOC],
+                    });
+                    this.gapiInited = true;
+                    console.log('✅ GAPI Configured');
+                } catch (e) {
+                    console.error('❌ GAPI Init Error:', e);
+                    if (e.details && e.details.includes("API Key")) {
+                        alert("🔑 Google API Key 无效或配置错误。请检查 API Key 是否正确，以及是否在 Google Cloud 中启用了 'Google Drive API'。");
+                    }
+                }
             });
         };
         document.body.appendChild(script1);
