@@ -1,7 +1,7 @@
 {
     "name": "Highlighti AI Note",
     "short_name": "Highlighti",
-    "start_url": "./mobile.html",
+    "start_url": "index.html",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#ffffff",
