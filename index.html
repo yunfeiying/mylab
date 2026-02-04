@@ -93,7 +93,7 @@
                     </svg>
                 </button>
                 <h1 class="header-title">Notes</h1>
-                <button class="header-btn" style="margin-left:auto;">
+                <button class="header-btn" style="margin-left:auto;" onclick="mobileEditor.initNewNote()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 5v14M5 12h14" />
                     </svg>
@@ -115,7 +115,7 @@
                         <path d="M15 18l-6-6 6-6" />
                     </svg>
                 </button>
-                <h1 class="header-title" id="chat-title">Today</h1>
+                <h1 class="header-title" id="chat-title">AI Assistant</h1>
                 <button class="header-btn" id="btn-settings">
                     <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="1" />
@@ -128,9 +128,16 @@
                 <div id="messages-container"></div>
             </main>
             <div class="input-area">
+                <div id="attachment-preview-container" class="hidden"></div>
                 <div class="input-tools-row">
-                    <button class="tool-btn">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    <button class="tool-btn" id="btn-chat-attach" style="color:#8e8e93;">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                    </button>
+                    <button class="tool-btn" id="btn-chat-camera" style="color:#8e8e93;">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
                             viewBox="0 0 24 24">
                             <path
                                 d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -138,25 +145,17 @@
                         </svg>
                     </button>
                     <div class="input-field-wrapper">
-                        <input type="text" id="chat-input" class="chat-input-field" placeholder="Message">
+                        <input type="text" id="chat-input" class="chat-input-field" placeholder="Ask anything...">
                     </div>
-                    <button class="tool-btn" id="btn-mic">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"
-                            viewBox="0 0 24 24">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                            <line x1="12" y1="19" x2="12" y2="23" />
-                            <line x1="8" y1="23" x2="16" y2="23" />
-                        </svg>
-                    </button>
-                    <button class="tool-btn" id="btn-add">
-                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24">
-                            <line x1="12" y1="5" x2="12" y2="19" />
-                            <line x1="5" y1="12" x2="19" y2="12" />
+                    <button class="tool-btn" id="btn-chat-send" style="color:var(--ios-blue)">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                         </svg>
                     </button>
                 </div>
+                <!-- Hidden Inputs -->
+                <input type="file" id="chat-file-input" class="hidden" multiple>
+                <input type="file" id="chat-camera-input" class="hidden" accept="image/*" capture="camera">
             </div>
         </div>
 
@@ -194,9 +193,14 @@
                         <path d="M15 18l-6-6 6-6" />
                     </svg>
                 </button>
-                <input class="editor-title" placeholder="Title" value="Untitled">
+                <div class="header-title-container" style="flex:1; display:flex; justify-content:center;">
+                    <input type="text" class="editor-header-title" placeholder="Untitled Note"
+                        style="border:none; text-align:center; font-weight:600; font-size:17px; background:transparent; width:80%;">
+                </div>
+                <!-- Save Button -->
+                <button class="header-btn" onclick="mobileEditor.saveNote()" style="font-weight:600;">Save</button>
                 <!-- Editor Menu -->
-                <button class="header-btn">
+                <button class="header-btn" onclick="mobileEditor.showEditorMenu(event)">
                     <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="1" />
                         <circle cx="19" cy="12" r="1" />
@@ -205,45 +209,33 @@
                 </button>
             </header>
             <main class="editor-content">
-                <h1 class="editor-title">Project Plan</h1>
-                <div class="editor-body" contenteditable="true">
+                <div class="editor-body" contenteditable="true" spellcheck="false">
                     Start typing...
                 </div>
             </main>
-            <div class="editor-toolbar">
-                <button class="toolbar-btn">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"
-                        viewBox="0 0 24 24">
-                        <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
-                        <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
-                    </svg>
-                </button>
-                <button class="toolbar-btn">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"
-                        viewBox="0 0 24 24">
-                        <line x1="19" y1="4" x2="10" y2="4" />
-                        <line x1="14" y1="20" x2="5" y2="20" />
-                        <line x1="15" y1="4" x2="9" y2="20" />
-                    </svg>
-                </button>
-                <button class="toolbar-btn">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <line x1="8" y1="6" x2="21" y2="6" />
-                        <line x1="8" y1="12" x2="21" y2="12" />
-                        <line x1="8" y1="18" x2="21" y2="18" />
-                        <line x1="3" y1="6" x2="3.01" y2="6" />
-                        <line x1="3" y1="12" x2="3.01" y2="12" />
-                        <line x1="3" y1="18" x2="3.01" y2="18" />
-                    </svg>
-                </button>
-                <div class="spacer"></div>
-                <!-- AI Context Activation -->
-                <button class="toolbar-btn" id="btn-ai-toolbar" style="color:var(--ios-blue)">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                    </svg>
-                </button>
+
+            <div class="editor-toolbar-floating">
+                <div class="ai-prompt-bar">
+                    <input type="text" placeholder="/ai Write a poem..." id="ai-quick-input">
+                    <button id="ai-quick-send">✨</button>
+                </div>
+                <div class="editor-toolbar">
+                    <div class="toolbar-group">
+                        <button class="toolbar-btn" onclick="document.execCommand('bold')"><b>B</b></button>
+                        <button class="toolbar-btn" onclick="document.execCommand('italic')"><i>I</i></button>
+                        <button class="toolbar-btn" onclick="mobileEditor.insertList('insertOrderedList')">1.</button>
+                        <button class="toolbar-btn" onclick="mobileEditor.insertList('insertUnorderedList')">•</button>
+                        <button class="toolbar-btn" onclick="mobileEditor.toggleTodo()">☑️</button>
+                    </div>
+                    <div class="spacer"></div>
+                    <div class="toolbar-group">
+                        <button class="toolbar-btn" id="btn-ai-magic">✨ AI</button>
+                        <button class="toolbar-btn" id="btn-ocr-trigger">📷</button>
+                    </div>
+                </div>
             </div>
+            <!-- Hidden OCR Input -->
+            <input type="file" id="editor-ocr-input" class="hidden" accept="image/*" capture="camera">
         </div>
 
         <!-- ============================== -->
@@ -387,6 +379,8 @@
     <script src="modules/idb-utils.js"></script>
     <script src="modules/storage-bridge.js"></script>
 
+    <!-- 3rd Party Libs -->
+    <script src="tesseract.min.js"></script>
     <!-- 2. Core Utils -->
     <script src="ai-core-mobile.js"></script>
     <script src="modules/memory-agent.js"></script>

@@ -1,257 +1,309 @@
 /**
- * mobile-editor.js - Lightweight Editor Logic & Slash Commands
+ * mobile-editor.js - Advanced Editor Logic with OCR (V6.2)
  */
 
 class MobileEditor {
     constructor() {
         this.editor = document.querySelector('.editor-body');
-        this.aiBtn = document.getElementById('btn-ai-toolbar');
+        this.headerTitle = document.querySelector('.editor-header-title');
+        this.aiMagicBtn = document.getElementById('btn-ai-magic');
+        this.aiQuickInput = document.getElementById('ai-quick-input');
+        this.aiQuickSend = document.getElementById('ai-quick-send');
+        this.ocrBtn = document.getElementById('btn-ocr-trigger');
+        this.ocrInput = document.getElementById('editor-ocr-input');
 
         if (this.editor) {
             this.setupEditorEvents();
         }
 
-        // Bind AI Toolbar Button
-        if (this.aiBtn) {
-            this.aiBtn.onclick = () => this.handleAIToolbarClick();
+        // Bind AI Magic Button
+        if (this.aiMagicBtn) {
+            this.aiMagicBtn.onclick = () => this.handleAIToolbarMagic();
+        }
+
+        // Bind AI Quick Send
+        if (this.aiQuickSend && this.aiQuickInput) {
+            this.aiQuickSend.onclick = () => this.handleAIQuickSend();
+            this.aiQuickInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.handleAIQuickSend();
+            });
+        }
+
+        // Bind OCR
+        if (this.ocrBtn && this.ocrInput) {
+            this.ocrBtn.onclick = () => this.ocrInput.click();
+            this.ocrInput.onchange = (e) => this.processOCR(e);
         }
     }
 
     loadNote(noteId, noteData) {
-        // Switch to Editor View
-        if (window.mobileCore) {
-            window.mobileCore.navigateTo('editor');
-        }
+        if (window.mobileCore) window.mobileCore.navigateTo('editor');
 
-        // Fill Data
-        const titleEl = document.querySelector('.editor-title');
-        const bodyEl = document.querySelector('.editor-body');
-
-        if (titleEl) titleEl.textContent = noteData.title || 'Untitled';
-        if (bodyEl) {
-            // Check if content is HTML or plain text
+        if (this.headerTitle) this.headerTitle.value = noteData.title || 'Untitled Note';
+        if (this.editor) {
             const content = noteData.content || noteData.text || '';
             if (content.includes('<') && content.includes('>')) {
-                bodyEl.innerHTML = content;
+                this.editor.innerHTML = content;
             } else {
-                bodyEl.innerText = content;
+                this.editor.innerText = content;
             }
         }
-
-        // Store current note ID context
         this.currentNoteId = noteId;
+        this.editor.focus();
+    }
+
+    initNewNote() {
+        this.currentNoteId = null;
+        if (this.headerTitle) this.headerTitle.value = '';
+        if (this.editor) {
+            this.editor.innerHTML = '';
+            this.editor.focus();
+        }
+        if (window.mobileCore) window.mobileCore.navigateTo('editor');
     }
 
     setupEditorEvents() {
-        // Listen for Slash Commands
         this.editor.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
+                this.handleAutoList(e);
                 this.checkSlashCommand(e);
             }
         });
 
-        // Placeholder management
         this.editor.addEventListener('focus', () => {
             if (this.editor.textContent.trim() === 'Start typing...') {
                 this.editor.textContent = '';
             }
         });
 
-        // Auto-Save on Input (Debounced)
+        // Auto-Save
         let saveTimeout;
         const triggerSave = () => {
             clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => this.saveNote(), 1000);
+            saveTimeout = setTimeout(() => this.saveNote(true), 2000);
         };
-
         this.editor.addEventListener('input', triggerSave);
-        const titleEl = document.querySelector('.editor-title');
-        if (titleEl) {
-            titleEl.addEventListener('input', triggerSave);
-        }
+        if (this.headerTitle) this.headerTitle.addEventListener('input', triggerSave);
     }
 
-    initNewNote() {
-        this.currentNoteId = null;
-        const titleEl = document.querySelector('.editor-title');
-        const bodyEl = document.querySelector('.editor-body');
-        if (titleEl) titleEl.innerText = ''; // Use innerText for div/h1
-        if (bodyEl) bodyEl.innerHTML = '';
-        if (window.mobileCore) window.mobileCore.navigateTo('editor');
-    }
-
-    async saveNote() {
-        if (!window.appStorage) return;
-
-        const titleEl = document.querySelector('.editor-title');
-        const title = titleEl ? (titleEl.value || titleEl.innerText) : 'Untitled';
-        const content = this.editor.innerHTML;
-        const text = this.editor.innerText;
-
-        // Don't save purely empty notes (unless it's an update to existing)
-        if (!this.currentNoteId && !title && !text.trim()) return;
-
-        const noteId = this.currentNoteId || `note-${Date.now()}`;
-
-        const noteData = {
-            id: noteId,
-            title: title || 'Untitled',
-            content: content,
-            text: text,
-            date: new Date().toLocaleDateString(),
-            timestamp: Date.now(),
-            type: 'note' // Explicit type for classification
-        };
-
-        const update = {};
-        update[noteId] = noteData;
-
-        await window.appStorage.set(update);
-        this.currentNoteId = noteId; // Set ID so subsequent saves are updates
-        console.log('Saved note:', noteId);
-
-        // Refresh lists implicitly (optional, or wait for view switch)
-        // Refresh lists implicitly (optional, or wait for view switch)
-        if (window.mobileCore) window.mobileCore.renderApp();
-    }
-
-    async handleAIToolbarClick() {
-        const selection = window.getSelection();
-        const selectedText = selection.toString();
-
-        let promptText;
-        let contextPrefix = "";
-
-        if (selectedText && selectedText.trim().length > 0) {
-            // User has selected text -> Contextual Action
-            promptText = prompt('✨ AI Command for selection:', 'Summarize this');
-            if (promptText) {
-                contextPrefix = `Content: "${selectedText}"\n\nTask: `;
-            }
-        } else {
-            // No selection -> Generation
-            promptText = prompt('✨ AI Prompt:', 'Write a paragraph about...');
-        }
-
-        if (promptText) {
-            await this.triggerAI(contextPrefix + promptText);
-        }
-    }
-
-    async checkSlashCommand(e) {
+    handleAutoList(e) {
         const selection = window.getSelection();
         if (!selection.rangeCount) return;
 
         const range = selection.getRangeAt(0);
-        const node = range.startContainer;
+        const lineText = range.startContainer.textContent || "";
 
-        const textStr = node.nodeValue || node.textContent;
-        // Check for "/ai <prompt>"
-        const match = textStr.match(/\/ai\s+(.*)/);
+        // 1. Numbered List (e.g. "1. ")
+        const numMatch = lineText.match(/^(\d+)\.\s/);
+        if (numMatch) {
+            e.preventDefault();
+            const nextNum = parseInt(numMatch[1]) + 1;
+            document.execCommand('insertHTML', false, `<div>${nextNum}.&nbsp;</div>`);
+            return;
+        }
 
-        if (match) {
-            e.preventDefault(); // Stop newline
-            const prompt = match[1];
+        // 2. Bullet List (e.g. "* " or "- ")
+        if (lineText.startsWith('* ') || lineText.startsWith('- ')) {
+            e.preventDefault();
+            const symbol = lineText.startsWith('* ') ? '* ' : '- ';
+            document.execCommand('insertHTML', false, `<div>${symbol}&nbsp;</div>`);
+            return;
+        }
+    }
 
-            // Remove the command text
-            if (node.nodeType === Node.TEXT_NODE) {
-                node.nodeValue = textStr.replace(/\/ai\s+.*$/, '');
+    insertList(command) {
+        this.editor.focus();
+        document.execCommand(command, false, null);
+    }
+
+    toggleTodo() {
+        this.editor.focus();
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        const range = selection.getRangeAt(0);
+        const todoHtml = `<div class="todo-item" contenteditable="false"><div class="todo-checkbox" onclick="this.parentElement.classList.toggle('checked')"></div><div class="todo-text" contenteditable="true">&nbsp;</div></div>`;
+
+        const div = document.createElement('div');
+        div.innerHTML = todoHtml;
+        range.insertNode(div);
+
+        // Move focus to the new todo text
+        const textNode = div.querySelector('.todo-text');
+        const newRange = document.createRange();
+        newRange.selectNodeContents(textNode);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+
+    async processOCR(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const toast = this.showToast('🔍 Analyzing Image...', 0);
+
+        try {
+            // Using Tesseract.js directly from window (since added to HTML)
+            if (typeof Tesseract === 'undefined') throw new Error('OCR library not loaded.');
+
+            const result = await Tesseract.recognize(file, 'chi_sim+eng', {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        toast.innerText = `🔍 OCR: ${Math.round(m.progress * 100)}%`;
+                    }
+                }
+            });
+
+            const text = result.data.text.trim();
+            if (text) {
+                this.editor.focus();
+                // Append text at the end
+                const ocrBlock = document.createElement('div');
+                ocrBlock.style.cssText = 'border-left:4px solid #34c759; padding-left:12px; margin:15px 0; color:#555; background:#f9f9f9; padding:8px 12px; border-radius:4px; font-size:16px;';
+                ocrBlock.innerText = text;
+                this.editor.appendChild(ocrBlock);
+                this.showToast('✅ OCR Success', 2000);
             } else {
-                this.editor.innerText = this.editor.innerText.replace(/\/ai\s+.*$/, '');
+                this.showToast('⚠️ No text found in image', 3000);
             }
+        } catch (err) {
+            console.error('OCR Error:', err);
+            this.showToast('❌ OCR Failed: ' + err.message, 3000);
+        } finally {
+            e.target.value = ''; // Reset input
+        }
+    }
 
+    showToast(msg, duration = 2000) {
+        let toast = document.getElementById('editor-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'editor-toast';
+            toast.style.cssText = 'position:fixed; bottom:120px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:24px; font-size:14px; z-index:3000; box-shadow:0 10px 30px rgba(0,0,0,0.3); white-space:nowrap;';
+            document.body.appendChild(toast);
+        }
+        toast.innerText = msg;
+        toast.style.display = 'block';
+        if (duration > 0) setTimeout(() => toast.style.display = 'none', duration);
+        return toast;
+    }
+
+    async saveNote(isSilent = false) {
+        if (!window.appStorage) return;
+
+        let title = this.headerTitle ? this.headerTitle.value.trim() : 'Untitled Note';
+        const content = this.editor.innerHTML;
+        const rawText = this.editor.innerText;
+
+        const cleanText = this.clearMarkdownSymbols(rawText);
+        if (!title && cleanText) title = cleanText.split('\n')[0].substring(0, 30);
+
+        if (!this.currentNoteId && !title && !cleanText.trim()) return;
+
+        const noteId = this.currentNoteId || `note-${Date.now()}`;
+        const noteData = {
+            id: noteId,
+            title: title || 'Untitled Note',
+            content: content,
+            text: cleanText,
+            date: new Date().toLocaleDateString(),
+            timestamp: Date.now(),
+            type: 'note'
+        };
+
+        await window.appStorage.set({ [noteId]: noteData });
+        this.currentNoteId = noteId;
+
+        if (!isSilent) this.showToast('✅ Saved');
+        if (window.mobileCore) window.mobileCore.renderApp();
+    }
+
+    clearMarkdownSymbols(text) {
+        if (!text) return "";
+        return text
+            .replace(/^#+\s+/gm, '')
+            .replace(/^\s*[\*\-]\s+/gm, '')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            .replace(/__([^_]+)__/g, '$1')
+            .trim();
+    }
+
+    async handleAIToolbarMagic() {
+        const selection = window.getSelection();
+        const selectedText = selection.toString();
+        const promptText = prompt('✨ AI Assistant\n(Selected text will be used as context)', 'Summarize this');
+        if (promptText) {
+            const finalPrompt = selectedText ? `Context: "${selectedText}"\nTask: ${promptText}` : promptText;
+            await this.triggerAI(finalPrompt);
+        }
+    }
+
+    async handleAIQuickSend() {
+        const prompt = this.aiQuickInput.value.trim();
+        if (!prompt) return;
+        this.aiQuickInput.value = '';
+        await this.triggerAI(prompt);
+    }
+
+    async triggerAI(prompt) {
+        this.editor.focus();
+        const hr = document.createElement('hr');
+        hr.style.cssText = 'border:none; border-top:1px solid #eee; margin:20px 0;';
+        this.editor.appendChild(hr);
+        await this.streamAIContent(prompt);
+    }
+
+    async checkSlashCommand(e) {
+        const text = this.editor.innerText;
+        const match = text.match(/\/ai\s+(.*)$/);
+        if (match) {
+            e.preventDefault();
+            const prompt = match[1];
+            this.editor.innerHTML = this.editor.innerHTML.replace(/\/ai\s+.*$/, '');
             await this.streamAIContent(prompt);
         }
     }
 
-    async triggerAI(prompt) {
-        // Ensure we focus back to editor for insertion
-        this.editor.focus();
-
-        // Insert a newline before generating if we are generating new text
-        this.insertNewLine();
-        await this.streamAIContent(prompt);
-    }
-
-    insertNewLine() {
-        const div = document.createElement('div');
-        div.innerHTML = '<br>';
-        this.editor.appendChild(div);
-
-        // Move cursor to new line
-        const range = document.createRange();
-        range.selectNodeContents(div);
-        range.collapse(false);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-    }
-
     async streamAIContent(prompt) {
         if (!window.aiCore) {
-            alert('Settings -> API Key required.');
+            alert('Please set AI API Key in Settings first.');
             return;
         }
 
-        // Create wrapper
-        const responseSpan = document.createElement('span');
-        responseSpan.className = 'ai-generating';
+        const responseSpan = document.createElement('div');
+        responseSpan.className = 'ai-response';
         responseSpan.style.color = '#007aff';
-
-        // Insert at cursor
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            selection.getRangeAt(0).insertNode(responseSpan);
-        } else {
-            this.editor.appendChild(responseSpan);
-        }
-
-        // Get context (up to 1000 chars)
-        const context = this.editor.innerText.substring(0, 1000);
+        responseSpan.style.whiteSpace = 'pre-wrap';
+        this.editor.appendChild(responseSpan);
 
         try {
+            const context = this.editor.innerText.substring(Math.max(0, this.editor.innerText.length - 2000));
             const messages = [
-                { role: 'system', content: 'You are a helpful writing assistant.' },
-                { role: 'user', content: `Context Overview: ${context}\n\nTask: ${prompt}` }
+                { role: 'system', content: 'You are an intelligent note-taking assistant. Provide clear, concise help.' },
+                { role: 'user', content: `Context:\n${context}\n\nTask: ${prompt}` }
             ];
 
             const stream = window.aiCore.streamChat(messages);
-
-            let fullText = '';
             for await (const chunk of stream) {
                 if (chunk.type === 'token') {
-                    fullText = chunk.fullText;
-                    responseSpan.innerText = fullText;
-
-                    // Auto-scroll
-                    const editorContainer = document.querySelector('.editor-content');
-                    if (editorContainer) editorContainer.scrollTop = editorContainer.scrollHeight;
+                    responseSpan.innerText = chunk.fullText;
+                    this.editor.scrollTop = this.editor.scrollHeight;
                 }
             }
-
-            // Finalize
-            responseSpan.classList.remove('ai-generating');
-            responseSpan.style.color = '';
-
-            // Add a trailing newline for user to continue typing
-            const br = document.createElement('br');
-            responseSpan.after(br);
-
-            // Move cursor after
-            const range = document.createRange();
-            range.setStartAfter(br);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-
+            responseSpan.style.color = '#333';
         } catch (err) {
-            responseSpan.innerText = `[Error: ${err.message}]`;
-            responseSpan.style.color = 'red';
+            responseSpan.innerText = `[AI Error: ${err.message}]`;
         }
+    }
+
+    showEditorMenu(event) {
+        const overlay = document.getElementById('action-sheet-overlay');
+        if (overlay) overlay.classList.remove('hidden');
     }
 }
 
-// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     window.mobileEditor = new MobileEditor();
 });

@@ -1,5 +1,5 @@
 /**
- * mobile-core.js - View Navigation Controller (V5.3 Reader Fixed)
+ * mobile-core.js - View Navigation Controller (V6.0 Categorized & Search)
  */
 
 class MobileApp {
@@ -21,10 +21,11 @@ class MobileApp {
             'reader-detail': document.getElementById('view-reader-detail')
         };
 
+        this.searchQuery = '';
         this.setupTabNavigation();
         this.activeTab = 'home';
         this.setupGlobalEvents();
-        console.log('MobileCore Cloned Version Initialized');
+        console.log('MobileCore V6.0 Initialized');
     }
 
     setupGlobalEvents() {
@@ -85,6 +86,54 @@ class MobileApp {
                 }
             }, 200);
         };
+
+        this.setupSwipeNavigation();
+        this.setupSearch();
+        this.setupFAB();
+    }
+
+    setupSwipeNavigation() {
+        let touchStartX = 0;
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            const touchEndX = e.changedTouches[0].screenX;
+            // Left to Right Swipe (Back)
+            if (touchEndX - touchStartX > 150 && touchStartX < 50) {
+                if (this.subViews.editor.classList.contains('active')) {
+                    if (window.mobileEditor) window.mobileEditor.saveNote(true);
+                    this.goBack();
+                } else if (this.activeTab !== 'home') {
+                    this.switchTab('home');
+                }
+            }
+        }, { passive: true });
+    }
+
+    setupSearch() {
+        const searchInput = document.querySelector('#view-search input');
+        if (searchInput) {
+            searchInput.oninput = (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.renderApp();
+            };
+        }
+    }
+
+    setupFAB() {
+        let fab = document.querySelector('.fab-main');
+        if (!fab) {
+            fab = document.createElement('div');
+            fab.className = 'fab-main';
+            fab.innerHTML = '<span>+</span>';
+            fab.onclick = () => {
+                if (window.mobileEditor) window.mobileEditor.initNewNote();
+            };
+            document.body.appendChild(fab);
+        }
+        this.fab = fab;
     }
 
     setupTabNavigation() {
@@ -103,14 +152,12 @@ class MobileApp {
     }
 
     switchTab(tabName) {
-        // Hide Tab Bar for specific views to provide a focused experience
-        const hideTabsFor = ['chat', 'reading', 'notes', 'search'];
+        const hideTabsFor = ['chat', 'editor', 'reader-detail'];
         if (this.tabBar) {
-            if (hideTabsFor.includes(tabName)) {
-                this.tabBar.style.display = 'none';
-            } else {
-                this.tabBar.style.display = 'flex';
-            }
+            this.tabBar.style.display = hideTabsFor.includes(tabName) ? 'none' : 'flex';
+        }
+        if (this.fab) {
+            this.fab.style.display = (tabName === 'home' || tabName === 'notes') ? 'flex' : 'none';
         }
 
         Object.entries(this.mainViews).forEach(([name, el]) => {
@@ -121,24 +168,16 @@ class MobileApp {
         });
 
         // Update Buttons
-        if (this.tabBar && this.tabBar.style.display !== 'none') {
-            const tabs = this.tabBar.querySelectorAll('.tab-btn');
-            tabs.forEach(tab => {
-                if (!tab.dataset.target) return;
-                const target = tab.dataset.target.replace('view-', '');
-                if (target === tabName) tab.classList.add('active');
-                else tab.classList.remove('active');
-            });
-        }
+        const tabs = this.tabBar.querySelectorAll('.tab-btn');
+        tabs.forEach(tab => {
+            const target = tab.dataset.target.replace('view-', '');
+            if (target === tabName) tab.classList.add('active');
+            else tab.classList.remove('active');
+        });
 
         this.activeTab = tabName;
-        // Always scroll to top on tab switch
         window.scrollTo(0, 0);
-        if (tabName === 'home' || tabName === 'notes' || tabName === 'reading') this.renderApp();
-    }
-
-    exitChat() {
-        this.switchTab('home');
+        if (tabName !== 'chat') this.renderApp();
     }
 
     navigateTo(viewName) {
@@ -146,47 +185,26 @@ class MobileApp {
         if (view) {
             view.classList.add('active');
             view.style.display = 'flex';
+            if (this.tabBar) this.tabBar.style.display = 'none';
+            if (this.fab) this.fab.style.display = 'none';
         }
     }
 
     goBack() {
         Object.values(this.subViews).forEach(view => {
-            if (view && view.style.display !== 'none') {
+            if (view && view.classList.contains('active')) {
                 view.classList.remove('active');
                 view.style.display = 'none';
             }
         });
+        if (this.tabBar) this.tabBar.style.display = 'flex';
+        if (this.fab) this.fab.style.display = (this.activeTab === 'home' || this.activeTab === 'notes') ? 'flex' : 'none';
     }
 
-    // =========================================
-    // Core Rendering Logic (Universal)
-    // =========================================
     async renderApp() {
-        const homeList = document.querySelector('#view-home .notes-list-content') || document.getElementById('view-home');
-        const notesList = document.querySelector('#view-notes .notes-list-content') || document.getElementById('view-notes');
-        const readingList = document.querySelector('#view-reading .notes-list-content') || document.getElementById('view-reading');
-
-        // Setup Containers
-        let homeDyn = document.getElementById('home-dyn-list');
-        if (homeList && !homeDyn) {
-            homeDyn = document.createElement('div');
-            homeDyn.id = 'home-dyn-list';
-            homeList.appendChild(homeDyn);
-        }
-
-        let notesDyn = document.getElementById('notes-dyn-list');
-        if (notesList && !notesDyn) {
-            notesDyn = document.createElement('div');
-            notesDyn.id = 'notes-dyn-list';
-            notesList.appendChild(notesDyn);
-        }
-
-        let readingDyn = document.getElementById('reading-dyn-list');
-        if (readingList && !readingDyn) {
-            readingDyn = document.createElement('div');
-            readingDyn.id = 'reading-dyn-list';
-            readingList.appendChild(readingDyn);
-        }
+        const homeDyn = document.getElementById('home-dyn-list');
+        const notesDyn = document.getElementById('notes-dyn-list');
+        const readingDyn = document.getElementById('reading-dyn-list');
 
         if (homeDyn) homeDyn.innerHTML = '';
         if (notesDyn) notesDyn.innerHTML = '';
@@ -194,280 +212,191 @@ class MobileApp {
 
         try {
             let allData = {};
-            if (window.appStorage) {
-                allData = await window.appStorage.getAll();
-            }
-
-            const allKeys = Object.keys(allData);
-
-            // AUTO-INJECT IF EMPTY
-            if (allKeys.length === 0 && window.appStorage) {
-                const welcomeNote = {
-                    id: 'note_welcome_' + Date.now(),
-                    title: 'Welcome to Highlighti',
-                    content: 'This note confirms the app is working properly. If you see this, Import your backup again.',
-                    type: 'note',
-                    date: new Date().toLocaleDateString(),
-                    timestamp: Date.now()
-                };
-                await window.appStorage.set({ [welcomeNote.id]: welcomeNote });
-                allData = await window.appStorage.getAll();
-            }
+            if (window.appStorage) allData = await window.appStorage.getAll();
 
             const flatList = [];
             const noteKeys = [];
-            const highlightGroups = {}; // [NEW] Group highlights by URL/Source
+            const highlightGroups = {};
 
-            // 1. Helper to Process Item
-            const processItem = (key, item, realType) => {
-                if (!item) return;
+            const processItem = (key, item) => {
+                if (!item || typeof item !== 'object') return;
+                item._debug_key = key;
 
-                // CRITICAL FIX: If item is a string, wrap it in an object so we can add properties
-                let processedItem = item;
-                if (typeof item === 'string') {
-                    processedItem = { text: item, type: 'note', id: key };
-                } else if (typeof item !== 'object') {
-                    return; // Skip other non-objects
-                }
+                const url = item.url || item.uri || item.pageUrl || '';
+                const isNote = item.type === 'note' || (!url && !item.type);
 
-                processedItem._debug_key = key;
-
-                // Identify if it's a Note or Highlight
-                const rawUrl = processedItem.url || processedItem.uri || processedItem.pageUrl || '';
-                const sourceKey = rawUrl || processedItem.title || processedItem.pageTitle || 'Unknown Source';
-
-                let isNote = !rawUrl;
-                if (processedItem.type === 'note') isNote = true;
-                if (processedItem.type === 'highlight' || realType === 'highlight') isNote = false;
-
-                if (isNote) {
-                    noteKeys.push(processedItem);
-                } else {
-                    // Grouping Logic
+                if (isNote) noteKeys.push(item);
+                else {
+                    const sourceKey = url || item.title || 'Unknown Source';
                     if (!highlightGroups[sourceKey]) {
-                        let hostname = processedItem.hostname || '';
-                        if (!hostname && rawUrl && rawUrl.startsWith('http')) {
-                            try { hostname = new URL(rawUrl).hostname; } catch (e) { hostname = 'Web Clip'; }
-                        }
-
-                        highlightGroups[sourceKey] = {
-                            isGroup: true,
-                            id: sourceKey,
-                            title: processedItem.title || processedItem.pageTitle || 'Web Highlights',
-                            url: rawUrl,
-                            hostname: hostname || 'Web Clip',
-                            items: [],
-                            updatedAt: processedItem.updatedAt || processedItem.timestamp || processedItem.createdAt || processedItem.date || 0
-                        };
+                        highlightGroups[sourceKey] = { isGroup: true, id: sourceKey, title: item.title || item.pageTitle || 'Highlights', url, items: [], updatedAt: 0 };
                     }
-                    highlightGroups[sourceKey].items.push(processedItem);
-
-                    const itemTs = new Date(processedItem.updatedAt || processedItem.timestamp || processedItem.createdAt || processedItem.date || 0).getTime();
-                    const groupTs = new Date(highlightGroups[sourceKey].updatedAt).getTime();
-                    if (itemTs > groupTs) highlightGroups[sourceKey].updatedAt = processedItem.updatedAt || processedItem.timestamp || processedItem.createdAt || processedItem.date;
+                    highlightGroups[sourceKey].items.push(item);
+                    const ts = new Date(item.updatedAt || item.timestamp || 0).getTime();
+                    if (ts > highlightGroups[sourceKey].updatedAt) highlightGroups[sourceKey].updatedAt = ts;
                 }
-
-                flatList.push(processedItem);
+                flatList.push(item);
             };
 
-            // 2. Iterate Data
-            Object.keys(allData).forEach(k => {
-                try {
-                    if (k.startsWith('ai_') || k.startsWith('webdav_') || k.startsWith('sync_') || k === 'settings') return;
-
-                    let val = allData[k];
-                    if (!val) return;
-
-                    if (typeof val === 'string') {
-                        try { val = JSON.parse(val); }
-                        catch (e) { val = { text: val, type: 'note', id: k }; }
-                    }
-
-                    if (Array.isArray(val)) {
-                        val.forEach(child => processItem(k, child, (child && typeof child === 'object') ? child.type : undefined));
-                    } else if (val && typeof val === 'object') {
-                        // Special container 'notes' handling
-                        if (k === 'notes' && !val.type && !val.content) {
-                            Object.entries(val).forEach(([subK, subV]) => {
-                                processItem(subK, subV, (subV && typeof subV === 'object') ? subV.type : undefined);
-                            });
-                        } else {
-                            processItem(k, val, val.type || (k.startsWith('http') ? 'highlight' : 'note'));
-                        }
-                    }
-                } catch (e) { console.warn('Item error:', e); }
+            Object.entries(allData).forEach(([k, v]) => {
+                if (k.startsWith('ai_') || k.startsWith('webdav_') || k === 'notes') return; // notes container handled differently in some versions
+                processItem(k, v);
             });
 
-            // 3. Sort Everything
-            const getTs = (item) => {
-                if (!item) return 0;
-                const t = item.updatedAt || item.timestamp || item.createdAt || item.date || 0;
-                return new Date(t).getTime() || 0;
-            };
+            // If notes is a special container
+            if (allData.notes) {
+                Object.entries(allData.notes).forEach(([k, v]) => processItem(k, v));
+            }
 
-            const isToday = (ts) => {
-                const d = new Date(ts);
-                const now = new Date();
-                return d.getDate() === now.getDate() &&
-                    d.getMonth() === now.getMonth() &&
-                    d.getFullYear() === now.getFullYear();
-            };
-
+            const getTs = (i) => new Date(i.updatedAt || i.timestamp || i.date || 0).getTime();
             flatList.sort((a, b) => getTs(b) - getTs(a));
             noteKeys.sort((a, b) => getTs(b) - getTs(a));
+            const sortedGroups = Object.values(highlightGroups).sort((a, b) => b.updatedAt - a.updatedAt);
 
-            // Sort grouped highlights by latest activity
-            const sortedGroups = Object.values(highlightGroups).sort((a, b) => {
-                return (new Date(b.updatedAt).getTime() || 0) - (new Date(a.updatedAt).getTime() || 0);
-            });
+            const q = this.searchQuery;
+            const filter = (list) => q ? list.filter(i => (i.title || '').toLowerCase().includes(q) || (i.text || '').toLowerCase().includes(q)) : list;
 
-            // Enhanced Home logic: Today, otherwise Recent
-            let homeItems = flatList.filter(item => isToday(getTs(item)));
-            let feedTitle = 'TODAY';
+            const categorize = (items) => {
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                const groups = { Today: [], Yesterday: [], Older: [] };
+                items.forEach(i => {
+                    const ts = getTs(i);
+                    if (ts >= today) groups.Today.push(i);
+                    else if (ts >= today - 86400000) groups.Yesterday.push(i);
+                    else groups.Older.push(i);
+                });
+                return groups;
+            };
 
-            if (homeItems.length === 0) {
-                homeItems = flatList.slice(0, 10);
-                feedTitle = 'RECENT ACTIVITY';
-            }
+            const renderCategorized = (container, items) => {
+                const cats = categorize(filter(items));
+                Object.entries(cats).forEach(([label, list]) => {
+                    if (list.length > 0) {
+                        const h = document.createElement('div');
+                        h.className = 'note-category-header';
+                        h.textContent = label;
+                        container.appendChild(h);
+                        list.forEach(item => this.renderCard(container, item._debug_key, item));
+                    }
+                });
+            };
 
-            const homeHeaderTitle = document.querySelector('#view-home .list-title');
-            if (homeHeaderTitle) homeHeaderTitle.textContent = feedTitle;
-
-            console.log(`Render stats: Total=${flatList.length}, Feed=${homeItems.length}, Notes=${noteKeys.length}, Groups=${sortedGroups.length}`);
-
-            // --- Independent Renders ---
-            if (homeDyn) {
-                homeDyn.innerHTML = '';
-                if (homeItems.length === 0) homeDyn.innerHTML = '<div style="padding:40px;text-align:center;color:#999;">Welcome! No content found.</div>';
-                else homeItems.forEach(item => this.renderCard(homeDyn, item._debug_key, item));
-            }
-
-            if (notesDyn) {
-                notesDyn.innerHTML = '';
-                if (noteKeys.length === 0) notesDyn.innerHTML = '<div style="padding:40px;text-align:center;color:#999;">No Notes</div>';
-                else noteKeys.forEach(item => this.renderCard(notesDyn, item._debug_key, item));
-            }
-
+            if (homeDyn) renderCategorized(homeDyn, flatList.slice(0, 20));
+            if (notesDyn) renderCategorized(notesDyn, noteKeys);
             if (readingDyn) {
-                readingDyn.innerHTML = '';
-                if (sortedGroups.length === 0) {
-                    readingDyn.innerHTML = `<div style="padding:40px;text-align:center;color:#999;">No Highlights Found.<br><small style="opacity:0.5;">(Total entries: ${Object.keys(allData).length})</small></div>`;
-                } else {
-                    sortedGroups.forEach(group => this.renderCard(readingDyn, group.id, group));
-                }
+                sortedGroups.forEach(g => this.renderCard(readingDyn, g.id, g));
             }
 
-        } catch (e) {
-            console.error('Render Error', e);
-        }
+        } catch (e) { console.error('Render Error', e); }
     }
 
-    sortKeys(keys, allData) {
-        return keys.sort((a, b) => {
-            const tA = allData[a].timestamp || allData[a].updatedAt || 0;
-            const tB = allData[b].timestamp || allData[b].updatedAt || 0;
-            return tB - tA;
-        });
-    }
-
-    openReaderDetail(group) {
-        // If it's a single item not wrapped in a group, wrap it
-        if (!group.isGroup) {
-            group = { items: [group], title: group.title || 'Highlight', hostname: group.hostname || 'Web Clip' };
-        }
-
+    async openReaderDetail(group) {
         const view = document.getElementById('view-reader-detail');
         if (!view) return;
 
-        const titleEl = view.querySelector('.editor-title');
-        const metaEl = view.querySelector('.note-time');
-        const bodyEl = view.querySelector('.editor-body');
+        const container = view.querySelector('.editor-content');
+        container.innerHTML = ''; // Start fresh
 
-        if (titleEl) titleEl.textContent = group.title || 'Web Highlights';
-        if (metaEl) metaEl.textContent = (group.hostname || 'Web Clip') + ' • ' + group.items.length + ' highlights';
+        // 1. Header Section
+        const header = document.createElement('div');
+        header.style.padding = '20px';
+        header.innerHTML = `
+            <h1 style="font-size:24px; margin-bottom:8px;">${group.title || 'Untitled'}</h1>
+            <div style="font-size:12px; color:#8e8e93; margin-bottom:20px;">
+                ${group.hostname || 'Web Selection'} • ${group.items ? group.items.length : 1} excerpts
+            </div>
+            <div style="display:flex; gap:10px; margin-bottom:20px;">
+                <button class="tool-btn" style="background:#f2f2f7; padding:8px 16px; border-radius:20px; font-size:14px;" onclick="window.mobileCore.shareNote('${group.title}')">📤 Share</button>
+                <button class="tool-btn" style="background:#f2f2f7; padding:8px 16px; border-radius:20px; font-size:14px;" onclick="window.mobileCore.summarizeReader()">✨ Summarize</button>
+            </div>
+        `;
+        container.appendChild(header);
 
-        if (bodyEl) {
-            let html = '';
+        // 2. Content Body
+        const body = document.createElement('div');
+        body.style.padding = '0 20px';
+        const items = group.items || [group];
+        items.forEach(it => {
+            const block = document.createElement('div');
+            block.style.marginBottom = '30px';
+            const text = (it.text || it.content || '').replace(/<[^>]*>?/gm, ''); // Strip HTML
+            block.innerHTML = `
+                <blockquote style="border-left:4px solid var(--ios-blue); padding-left:15px; margin:0; font-size:18px; line-height:1.6; color:#111;">
+                    ${text}
+                </blockquote>
+            `;
+            body.appendChild(block);
+        });
+        container.appendChild(body);
 
-            group.items.forEach((item, idx) => {
-                const text = item.content || item.text || item.quote || item.highlight || item.body || '';
-                html += `<div style="margin-bottom: 32px; position: relative;">
-                    <div style="font-size: 12px; color: #8e8e93; margin-bottom: 8px;">HIGHLIGHT #${idx + 1}</div>
-                    <blockquote style="border-left:4px solid #007aff; padding-left:16px; margin:0; font-size:18px; line-height:1.6; color:#333;">${text}</blockquote>`;
-
-                if (item.comment || item.note) {
-                    const comment = item.comment || item.note;
-                    html += `<div style="margin-top:16px; padding:12px; background:#f2f2f7; border-radius:10px; font-size:16px;">
-                        <span style="font-weight:600; font-size:12px; color:#007aff; display:block; margin-bottom:4px;">NOTE</span>
-                        ${comment}
-                    </div>`;
-                }
-                html += `</div>`;
-            });
-
-            if (group.url) {
-                html += `<div style="margin-top:40px; text-align:center; padding-bottom: 40px;">
-                    <a href="${group.url}" target="_blank" style="display:inline-block; padding:12px 24px; background:#007aff; color:white; text-decoration:none; border-radius:24px; font-weight:500;">Visit Source Website</a>
-                </div>`;
-            }
-
-            bodyEl.innerHTML = html;
-        }
+        // 3. Evaluation Section
+        const evaluation = document.createElement('div');
+        evaluation.style.padding = '20px';
+        evaluation.style.marginTop = '40px';
+        evaluation.style.borderTop = '1px solid #eee';
+        evaluation.style.paddingBottom = '100px';
+        evaluation.innerHTML = `
+            <h3 style="font-size:14px; color:#8e8e93; text-transform:uppercase; margin-bottom:12px;">Evaluation / 评价</h3>
+            <textarea id="reader-eval" style="width:100%; height:150px; border:1px solid #eee; border-radius:12px; padding:12px; font-size:16px; font-family:inherit; outline:none; background:#fafafa;" placeholder="Add your thoughts or AI evaluation..."></textarea>
+            <button style="margin-top:10px; width:100%; background:var(--ios-blue); color:white; border:none; padding:12px; border-radius:12px; font-weight:600;">Save Evaluation</button>
+        `;
+        container.appendChild(evaluation);
 
         this.navigateTo('reader-detail');
     }
 
+    shareNote(title) {
+        if (navigator.share) {
+            navigator.share({ title: title, text: 'Check out this note from Highlighti' }).catch(() => { });
+        } else {
+            alert('Sharing is not supported on this browser.');
+        }
+    }
+
+
     renderCard(container, key, item) {
         if (!container) return;
-
         const isGroup = !!item.isGroup;
-        const text = isGroup
-            ? (item.items[0].content || item.items[0].text || '')
-            : (item.content || item.text || item.quote || item.highlight || item.body || '');
-
-        const title = item.title || item.pageTitle || (text ? text.substring(0, 50) : 'Untitled');
-        const date = isGroup
-            ? (new Date(item.updatedAt).toLocaleDateString())
-            : (item.date || item.createdAt || (item.timestamp ? new Date(item.timestamp).toLocaleDateString() : 'Just now'));
+        const text = isGroup ? item.items[0].text : (item.text || item.content || '');
+        const title = item.title || (text ? text.substring(0, 30) : 'Untitled Note');
+        const date = new Date(item.updatedAt || item.timestamp || item.date || Date.now()).toLocaleDateString();
 
         const card = document.createElement('div');
         card.className = 'note-card';
-
         card.onclick = () => {
-            if (isGroup) {
-                this.openReaderDetail(item);
-            } else {
-                const hasUrl = item.url || item.uri || item.pageUrl || (key && key.startsWith('http'));
-                let isNote = !hasUrl;
-                if (item.type === 'note') isNote = true;
-                if (item.type === 'highlight') isNote = false;
-
-                if (isNote) {
-                    if (window.mobileEditor && typeof window.mobileEditor.loadNote === 'function') {
-                        window.mobileEditor.loadNote(key, item);
-                    }
-                } else {
-                    this.openReaderDetail(item);
-                }
-            }
+            if (isGroup) this.openReaderDetail(item);
+            else if (item.type === 'note' || !item.url) window.mobileEditor.loadNote(key, item);
+            else this.openReaderDetail(item);
         };
-
-        const badge = isGroup ? `<span style="background: #007aff; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left:8px;">${item.items.length}</span>` : '';
 
         card.innerHTML = `
             <div class="note-row-top">
-                <span class="note-title" style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</span>
+                <span class="note-title">${title}</span>
                 <span class="note-time">${date}</span>
             </div>
-            <div class="note-preview">${badge} ${text ? text.substring(0, 100) : 'No content available'}</div>
+            <div class="note-preview">${isGroup ? `[${item.items.length}] ` : ''}${text ? text.substring(0, 80) : '...'}</div>
         `;
         container.appendChild(card);
+    }
+
+    openReaderDetail(group) {
+        const view = document.getElementById('view-reader-detail');
+        const body = view.querySelector('.editor-content'); // Simple clear for now
+        body.innerHTML = `<h1 style="padding:20px;">${group.title}</h1>`;
+        const items = group.items || [group];
+        items.forEach(it => {
+            const div = document.createElement('div');
+            div.style.padding = '20px';
+            div.style.borderBottom = '1px solid #eee';
+            div.innerHTML = `<blockquote style="border-left:4px solid #007aff; padding-left:15px; margin:0;">${it.text || it.content}</blockquote>`;
+            body.appendChild(div);
+        });
+        this.navigateTo('reader-detail');
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     window.mobileCore = new MobileApp();
-    setTimeout(() => {
-        if (window.mobileCore) window.mobileCore.renderApp();
-    }, 500);
+    setTimeout(() => window.mobileCore.renderApp(), 500);
 });

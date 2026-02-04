@@ -8,7 +8,12 @@ const ASSETS = [
     './ai-core-mobile.js',
     './modules/idb-utils.js',
     './modules/storage-bridge.js',
-    './modules/memory-agent.js'
+    './modules/memory-agent.js',
+    './tesseract.min.js',
+    './worker.min.js',
+    './tesseract-core.wasm',
+    './chi_sim.traineddata.gz',
+    './eng.traineddata.gz'
 ];
 
 self.addEventListener('install', (e) => {
