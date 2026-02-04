@@ -14,15 +14,15 @@ class MobileEditor {
 
     loadNote(noteId, noteData) {
         this.currentNoteId = noteId;
-        if (this.headerTitle) this.headerTitle.textContent = noteData.title || 'Untitled Note';
+        if (this.headerTitle) this.headerTitle.value = noteData.title || '';
         if (this.editor) this.editor.innerHTML = noteData.content || '';
         this.isSaved = true;
         if (window.mobileCore) window.mobileCore.navigateTo('editor');
     }
 
     initNewNote() {
-        this.currentNoteId = Date.now().toString();
-        if (this.headerTitle) this.headerTitle.textContent = 'New Note';
+        this.currentNoteId = 'note-' + Date.now();
+        if (this.headerTitle) this.headerTitle.value = '';
         if (this.editor) {
             this.editor.innerHTML = '';
             this.editor.focus();
@@ -48,6 +48,25 @@ class MobileEditor {
                 this.handleAutoList(e);
             }
         };
+
+        // Slash button handler
+        const slashBtn = document.getElementById('btn-editor-ai-slash');
+        if (slashBtn) {
+            slashBtn.onclick = () => {
+                if (this.editor) {
+                    this.editor.focus();
+                    // Insert /ai at the end or current position
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        range.deleteContents();
+                        document.execCommand('insertText', false, '/ai ');
+                    } else {
+                        this.editor.innerText += '/ai ';
+                    }
+                }
+            };
+        }
     }
 
     triggerAutoSave() {
@@ -111,10 +130,10 @@ class MobileEditor {
         this.editor.scrollTop = this.editor.scrollHeight;
 
         try {
-            const context = this.editor.innerText.slice(-1000);
+            const context = this.editor.innerText.slice(-800);
             const messages = [
-                { role: 'system', content: '你是笔记助手。请直接输出纯文本正文，使用分段和列表。不要输出任何```符号或其他Markdown源码符号。' },
-                { role: 'user', content: `上下文：${context}\n\n指令：${prompt}` }
+                { role: 'system', content: '你是一个擅长逻辑架构与创意激发的笔记助手。请为用户构建结构清晰、有深度的内容框架。直接输出纯文字，不带任何 Markdown 源码符号。' },
+                { role: 'user', content: `上下文：${context}\n指令：${prompt}` }
             ];
 
             const stream = window.aiCore.streamChat(messages);
@@ -160,11 +179,26 @@ class MobileEditor {
     async saveNote(isSilent = false) {
         if (!this.currentNoteId || this.isSaved) return;
 
+        let title = this.headerTitle?.value?.trim();
+        const content = this.editor.innerHTML;
+        const text = this.editor.innerText.trim();
+
+        // 自动提取标题：如果标题为空，取第一行文本
+        if (!title && text) {
+            const firstLine = text.split('\n')[0].substring(0, 25).trim();
+            if (firstLine) {
+                title = firstLine;
+                if (this.headerTitle) this.headerTitle.value = title;
+            }
+        }
+
         const noteData = {
             id: this.currentNoteId,
-            title: this.headerTitle?.textContent || 'Untitled',
-            content: this.editor.innerHTML,
-            timestamp: Date.now()
+            title: title || 'Untitled Note',
+            content: content,
+            type: 'note',
+            timestamp: Date.now(),
+            updatedAt: Date.now()
         };
 
         if (window.appStorage) {

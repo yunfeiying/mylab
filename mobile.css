@@ -307,6 +307,11 @@ html {
     color: #1c1c1e;
 }
 
+.input-capsule input::placeholder {
+    color: var(--ios-text-secondary);
+    opacity: 0.6;
+}
+
 .plus-btn-line {
     width: 44px;
     height: 44px;
@@ -625,7 +630,9 @@ html {
     border-radius: 6px;
     font-size: 0.9em;
     font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace;
-}/* ============================== */
+}
+
+/* ============================== */
 /* CHAT VIEW STYLES               */
 /* ============================== */
 
@@ -806,13 +813,13 @@ html {
 
 .core-hub {
     position: fixed;
-    bottom: 20px;
-    left: 16px;
-    right: 16px;
+    bottom: calc(var(--safe-bottom) + 12px);
+    left: 12px;
+    right: 12px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    z-index: 100;
+    gap: 8px;
+    z-index: 1000;
 }
 
 .home-btn-line {
@@ -904,9 +911,62 @@ html {
 .typing-indicator {
     display: inline-block;
     animation: typing-pulse 1.4s infinite;
+    font-size: 8px;
+    /* 50% smaller */
+    letter-spacing: 2px;
+    vertical-align: middle;
 }
 
 @keyframes typing-pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
+
+    0%,
+    100% {
+        opacity: 0.3;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Chat History Card Styles */
+.active-session {
+    background: #f0f7ff !important;
+    border-color: var(--ios-blue) !important;
+}
+
+.chat-session-card {
+    transition: all 0.2s ease;
+}
+
+.chat-session-card:active {
+    background: #f2f2f7;
+    transform: scale(0.98);
+}
+
+/* Reader Compact View Styles */
+.reader-scroll-area .note-item-wrapper,
+#reader-list-container .note-item-wrapper {
+    margin-bottom: 8px !important;
+    border-radius: 12px !important;
+}
+
+.reader-scroll-area .note-card,
+#reader-list-container .note-card {
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+.reader-scroll-area .note-title,
+#reader-list-container .note-title {
+    font-size: 15px !important;
+    margin-bottom: 1px !important;
+    line-height: 1.3 !important;
+}
+
+.reader-scroll-area .note-preview,
+#reader-list-container .note-preview {
+    font-size: 12px !important;
+    opacity: 0.6 !important;
 }
