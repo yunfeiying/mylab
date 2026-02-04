@@ -11,8 +11,31 @@ window.setupDataIOHandlers = function () {
             const data = await chrome.storage.local.get(null);
             delete data.smart_temp_content;
             delete data.smart_temp_title;
+
+            // 🔍 Smart Classification for Export
+            // Ensure every item has a 'type' so Mobile App can route it correctly
+            Object.keys(data).forEach(key => {
+                const val = data[key];
+                // 1. Array of Highlights (Standard Extension storage)
+                if (Array.isArray(val)) {
+                    val.forEach(item => {
+                        if (!item.type) item.type = 'highlight';
+                    });
+                }
+                // 2. Window.notes usually stored as 'notes' array or individual keys?
+                else if (key === 'notes' && Array.isArray(val)) {
+                    val.forEach(n => n.type = 'note');
+                }
+                // 3. Individual Objects (Legacy or specific)
+                else if (val && typeof val === 'object') {
+                    if (val.id && String(val.id).startsWith('note_')) {
+                        val.type = 'note';
+                    }
+                }
+            });
+
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            window.downloadBlob(blob, `highlighter_backup_${new Date().toISOString().slice(0, 10)}.json`);
+            window.downloadBlob(blob, `highlighter_backup_CLASSIFIED_${new Date().toISOString().slice(0, 10)}.json`);
         };
     }
 

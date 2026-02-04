@@ -1,177 +1,142 @@
 /**
- * mobile-editor.js - Advanced Editor Logic with OCR (V6.2)
+ * mobile-editor.js - Plain Text Optimized & Auto-Save (V7.0)
  */
 
 class MobileEditor {
     constructor() {
         this.editor = document.querySelector('.editor-body');
         this.headerTitle = document.querySelector('.editor-header-title');
-        this.aiMagicBtn = document.getElementById('btn-ai-magic');
-        this.aiQuickInput = document.getElementById('ai-quick-input');
-        this.aiQuickSend = document.getElementById('ai-quick-send');
-        this.ocrBtn = document.getElementById('btn-ocr-trigger');
-        this.ocrInput = document.getElementById('editor-ocr-input');
-
-        if (this.editor) {
-            this.setupEditorEvents();
-        }
-
-        // Bind AI Magic Button
-        if (this.aiMagicBtn) {
-            this.aiMagicBtn.onclick = () => this.handleAIToolbarMagic();
-        }
-
-        // Bind AI Quick Send
-        if (this.aiQuickSend && this.aiQuickInput) {
-            this.aiQuickSend.onclick = () => this.handleAIQuickSend();
-            this.aiQuickInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') this.handleAIQuickSend();
-            });
-        }
-
-        // Bind OCR
-        if (this.ocrBtn && this.ocrInput) {
-            this.ocrBtn.onclick = () => this.ocrInput.click();
-            this.ocrInput.onchange = (e) => this.processOCR(e);
-        }
+        this.currentNoteId = null;
+        this.isSaved = true;
+        this.autoSaveTimer = null;
+        this.setupEditorEvents();
     }
 
     loadNote(noteId, noteData) {
-        if (window.mobileCore) window.mobileCore.navigateTo('editor');
-
-        if (this.headerTitle) this.headerTitle.value = noteData.title || 'Untitled Note';
-        if (this.editor) {
-            const content = noteData.content || noteData.text || '';
-            if (content.includes('<') && content.includes('>')) {
-                this.editor.innerHTML = content;
-            } else {
-                this.editor.innerText = content;
-            }
-        }
         this.currentNoteId = noteId;
-        this.editor.focus();
+        if (this.headerTitle) this.headerTitle.textContent = noteData.title || 'Untitled Note';
+        if (this.editor) this.editor.innerHTML = noteData.content || '';
+        this.isSaved = true;
+        if (window.mobileCore) window.mobileCore.navigateTo('editor');
     }
 
     initNewNote() {
-        this.currentNoteId = null;
-        if (this.headerTitle) this.headerTitle.value = '';
+        this.currentNoteId = Date.now().toString();
+        if (this.headerTitle) this.headerTitle.textContent = 'New Note';
         if (this.editor) {
             this.editor.innerHTML = '';
             this.editor.focus();
         }
+        this.isSaved = false;
         if (window.mobileCore) window.mobileCore.navigateTo('editor');
     }
 
     setupEditorEvents() {
-        this.editor.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                this.handleAutoList(e);
-                this.checkSlashCommand(e);
-            }
-        });
+        if (!this.editor) return;
 
-        this.editor.addEventListener('focus', () => {
-            if (this.editor.textContent.trim() === 'Start typing...') {
-                this.editor.textContent = '';
+        // Auto-save on input
+        this.editor.oninput = () => {
+            if (this.currentNoteId) {
+                this.isSaved = false;
+                this.triggerAutoSave();
             }
-        });
-
-        // Auto-Save
-        let saveTimeout;
-        const triggerSave = () => {
-            clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => this.saveNote(true), 2000);
         };
-        this.editor.addEventListener('input', triggerSave);
-        if (this.headerTitle) this.headerTitle.addEventListener('input', triggerSave);
+
+        this.editor.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                if (this.checkSlashCommand(e)) return;
+                this.handleAutoList(e);
+            }
+        };
+    }
+
+    triggerAutoSave() {
+        if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
+        this.autoSaveTimer = setTimeout(() => {
+            this.saveNote(true);
+        }, 1500); // Auto-save after 1.5s of no typing
     }
 
     handleAutoList(e) {
         const selection = window.getSelection();
         if (!selection.rangeCount) return;
-
         const range = selection.getRangeAt(0);
-        const lineText = range.startContainer.textContent || "";
-
-        // 1. Numbered List (e.g. "1. ")
-        const numMatch = lineText.match(/^(\d+)\.\s/);
-        if (numMatch) {
+        const line = range.startContainer.textContent || '';
+        if (line.match(/^\d+\.\s/)) {
+            const num = parseInt(line.match(/^(\d+)\./)[1]);
+            document.execCommand('insertHTML', false, `<br>${num + 1}.&nbsp;`);
             e.preventDefault();
-            const nextNum = parseInt(numMatch[1]) + 1;
-            document.execCommand('insertHTML', false, `<div>${nextNum}.&nbsp;</div>`);
-            return;
-        }
-
-        // 2. Bullet List (e.g. "* " or "- ")
-        if (lineText.startsWith('* ') || lineText.startsWith('- ')) {
+        } else if (line.match(/^[\*\-]\s/)) {
+            document.execCommand('insertHTML', false, '<br>•&nbsp;');
             e.preventDefault();
-            const symbol = lineText.startsWith('* ') ? '* ' : '- ';
-            document.execCommand('insertHTML', false, `<div>${symbol}&nbsp;</div>`);
-            return;
         }
     }
 
-    insertList(command) {
-        this.editor.focus();
-        document.execCommand(command, false, null);
+    checkSlashCommand(e) {
+        const text = this.editor.innerText;
+        const match = text.match(/\/ai(?:\s+(.*))?\s*$/);
+        if (match) {
+            e.preventDefault();
+            const prompt = (match[1] || "").trim();
+            this.editor.innerHTML = this.editor.innerHTML.replace(/\/ai(?:\s+.*)?\s*$/, '');
+            this.streamAIContent(prompt || "整理内容并排版");
+            return true;
+        }
+        return false;
     }
 
-    toggleTodo() {
-        this.editor.focus();
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-
-        const range = selection.getRangeAt(0);
-        const todoHtml = `<div class="todo-item" contenteditable="false"><div class="todo-checkbox" onclick="this.parentElement.classList.toggle('checked')"></div><div class="todo-text" contenteditable="true">&nbsp;</div></div>`;
-
-        const div = document.createElement('div');
-        div.innerHTML = todoHtml;
-        range.insertNode(div);
-
-        // Move focus to the new todo text
-        const textNode = div.querySelector('.todo-text');
-        const newRange = document.createRange();
-        newRange.selectNodeContents(textNode);
-        newRange.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
+    // 纯黑白 Markdown 转换
+    formatMarkdown(text) {
+        return text
+            .replace(/### (.*)/g, '<div style="margin:8px 0; font-weight:bold; font-size:17px;">$1</div>')
+            .replace(/## (.*)/g, '<div style="margin:10px 0; font-weight:bold; font-size:18px;">$1</div>')
+            .replace(/# (.*)/g, '<div style="margin:12px 0; font-weight:bold; font-size:20px;">$1</div>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^- (.*)/gm, '<div style="margin-left:4px;">• $1</div>')
+            .replace(/^\d+\. (.*)/gm, '<div style="margin-left:4px;">$1</div>')
+            .replace(/\n/g, '<br>');
     }
 
-    async processOCR(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+    async streamAIContent(prompt) {
+        if (!window.aiCore || !window.aiCore.config.apiKey) {
+            this.showToast('⚠️ 未设置 API Key', 3000);
+            return;
+        }
 
-        const toast = this.showToast('🔍 Analyzing Image...', 0);
+        const responseDiv = document.createElement('div');
+        responseDiv.className = 'ai-response';
+        responseDiv.style.cssText = 'color: #000; padding: 4px 0; margin: 8px 0; font-size: 16px; line-height: 1.6;';
+        responseDiv.innerHTML = '<span class="typing-indicator">●●●</span>';
+        this.editor.appendChild(responseDiv);
+        this.editor.scrollTop = this.editor.scrollHeight;
 
         try {
-            // Using Tesseract.js directly from window (since added to HTML)
-            if (typeof Tesseract === 'undefined') throw new Error('OCR library not loaded.');
+            const context = this.editor.innerText.slice(-1000);
+            const messages = [
+                { role: 'system', content: '你是笔记助手。请直接输出纯文本正文，使用分段和列表。不要输出任何```符号或其他Markdown源码符号。' },
+                { role: 'user', content: `上下文：${context}\n\n指令：${prompt}` }
+            ];
 
-            const result = await Tesseract.recognize(file, 'chi_sim+eng', {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        toast.innerText = `🔍 OCR: ${Math.round(m.progress * 100)}%`;
+            const stream = window.aiCore.streamChat(messages);
+            let fullText = '';
+            let hasToken = false;
+
+            for await (const chunk of stream) {
+                if (chunk.type === 'token') {
+                    if (!hasToken) {
+                        hasToken = true;
+                        responseDiv.innerHTML = '';
                     }
+                    fullText = chunk.fullText;
+                    responseDiv.innerHTML = this.formatMarkdown(fullText);
+                    this.editor.scrollTop = this.editor.scrollHeight;
                 }
-            });
-
-            const text = result.data.text.trim();
-            if (text) {
-                this.editor.focus();
-                // Append text at the end
-                const ocrBlock = document.createElement('div');
-                ocrBlock.style.cssText = 'border-left:4px solid #34c759; padding-left:12px; margin:15px 0; color:#555; background:#f9f9f9; padding:8px 12px; border-radius:4px; font-size:16px;';
-                ocrBlock.innerText = text;
-                this.editor.appendChild(ocrBlock);
-                this.showToast('✅ OCR Success', 2000);
-            } else {
-                this.showToast('⚠️ No text found in image', 3000);
             }
+            // Trigger auto-save after AI finishes
+            this.isSaved = false;
+            this.saveNote(true);
         } catch (err) {
-            console.error('OCR Error:', err);
-            this.showToast('❌ OCR Failed: ' + err.message, 3000);
-        } finally {
-            e.target.value = ''; // Reset input
+            responseDiv.innerHTML = `<div style="color:red; font-size:12px;">❌ 错误: ${err.message}</div>`;
         }
     }
 
@@ -180,127 +145,41 @@ class MobileEditor {
         if (!toast) {
             toast = document.createElement('div');
             toast.id = 'editor-toast';
-            toast.style.cssText = 'position:fixed; bottom:120px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:24px; font-size:14px; z-index:3000; box-shadow:0 10px 30px rgba(0,0,0,0.3); white-space:nowrap;';
+            toast.style.cssText = 'position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:8px 16px; border-radius:20px; z-index:5000; font-size:14px; transition: opacity 0.3s;';
             document.body.appendChild(toast);
         }
         toast.innerText = msg;
         toast.style.display = 'block';
-        if (duration > 0) setTimeout(() => toast.style.display = 'none', duration);
-        return toast;
+        toast.style.opacity = '1';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => { toast.style.display = 'none'; }, 300);
+        }, duration);
     }
 
     async saveNote(isSilent = false) {
-        if (!window.appStorage) return;
+        if (!this.currentNoteId || this.isSaved) return;
 
-        let title = this.headerTitle ? this.headerTitle.value.trim() : 'Untitled Note';
-        const content = this.editor.innerHTML;
-        const rawText = this.editor.innerText;
-
-        const cleanText = this.clearMarkdownSymbols(rawText);
-        if (!title && cleanText) title = cleanText.split('\n')[0].substring(0, 30);
-
-        if (!this.currentNoteId && !title && !cleanText.trim()) return;
-
-        const noteId = this.currentNoteId || `note-${Date.now()}`;
         const noteData = {
-            id: noteId,
-            title: title || 'Untitled Note',
-            content: content,
-            text: cleanText,
-            date: new Date().toLocaleDateString(),
-            timestamp: Date.now(),
-            type: 'note'
+            id: this.currentNoteId,
+            title: this.headerTitle?.textContent || 'Untitled',
+            content: this.editor.innerHTML,
+            timestamp: Date.now()
         };
 
-        await window.appStorage.set({ [noteId]: noteData });
-        this.currentNoteId = noteId;
+        if (window.appStorage) {
+            try {
+                // Using standard .set() method from storage-bridge.js
+                await window.appStorage.set({ [this.currentNoteId]: noteData });
+                this.isSaved = true;
+                if (!isSilent) this.showToast('Saved');
 
-        if (!isSilent) this.showToast('✅ Saved');
-        if (window.mobileCore) window.mobileCore.renderApp();
-    }
-
-    clearMarkdownSymbols(text) {
-        if (!text) return "";
-        return text
-            .replace(/^#+\s+/gm, '')
-            .replace(/^\s*[\*\-]\s+/gm, '')
-            .replace(/\*\*([^*]+)\*\*/g, '$1')
-            .replace(/\*([^*]+)\*/g, '$1')
-            .replace(/__([^_]+)__/g, '$1')
-            .trim();
-    }
-
-    async handleAIToolbarMagic() {
-        const selection = window.getSelection();
-        const selectedText = selection.toString();
-        const promptText = prompt('✨ AI Assistant\n(Selected text will be used as context)', 'Summarize this');
-        if (promptText) {
-            const finalPrompt = selectedText ? `Context: "${selectedText}"\nTask: ${promptText}` : promptText;
-            await this.triggerAI(finalPrompt);
-        }
-    }
-
-    async handleAIQuickSend() {
-        const prompt = this.aiQuickInput.value.trim();
-        if (!prompt) return;
-        this.aiQuickInput.value = '';
-        await this.triggerAI(prompt);
-    }
-
-    async triggerAI(prompt) {
-        this.editor.focus();
-        const hr = document.createElement('hr');
-        hr.style.cssText = 'border:none; border-top:1px solid #eee; margin:20px 0;';
-        this.editor.appendChild(hr);
-        await this.streamAIContent(prompt);
-    }
-
-    async checkSlashCommand(e) {
-        const text = this.editor.innerText;
-        const match = text.match(/\/ai\s+(.*)$/);
-        if (match) {
-            e.preventDefault();
-            const prompt = match[1];
-            this.editor.innerHTML = this.editor.innerHTML.replace(/\/ai\s+.*$/, '');
-            await this.streamAIContent(prompt);
-        }
-    }
-
-    async streamAIContent(prompt) {
-        if (!window.aiCore) {
-            alert('Please set AI API Key in Settings first.');
-            return;
-        }
-
-        const responseSpan = document.createElement('div');
-        responseSpan.className = 'ai-response';
-        responseSpan.style.color = '#007aff';
-        responseSpan.style.whiteSpace = 'pre-wrap';
-        this.editor.appendChild(responseSpan);
-
-        try {
-            const context = this.editor.innerText.substring(Math.max(0, this.editor.innerText.length - 2000));
-            const messages = [
-                { role: 'system', content: 'You are an intelligent note-taking assistant. Provide clear, concise help.' },
-                { role: 'user', content: `Context:\n${context}\n\nTask: ${prompt}` }
-            ];
-
-            const stream = window.aiCore.streamChat(messages);
-            for await (const chunk of stream) {
-                if (chunk.type === 'token') {
-                    responseSpan.innerText = chunk.fullText;
-                    this.editor.scrollTop = this.editor.scrollHeight;
-                }
+                // If we have mobileCore, refresh the home list
+                if (window.mobileCore) window.mobileCore.renderApp();
+            } catch (e) {
+                console.error('[Editor] Save failed:', e);
             }
-            responseSpan.style.color = '#333';
-        } catch (err) {
-            responseSpan.innerText = `[AI Error: ${err.message}]`;
         }
-    }
-
-    showEditorMenu(event) {
-        const overlay = document.getElementById('action-sheet-overlay');
-        if (overlay) overlay.classList.remove('hidden');
     }
 }
 

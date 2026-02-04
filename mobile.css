@@ -1,30 +1,20 @@
-/* mobile.css - Premium iOS Aesthetic (High Fidelity) */
+/* mobile.css - Minimalist Monolith UI (V7.0) */
 :root {
-    --ios-bg: #ffffff;
-    --ios-bg-secondary: #f2f2f7;
-    /* iOS System Grouped Background */
+    --ios-bg: #f8f9fa;
     --ios-card: #ffffff;
     --ios-text-primary: #1c1c1e;
     --ios-text-secondary: #8e8e93;
-    --ios-text-tertiary: #c7c7cc;
     --ios-blue: #007aff;
-    --ios-separator: rgba(60, 60, 67, 0.18);
-    /* Native styling separator */
-    --ios-blur-bg: rgba(255, 255, 255, 0.85);
-    /* For glassmorphism */
-
+    --ios-blur-bg: rgba(255, 255, 255, 0.8);
     --safe-top: env(safe-area-inset-top, 20px);
     --safe-bottom: env(safe-area-inset-bottom, 20px);
-
     --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
 }
 
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    -webkit-font-smoothing: antialiased;
-    /* Critical for premium text feeling */
+    outline: none;
 }
 
 body,
@@ -39,790 +29,505 @@ html {
     overflow: hidden;
 }
 
-#app {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
-}
-
-/* === Utility === */
-.hidden {
-    display: none !important;
-}
-
-/* === View Layouts === */
+/* === Views === */
 .app-view {
     display: none;
     flex-direction: column;
-    height: 100%;
-    background: var(--ios-bg);
+    height: 100vh;
+    position: relative;
 }
 
 .app-view.active {
     display: flex;
 }
 
-/* Full Screen View (Cover Tab Bar & Previous View) */
-.app-view.full-screen-view {
+.full-screen-view {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     z-index: 2000;
-    /* Higher than Tab Bar (100) */
-    background: var(--ios-bg);
-    display: none;
-    /* Hidden by default */
-    flex-direction: column;
+    background: #fff;
 }
 
-.app-view.full-screen-view.active {
-    display: flex;
-}
-
-/* === Header (Sticky & Blur) === */
-.notes-header,
-.gemini-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
+/* === Home Header === */
+.home-header {
+    padding: calc(var(--safe-top) + 12px) 16px 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: calc(var(--safe-top) + 10px) 16px 12px;
-    background: var(--ios-blur-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    /* Subtle border instead of distinct line */
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 100;
     border-bottom: 0.5px solid rgba(0, 0, 0, 0.05);
 }
 
-.header-title {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--ios-text-primary);
-    margin: 0;
+.brand-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #1c1c1e;
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
 }
 
-.notes-header .header-btns-wrapper {
-    width: 60px;
-    /* Balance spacing */
-}
-
-/* Buttons */
-.header-btn {
-    background: none;
+.user-avatar-btn {
+    width: 36px;
+    height: 36px;
     border: none;
-    padding: 8px 0;
-    color: var(--ios-blue);
-    /* Action color */
-    font-size: 16px;
-    cursor: pointer;
+    background: transparent;
+    padding: 0;
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
-/* User Avatar (Refined) */
-.user-avatar-circle {
-    width: 30px;
-    height: 30px;
+.avatar-icon-wrapper {
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    background: #e1e4e8;
+    border: 1.5px solid #e0e0e0;
     color: #555;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    background: #fff;
+    transition: all 0.2s;
 }
 
-/* === Search Bar (iOS Style) === */
-.search-bar-container {
-    padding: 8px 16px 12px;
-    background: var(--ios-bg);
+.avatar-icon-wrapper:active {
+    background: #f2f2f7;
+    border-color: var(--ios-blue);
+    color: var(--ios-blue);
 }
 
-.search-bar {
-    background: #e3e3e8;
-    /* Darker grey for input */
-    border-radius: 10px;
-    padding: 8px 10px;
+.icon-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: transparent;
+    color: #1c1c1e;
+    /* Line mode - darker for consistency */
     display: flex;
     align-items: center;
-    gap: 8px;
-    transition: background 0.2s;
+    justify-content: center;
 }
 
-.search-bar:active {
-    background: #d1d1d6;
-}
-
-.search-bar input {
-    background: transparent;
+.icon-btn {
+    width: 44px;
+    height: 44px;
     border: none;
-    font-size: 17px;
-    line-height: 22px;
-    color: var(--ios-text-primary);
-    flex: 1;
-    outline: none;
-    padding: 0;
+    background: transparent;
+    color: var(--ios-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.search-icon {
-    font-size: 16px;
-    color: var(--ios-text-secondary);
-}
-
-/* === Notes List (Premium Feeling) === */
-.notes-list-content {
+/* === Main Content Area === */
+.home-scroll-area {
     flex: 1;
     overflow-y: auto;
+    padding: 0 16px;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 80px;
-    /* Space for tab bar */
-    background: var(--ios-bg);
 }
 
-.list-section {
-    margin-top: 16px;
+/* === Editor View styles === */
+.editor-content {
+    flex: 1;
+    overflow-y: auto;
+    background: #fff;
 }
 
-.list-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--ios-text-primary);
-    margin: 0 16px 8px;
-    /* Alignment */
-    letter-spacing: 0.3px;
+.editor-body {
+    flex: 1;
+    padding: 20px;
+    padding-bottom: 160px;
+    /* Space for the floating capsule */
+    font-size: 18px;
+    line-height: 1.6;
+    outline: none;
+    min-height: 300px;
 }
 
-/* The actual list */
-.note-card {
-    background: var(--ios-card);
-    padding: 12px 16px 12px 0;
-    /* No Left Padding here, handled by margin */
-    margin-left: 16px;
-    /* Separator indent */
-    border-bottom: 0.5px solid var(--ios-separator);
+.editor-body[placeholder]:empty:before {
+    content: attr(placeholder);
+    color: #ccc;
+}
+
+.section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px;
+    margin-bottom: 4px;
+    gap: 12px;
+}
+
+.section-title-clickable {
+    flex: 1;
     cursor: pointer;
-    transition: background 0.2s;
+    padding: 4px 0;
+    transition: opacity 0.2s;
+}
+
+.section-title-clickable:active {
+    opacity: 0.6;
+}
+
+.plus-icon-btn {
+    cursor: pointer;
+    color: var(--ios-text-secondary);
+    opacity: 0.8;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.plus-icon-btn:active {
+    opacity: 1;
+    transform: scale(0.9);
+}
+
+.chevron-right {
+    color: var(--ios-text-secondary);
+    opacity: 0.5;
+}
+
+.section-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    color: #1c1c1e;
+}
+
+/* List Cards */
+/* Swipe to Delete System */
+.note-item-wrapper {
+    position: relative;
+    margin-bottom: 12px;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #ff3b30;
+    /* iOS Red */
+}
+
+.note-card {
+    position: relative;
+    background: var(--ios-card);
+    padding: 16px;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.3s;
+    z-index: 2;
+    transform: translateX(0);
+}
+
+.note-card.swiped {
+    transform: translateX(-80px);
+    border-radius: 16px 0 0 16px;
+}
+
+.note-delete-action {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 80px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    z-index: 1;
+    cursor: pointer;
 }
 
 .note-card:active {
-    background: var(--ios-bg-secondary);
-    margin-left: 0;
-    padding-left: 16px;
-    /* Visual feedback fills the row */
-}
-
-.note-card:last-child {
-    border-bottom: none;
-}
-
-/* Metadata Typography */
-.note-row-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 3px;
+    background: #f2f2f7;
 }
 
 .note-title {
     font-size: 17px;
     font-weight: 600;
-    color: var(--ios-text-primary);
+    margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-right: 10px;
-    flex: 1;
-}
-
-.note-time {
-    font-size: 14px;
-    color: var(--ios-text-secondary);
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
 }
 
 .note-preview {
-    font-size: 15px;
+    font-size: 14px;
     color: var(--ios-text-secondary);
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    /* Show max 2 lines */
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-/* === Chat View (Refined) === */
-.chat-content {
-    flex: 1;
-    overflow-y: auto;
-    background: var(--ios-bg);
-    padding: 10px 16px;
-}
-
-/* Chat Input Bar - "Floaty" Feel */
-.input-area {
-    background: var(--ios-blur-bg);
-    /* Glass */
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    padding: 10px 16px calc(10px + var(--safe-bottom));
-    border-top: 0.5px solid rgba(0, 0, 0, 0.1);
-}
-
-.input-tools-row {
+/* === The Core Hub (Floating Capsule) === */
+.core-hub {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 24px);
+    left: 16px;
+    right: 16px;
     display: flex;
     align-items: center;
     gap: 12px;
+    z-index: 1000;
 }
 
-.input-field-wrapper {
+.input-capsule {
     flex: 1;
-    height: 40px;
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 20px;
-    padding: 0 14px;
+    height: 52px;
+    background: var(--ios-blur-bg);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    /* Thinner, refined border */
+    border-radius: 26px;
+    padding: 0 4px 0 20px;
     display: flex;
     align-items: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-    /* Subtle depth */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    /* Softer, deep shadow */
 }
 
-.chat-input-field {
-    width: 100%;
+.input-capsule input {
+    flex: 1;
     border: none;
     background: transparent;
     font-size: 16px;
-    outline: none;
+    color: #1c1c1e;
 }
 
-/* Icons */
-.tool-btn {
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--ios-text-secondary);
-    transition: opacity 0.2s;
-}
-
-.tool-btn:active {
-    opacity: 0.5;
-}
-
-/* Chat Messages */
-.user-bubble {
-    background: var(--ios-blue);
-    /* iMessage Blue */
-    color: white;
-    /* Contrast text */
-    padding: 10px 16px;
-    border-radius: 18px;
-    border-bottom-right-radius: 4px;
-    /* iOS subtle styling */
-    font-size: 16px;
-    line-height: 1.4;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.ai-response {
-    margin-bottom: 20px;
-    color: var(--ios-text-primary);
-}
-
-/* === Tab Bar (Glassmorphism) === */
-.bottom-tab-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(54px + var(--safe-bottom));
-    padding-bottom: var(--safe-bottom);
-    background: rgba(255, 255, 255, 0.9);
-    /* More transparent */
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 0.5px solid rgba(0, 0, 0, 0.15);
-    /* Thinner border */
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    z-index: 100;
-}
-
-.tab-btn {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #999;
-}
-
-.tab-btn svg {
-    stroke-width: 1.8px;
-    /* Slightly bolder for clarity */
-}
-
-.tab-btn.active {
-    color: var(--ios-blue);
-}
-
-/* === Editor View (Refined) === */
-.editor-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 24px 80px;
-    /* Internal padding, space for toolbar */
-    background: var(--ios-bg);
-    display: flex;
-    flex-direction: column;
-}
-
-.editor-title {
-    font-family: var(--font-stack);
-    font-size: 30px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    color: var(--ios-text-primary);
-    margin: 10px 0 20px;
-    outline: none;
-    border: none;
-    background: transparent;
-    width: 100%;
-}
-
-.editor-body {
-    font-family: var(--font-stack);
-    font-size: 17px;
-    line-height: 1.6;
-    color: #333;
-    flex: 1;
-    /* Take remaining space */
-    outline: none;
-    border: none;
-}
-
-/* Editor Toolbar (Fixed Bottom) */
-.editor-toolbar {
-    position: absolute;
-    /* Changed from sticky to absolute */
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(50px + var(--safe-bottom));
-    padding: 0 16px var(--safe-bottom);
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 0.5px solid var(--ios-separator);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 10;
-}
-
-.toolbar-btn {
+.plus-btn-line {
     width: 44px;
-    /* Standard touch target */
     height: 44px;
+    border-radius: 22px;
     border: none;
     background: transparent;
-    font-size: 20px;
-    color: #333;
+    color: #8e8e93;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    border-radius: 8px;
 }
 
-.toolbar-btn:active {
-    background: rgba(0, 0, 0, 0.05);
-    /* Touch feedback */
+.plus-btn-line:active {
+    color: var(--ios-blue);
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.send-btn-line {
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    border: none;
+    background: transparent;
+    color: var(--ios-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.send-btn-line:active {
+    transform: scale(0.9);
     opacity: 0.7;
 }
 
-.spacer {
+.bottom-spacer {
+    height: 120px;
+}
+
+/* === Editor & Chat Headers === */
+.notes-header,
+.gemini-header {
+    padding: calc(var(--safe-top) + 10px) 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border-bottom: 0.5px solid #eee;
+}
+
+.header-btn {
+    background: none;
+    border: none;
+    color: var(--ios-blue);
+    padding: 8px;
+}
+
+.header-title,
+.editor-header-title {
+    font-weight: 600;
+    font-size: 17px;
+    border: none;
+    outline: none;
+    background: transparent;
+    text-align: center;
+    width: 100%;
+    color: var(--ios-text-primary);
+}
+
+.header-title-container {
     flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 0 10px;
 }
 
-@keyframes spin {
-    100% {
-        transform: rotate(360deg);
-    }
+.editor-header-title::placeholder {
+    color: #ccc;
 }
 
-.spin-anim {
-    animation: spin 1s linear infinite;
+[contenteditable="true"] {
+    outline: none;
+    border: none;
 }
 
-/* Action Sheet */
+/* === Action Sheet === */
 .action-sheet-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    /* Darker overlay */
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 2000;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(5px);
+    z-index: 3000;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    transition: opacity 0.3s ease;
-}
-
-.action-sheet-overlay.hidden {
-    opacity: 0;
-    pointer-events: none;
 }
 
 .action-sheet {
     padding: 16px;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
-    transform: translateY(0);
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.action-sheet-overlay.hidden .action-sheet {
-    transform: translateY(100%);
+    padding-bottom: max(16px, var(--safe-bottom));
 }
 
 .action-btn-group {
-    background: #ffffff !important;
-    /* Solid white */
+    background: #fff;
     border-radius: 14px;
     overflow: hidden;
     margin-bottom: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .action-btn {
     width: 100%;
-    height: 58px;
+    height: 56px;
     border: none;
-    background: #ffffff !important;
-    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
-    font-size: 19px;
-    color: #007aff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 500;
-    gap: 12px;
-}
-
-.action-btn:active {
-    background: rgba(0, 0, 0, 0.05);
-}
-
-.action-btn:last-child {
-    border-bottom: none;
+    background: #fff;
+    border-bottom: 0.5px solid #eee;
+    font-size: 18px;
+    color: var(--ios-blue);
 }
 
 .cancel-btn {
-    background: #ffffff !important;
-    border-radius: 14px !important;
-    color: #007aff !important;
-    font-weight: 700 !important;
-    margin-bottom: 24px !important;
-    height: 58px !important;
-    width: 100% !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
-}
-
-dark-mode .action-btn-group {
-    background: rgba(30, 30, 30, 0.85);
-}
-
-dark-mode .action-btn {
-    color: #0a84ff;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-dark-mode .cancel-btn {
-    background: #1c1c1e;
-    color: #0a84ff;
-}
-
-/* === FORCE OVERRIDES (Minimalist & Layout Fixes) === */
-.note-card {
-    background: #fff !important;
-    padding: 12px 16px 12px 0 !important;
-    margin-left: 16px !important;
-    margin-bottom: 0 !important;
-    border-bottom: 0.5px solid rgba(60, 60, 67, 0.18) !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-}
-
-.note-card:active {
-    background: #e5e5ea !important;
-    margin-left: 0 !important;
-    padding-left: 16px !important;
-}
-
-.note-card:last-child {
-    border-bottom: none !important;
-}
-
-.note-title {
-    font-weight: 500 !important;
-    font-size: 16px !important;
-}
-
-.note-preview {
-    font-size: 14px !important;
-    color: #8e8e93 !important;
-    margin-top: 2px !important;
-}
-
-/* FIX CHAT INPUT OVERLAP */
-.input-area {
-    bottom: calc(56px + var(--safe-bottom, 20px)) !important;
-    border-top: 1px solid #e0e0e0 !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-}
-
-#chat-content {
-    padding-bottom: 120px !important;
-}
-
-/* === FORCE IOS iOS THEME (Added for Minimalist Look) === */
-.note-card {
-    background: #fff !important;
-    padding: 12px 16px 12px 0 !important;
-    margin-left: 16px !important;
-    margin-right: 0 !important;
-    margin-bottom: 0 !important;
-    border-bottom: 0.5px solid rgba(60, 60, 67, 0.18) !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-}
-
-.note-card:active {
-    background: #e5e5ea !important;
-    margin-left: 0 !important;
-    padding-left: 16px !important;
-}
-
-.note-card:last-child {
-    border-bottom: none !important;
-}
-
-.note-title {
-    font-size: 16px !important;
-    font-weight: 500 !important;
-    color: #000 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    margin-right: 8px !important;
-}
-
-.note-time {
-    font-size: 14px !important;
-    color: #8e8e93 !important;
-}
-
-.note-preview {
-    font-size: 15px !important;
-    color: #8e8e93 !important;
-    margin-top: 2px !important;
-    -webkit-line-clamp: 2 !important;
-}
-
-/* CHAT FULL SCREEN FIX */
-.input-area {
-    position: absolute !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
-    background: rgba(249, 249, 249, 0.95) !important;
-    border-top: 1px solid #c6c6c8 !important;
-}
-
-#chat-content {
-    padding-bottom: 90px !important;
-}
-
-.header-btn.back-btn {
-    margin-right: 12px;
-}
-
-.notes-list-content {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 12px 0;
+    font-weight: 700;
+    height: 56px;
+    border-radius: 14px;
+    border: none;
     background: #fff;
-    min-height: 100%;
+    width: 100%;
 }
 
-/* === EDITOR FLOATING TOOLBAR === */
+/* === Editor Floating Capsule Toolbar === */
 .editor-toolbar-floating {
     position: fixed;
-    bottom: 0;
+    bottom: calc(var(--safe-bottom) + 20px);
     left: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+    /* Let clicks pass through context but capture on buttons */
+}
+
+.editor-toolbar-capsule {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-top: 0.5px solid rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    padding-bottom: env(safe-area-inset-bottom);
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
+    border-radius: 28px;
+    padding: 6px 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    gap: 8px;
 }
 
-.ai-prompt-bar {
-    display: flex;
-    align-items: center;
-    padding: 8px 16px;
-    gap: 12px;
-    background: rgba(0, 122, 255, 0.05);
-}
-
-.ai-prompt-bar input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    font-size: 14px;
-    outline: none;
-    color: #007aff;
-}
-
-.ai-prompt-bar button {
-    border: none;
-    background: none;
-    font-size: 18px;
-    padding: 4px;
-}
-
-.editor-toolbar {
-    display: flex;
-    height: 50px;
-    align-items: center;
-    padding: 0 12px;
-}
-
-.toolbar-group {
+.toolbar-section {
     display: flex;
     align-items: center;
     gap: 4px;
 }
 
-.toolbar-btn {
-    width: 44px;
-    height: 44px;
+.toolbar-divider {
+    width: 0.5px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0 4px;
+}
+
+.toolbar-btn-mini {
+    height: 38px;
+    min-width: 38px;
+    padding: 0 10px;
     border: none;
     background: transparent;
-    color: #333;
+    border-radius: 19px;
+    font-size: 14px;
+    color: #444;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
-    font-size: 16px;
+    transition: all 0.2s;
+    font-weight: 500;
 }
 
-.toolbar-btn:active {
+.toolbar-btn-mini:active {
     background: rgba(0, 0, 0, 0.05);
+    transform: scale(0.92);
 }
 
-.editor-body {
-    padding: 20px !important;
-    font-size: 18px !important;
-    line-height: 1.6 !important;
-    outline: none !important;
-    min-height: 200px !important;
-    padding-bottom: 120px !important;
-    /* Space for toolbar */
-}
-
-/* Checklist Styling */
-.todo-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 4px;
-}
-
-.todo-checkbox {
-    width: 20px;
-    height: 20px;
-    border: 2px solid #007aff;
-    border-radius: 4px;
-    margin-top: 4px;
-    flex-shrink: 0;
-}
-
-/* Category Headers */
-.note-category-header {
-    font-size: 13px;
+.magic-capsule-btn {
+    color: var(--ios-blue);
     font-weight: 600;
-    color: #8e8e93;
-    padding: 20px 16px 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    background: rgba(0, 122, 255, 0.05);
 }
 
-/* FAB */
-.fab-main {
-    position: fixed;
-    right: 20px;
-    bottom: 100px;
-    width: 56px;
-    height: 56px;
-    background: #007aff;
-    border-radius: 28px;
-    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    z-index: 500;
-    font-size: 24px;
+.magic-capsule-btn:active {
+    background: rgba(0, 122, 255, 0.1);
 }
 
-/* === ATTACHMENT PREVIEW === */
-#attachment-preview-container {
+/* === Chat Attachments === */
+.attachment-preview-container {
     display: flex;
     gap: 8px;
-    padding: 8px 16px;
+    padding: 10px 16px;
     overflow-x: auto;
-    background: #f9f9f9;
-    border-bottom: 0.5px solid #eee;
-}
-
-#attachment-preview-container.hidden {
-    display: none;
+    background: rgba(255, 255, 255, 0.5);
+    border-top: 0.5px solid #eee;
 }
 
 .attachment-preview {
-    position: relative;
     width: 60px;
     height: 60px;
-    border-radius: 8px;
-    overflow: hidden;
+    border-radius: 12px;
+    position: relative;
     flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .attachment-preview img {
@@ -835,21 +540,373 @@ dark-mode .cancel-btn {
     position: absolute;
     top: 2px;
     right: 2px;
+    width: 18px;
+    height: 18px;
     background: rgba(0, 0, 0, 0.5);
     color: white;
-    width: 16px;
-    height: 16px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
     cursor: pointer;
+    backdrop-filter: blur(4px);
 }
 
-/* User image message */
-.user-bubble img {
+.hidden {
+    display: none !important;
+}
+
+
+/* === Reader Detail View === */
+.reader-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    background: #fff;
+}
+
+.reader-article {
+    max-width: 650px;
+    margin: 0 auto;
+    padding: 24px 20px 100px;
+}
+
+.reader-main-title {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 12px;
+    color: #111;
+}
+
+.reader-meta {
+    font-size: 14px;
+    color: #8e8e93;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 0.5px solid #eee;
+}
+
+.reader-body-content {
+    font-size: 18px;
+    line-height: 1.7;
+    color: #333;
+}
+
+.reader-body-content p {
+    margin-bottom: 1.5em;
+}
+
+.reader-body-content h2 {
+    font-size: 24px;
+    margin: 1.8em 0 0.8em;
+    font-weight: 700;
+}
+
+.reader-body-content img {
     max-width: 100%;
     border-radius: 12px;
-    margin-top: 8px;
+    margin: 20px 0;
+}
+
+.reader-body-content blockquote {
+    border-left: 4px solid var(--ios-blue);
+    margin: 24px 0;
+    padding: 8px 0 8px 20px;
+    color: #555;
+    font-style: italic;
+    background: #f8f9ff;
+    border-radius: 0 8px 8px 0;
+}
+
+.reader-body-content pre,
+.reader-body-content code {
+    background: #f4f4f4;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-family: 'ui-monospace', 'SFMono-Regular', Menlo, monospace;
+}/* ============================== */
+/* CHAT VIEW STYLES               */
+/* ============================== */
+
+.chat-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: #f5f5f7;
+}
+
+#messages-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.message {
+    display: flex;
+    flex-direction: column;
+    max-width: 85%;
+    animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message.user {
+    align-self: flex-end;
+}
+
+.message.assistant {
+    align-self: flex-start;
+}
+
+.message-bubble {
+    padding: 12px 16px;
+    border-radius: 18px;
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+
+.message.user .message-bubble {
+    background: var(--ios-blue);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.message.assistant .message-bubble {
+    background: white;
+    color: #1c1c1e;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.attachment-preview-container {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    background: white;
+    border-top: 1px solid #e5e5ea;
+}
+
+.attachment-preview {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.attachment-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.attachment-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.chat-input-area {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    background: white;
+    border-top: 1px solid #e5e5ea;
+}
+
+.chat-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--ios-blue);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.chat-icon-btn:active {
+    background: #f0f0f5;
+}
+
+.chat-input {
+    flex: 1;
+    min-height: 36px;
+    max-height: 120px;
+    padding: 8px 12px;
+    border: 1px solid #e5e5ea;
+    border-radius: 18px;
+    font-size: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.chat-input:focus {
+    border-color: var(--ios-blue);
+}
+
+.chat-send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--ios-blue);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, opacity 0.2s;
+    flex-shrink: 0;
+}
+
+.chat-send-btn:active {
+    transform: scale(0.9);
+}
+
+.chat-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================== */
+/* CORE HUB STYLES                */
+/* ============================== */
+
+.core-hub {
+    position: fixed;
+    bottom: 20px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 100;
+}
+
+.home-btn-line {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    color: var(--ios-text-secondary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    flex-shrink: 0;
+}
+
+.home-btn-line:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.input-capsule {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 24px;
+    padding: 0 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    height: 48px;
+}
+
+.universal-core-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    background: transparent;
+    color: var(--ios-text-primary);
+}
+
+.universal-core-input::placeholder {
+    color: var(--ios-text-tertiary);
+}
+
+.plus-btn-line {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--ios-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, opacity 0.2s;
+    flex-shrink: 0;
+}
+
+.plus-btn-line:active {
+    transform: scale(0.9);
+    opacity: 0.6;
+}
+
+.send-btn-line {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--ios-blue);
+    color: white;
+    box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    flex-shrink: 0;
+}
+
+.send-btn-line:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
+}
+
+/* Typing indicator animation */
+.typing-indicator {
+    display: inline-block;
+    animation: typing-pulse 1.4s infinite;
+}
+
+@keyframes typing-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
 }

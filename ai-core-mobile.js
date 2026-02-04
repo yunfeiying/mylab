@@ -1,6 +1,5 @@
 /**
- * ai-core-mobile.js
- * Bridges AI settings and provides a unified window.aiCore for mobile.
+ * ai-core-mobile.js - Unified AI Controller for Mobile
  */
 
 class AICoreMobile {
@@ -13,16 +12,26 @@ class AICoreMobile {
     }
 
     async init() {
-        const settings = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model']);
-        this.config.apiKey = settings.ai_api_key || '';
-        this.config.baseUrl = settings.ai_base_url || 'https://api.deepseek.com';
-        this.config.model = settings.ai_model || 'deepseek-chat';
-        console.log('[AICoreMobile] Config loaded.');
+        console.log('[AICore] Initializing...');
+        try {
+            if (!window.appStorage) {
+                console.error('[AICore] window.appStorage is missing! Retrying in 500ms...');
+                setTimeout(() => this.init(), 500);
+                return;
+            }
+            const settings = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model']);
+            this.config.apiKey = settings.ai_api_key || '';
+            this.config.baseUrl = settings.ai_base_url || 'https://api.deepseek.com';
+            this.config.model = settings.ai_model || 'deepseek-chat';
+            console.log('[AICore] Config loaded successfully.');
+        } catch (e) {
+            console.error('[AICore] Init failed:', e);
+        }
     }
 
     async *streamChat(messages) {
         if (!this.config.apiKey) {
-            yield { type: 'token', fullText: 'Error: API Key is missing. Please set it in PC version or local storage.' };
+            yield { type: 'token', fullText: 'Error: API Key is missing. Please set it in Settings.' };
             return;
         }
 
@@ -40,7 +49,10 @@ class AICoreMobile {
                 })
             });
 
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+            }
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -63,24 +75,18 @@ class AICoreMobile {
                                 fullText += token;
                                 yield { type: 'token', fullText: fullText };
                             }
-                        } catch (e) { /* partial json */ }
+                        } catch (e) { }
                     }
                 }
             }
         } catch (e) {
-            yield { type: 'token', fullText: `Error: ${e.message}` };
+            yield { type: 'error', fullText: `Error: ${e.message}` };
         }
-    }
-
-    async generateText(prompt) {
-        const it = this.streamChat([{ role: 'user', content: prompt }]);
-        let last = "";
-        for await (const chunk of it) {
-            last = chunk.fullText;
-        }
-        return last;
     }
 }
 
+// Global Singleton
 window.aiCore = new AICoreMobile();
-window.aiCore.init();
+document.addEventListener('DOMContentLoaded', () => {
+    window.aiCore.init();
+});
