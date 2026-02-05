@@ -13,8 +13,27 @@ class MobileApp {
         this.activeView = 'home';
         this.dataMap = new Map(); // Store full data objects here to avoid JSON attribute issues
 
+        this.setupKeyboardTracking();
         this.setupEvents();
-        console.log('MobileCore V10.1 (Monolith) Initialized');
+        console.log('MobileCore V10.2 (Monolith) Initialized');
+    }
+
+    setupKeyboardTracking() {
+        if (window.visualViewport) {
+            const updateOffset = () => {
+                const offset = window.innerHeight - window.visualViewport.height;
+                // Only apply if offset is significant
+                const finalOffset = offset > 50 ? offset : 0;
+                document.documentElement.style.setProperty('--keyboard-offset', `${finalOffset}px`);
+                if (finalOffset > 0 && document.activeElement) {
+                    setTimeout(() => {
+                        document.activeElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    }, 300);
+                }
+            };
+            window.visualViewport.addEventListener('resize', updateOffset);
+            window.visualViewport.addEventListener('scroll', updateOffset);
+        }
     }
 
     triggerUniversalSend(inputEl) {

@@ -308,7 +308,7 @@ class MobileChat {
         el.className = 'message assistant thinking';
         el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-start; margin:8px 0; width: 100%;';
         el.innerHTML = `
-            <div class="message-bubble" style="background:#fff; color:#444; padding:10px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:85%; width: fit-content; border:1px solid #eee;">
+            <div class="ai-response-content message-bubble" style="background:#fff; color:#444; padding:10px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:85%; width: fit-content; border:1px solid #eee;">
                 <span class="typing-indicator">●●●</span>
             </div>
         `;

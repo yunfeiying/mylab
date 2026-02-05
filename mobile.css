@@ -274,7 +274,7 @@ html {
 /* === The Core Hub (Floating Capsule) === */
 .core-hub {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 24px);
+    bottom: calc(var(--safe-bottom) + 24px + var(--keyboard-offset, 0px));
     left: 16px;
     right: 16px;
     display: flex;
@@ -447,7 +447,7 @@ html {
 /* === Editor Floating Capsule Toolbar === */
 .editor-toolbar-floating {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 20px);
+    bottom: calc(var(--safe-bottom) + 20px + var(--keyboard-offset, 0px));
     left: 0;
     right: 0;
     display: flex;
@@ -813,7 +813,7 @@ html {
 
 .core-hub {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 12px);
+    bottom: calc(var(--safe-bottom) + 12px + var(--keyboard-offset, 0px));
     left: 12px;
     right: 12px;
     display: flex;
