@@ -379,8 +379,8 @@
 
     <!-- API Settings Dialog -->
     <div id="api-settings-dialog" class="action-sheet-overlay hidden">
-        <div class="action-sheet" style="max-height: 70vh;">
-            <div style="padding: 20px; background: white; border-radius: 12px 12px 0 0;">
+        <div class="action-sheet" style="max-height: 85vh; display: flex; flex-direction: column;">
+            <div style="padding: 20px; background: white; border-radius: 12px 12px 0 0; overflow-y: auto; flex: 1;">
                 <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">App Settings</h3>
 
                 <h4
@@ -401,27 +401,6 @@
                 <div style="margin-bottom: 24px;">
                     <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Model</label>
                     <input type="text" id="input-model" placeholder="deepseek-chat"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
-                </div>
-
-                <h4
-                    style="margin: 0 0 10px 0; font-size: 14px; color: #333; text-transform: uppercase; letter-spacing: 0.5px;">
-                    Google Drive (API)</h4>
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Client ID</label>
-                    <input type="text" id="input-gdrive-client-id" placeholder="804554...apps.googleusercontent.com"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">API Key /
-                        Secret</label>
-                    <input type="text" id="input-gdrive-api-key" placeholder="Enter your GDrive API Key"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Root Folder
-                        Name</label>
-                    <input type="text" id="input-gdrive-root" placeholder="Highlighti_Data"
                         style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
                 </div>
 

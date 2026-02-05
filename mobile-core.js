@@ -254,20 +254,12 @@ class MobileApp {
                 const baseUrl = inputBaseUrl ? inputBaseUrl.value.trim() : 'https://api.deepseek.com';
                 const model = inputModel ? inputModel.value.trim() : 'deepseek-chat';
 
-                const gdriveRootInput = document.getElementById('input-gdrive-root');
-                const gdriveRoot = document.getElementById('input-gdrive-root')?.value.trim() || 'Highlighti_Data';
-                const gdriveClientId = document.getElementById('input-gdrive-client-id')?.value.trim() || '';
-                const gdriveApiKey = document.getElementById('input-gdrive-api-key')?.value.trim() || '';
-
                 const settingsRes = await window.appStorage.get('settings');
                 const settings = settingsRes.settings || {};
 
                 settings.ai_api_key = apiKey;
                 settings.ai_base_url = baseUrl;
                 settings.ai_model = model;
-                settings.gdrive_root_folder = gdriveRoot;
-                settings.gdrive_client_id = gdriveClientId;
-                settings.gdrive_api_key = gdriveApiKey;
 
                 await window.appStorage.set({ settings });
 
@@ -276,12 +268,8 @@ class MobileApp {
                     window.mobileChat.updateConfig(apiKey, baseUrl, model);
                 }
 
-                if (window.mobileGDrive) {
-                    window.mobileGDrive.ROOT_FOLDER_NAME = gdriveRoot;
-                }
-
                 if (apiDialog) apiDialog.classList.add('hidden');
-                alert('Settings saved successfully!');
+                alert('App settings saved!');
             };
         }
 
