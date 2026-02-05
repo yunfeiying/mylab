@@ -32,11 +32,21 @@ class MobileGDrive {
             });
         }
 
-        // Fallback sensing (No redirect/prompt)
+        // Fallback sensing (Ask user for token if not found)
         const savedToken = localStorage.getItem('gdrive_web_token');
         if (savedToken) return savedToken;
 
-        throw new Error("Chrome Identity API not available. Please use WebDAV sync if you are on a standard mobile browser.");
+        if (!interactive) return null;
+
+        const manualToken = prompt("[API Sync Required]\nPlease paste your Google Access Token to continue.\n(Sync requires a valid session token from your Google API console):", "");
+        if (manualToken) {
+            localStorage.setItem('gdrive_web_token', manualToken);
+            // Optional: set a default expiry of 1 hour if not known
+            localStorage.setItem('gdrive_web_token_expiry', Date.now() + 3600 * 1000);
+            return manualToken;
+        }
+
+        throw new Error("Google Authentication required. Please provide a token or use WebDAV sync.");
     }
 
     async _wait(ms) { return new Promise(r => setTimeout(r, ms)); }
