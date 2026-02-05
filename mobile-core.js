@@ -15,7 +15,16 @@ class MobileApp {
 
         this.setupKeyboardTracking();
         this.setupEvents();
-        console.log('MobileCore V10.4 (Monolith) Initialized');
+        console.log('MobileCore V10.5 (Monolith) Initialized');
+    }
+
+    // Robust date parser to prevent NaN display
+    safeParseToNumber(val) {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        // Handle ISO strings, date strings, or numeric strings
+        const parsed = new Date(val).getTime();
+        return isNaN(parsed) ? 0 : parsed;
     }
 
     setupKeyboardTracking() {
@@ -25,6 +34,13 @@ class MobileApp {
                 // Only apply if offset is significant
                 const finalOffset = offset > 50 ? offset : 0;
                 document.documentElement.style.setProperty('--keyboard-offset', `${finalOffset}px`);
+
+                if (finalOffset > 0) {
+                    document.body.classList.add('keyboard-visible');
+                } else {
+                    document.body.classList.remove('keyboard-visible');
+                }
+
                 if (finalOffset > 0 && document.activeElement) {
                     setTimeout(() => {
                         document.activeElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -510,6 +526,22 @@ class MobileApp {
             };
         }
 
+        // Web Snapshot Toggle Logic
+        const snapshotToggle = document.getElementById('btn-toggle-snapshot');
+        const snapshotContent = document.getElementById('reader-snapshot-content');
+        if (snapshotToggle && snapshotContent) {
+            snapshotToggle.onclick = () => {
+                const isOpen = !snapshotContent.classList.contains('hidden');
+                if (isOpen) {
+                    snapshotContent.classList.add('hidden');
+                    snapshotToggle.classList.remove('open');
+                } else {
+                    snapshotContent.classList.remove('hidden');
+                    snapshotToggle.classList.add('open');
+                }
+            };
+        }
+
         this.setupSwipeNavigation();
     }
 
@@ -559,8 +591,44 @@ class MobileApp {
         }
 
         this.currentReaderUrl = data.url;
+        this.loadSnapshot(data.url); // Load snapshot if exists
+
         // Scroll to top
         document.querySelector('.reader-scroll-area').scrollTop = 0;
+    }
+
+    async loadSnapshot(url) {
+        const container = document.getElementById('reader-snapshot-container');
+        const contentEl = document.getElementById('reader-snapshot-content');
+        const toggleBtn = document.getElementById('btn-toggle-snapshot');
+
+        if (!container || !contentEl || !toggleBtn) return;
+
+        // Hide by default
+        container.classList.add('hidden');
+        contentEl.classList.add('hidden');
+        toggleBtn.classList.remove('open');
+        contentEl.innerHTML = '';
+
+        if (!url) return;
+
+        try {
+            const key = 'snapshot_' + url;
+            const res = await window.appStorage.get(key);
+            const snapshot = res[key];
+
+            if (snapshot && snapshot.content) {
+                container.classList.remove('hidden');
+                contentEl.innerHTML = `
+                    <div style="font-size: 13px; color: #8e8e93; margin-bottom: 12px; font-style: italic;">
+                        Captured: ${new Date(snapshot.timestamp).toLocaleString()}
+                    </div>
+                    ${snapshot.content}
+                `;
+            }
+        } catch (e) {
+            console.warn('Failed to load snapshot:', e);
+        }
     }
 
     async renderApp() {
@@ -596,13 +664,13 @@ class MobileApp {
                 const rawContent = (val.content || val.text || '').trim();
                 const contentFingerprint = `${val.title}_${rawContent.substring(0, 150).replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '')}`;
 
-                const time = Number(val.updatedAt || val.timestamp || 0);
+                const time = this.safeParseToNumber(val.updatedAt || val.timestamp);
 
                 // 3. Robust Search for Existing Duplicate
                 const existing = noteMap.get(identity) ||
                     Array.from(noteMap.values()).find(n => n._fingerprint === contentFingerprint);
 
-                if (!existing || time > (existing.updatedAt || 0)) {
+                if (!existing || (time > 0 && time > (existing.updatedAt || 0))) {
                     // If we are replacing an existing but different ID entry, remove the old one
                     if (existing && existing.id !== identity) {
                         noteMap.delete(existing.id);
@@ -644,7 +712,7 @@ class MobileApp {
                 if (body && !readerMap[rKey].contents.includes(body)) {
                     readerMap[rKey].contents.push(body);
                 }
-                const currentTime = val.updatedAt || val.timestamp || 0;
+                const currentTime = this.safeParseToNumber(val.updatedAt || val.timestamp);
                 if (currentTime > (readerMap[rKey].updatedAt || 0)) {
                     readerMap[rKey].updatedAt = currentTime;
                     readerMap[rKey].timestamp = currentTime;
@@ -722,8 +790,23 @@ class MobileApp {
             const parentKey = n._storageKey || '';
 
             // Format time: MM/DD HH:mm
-            const timeVal = n.updatedAt || n.timestamp || 0;
-            const dateStr = timeVal ? new Date(timeVal).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+            const timeVal = this.safeParseToNumber(n.updatedAt || n.timestamp);
+            let dateStr = '';
+            try {
+                if (timeVal > 0) {
+                    const d = new Date(timeVal);
+                    const now = new Date();
+                    const isToday = d.toDateString() === now.toDateString();
+
+                    if (isToday) {
+                        dateStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                    } else {
+                        dateStr = d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+                    }
+                }
+            } catch (e) {
+                dateStr = '';
+            }
 
             return `
                 <div class="note-item-wrapper" data-id="${id}" data-parent-key="${parentKey}" data-type="note">

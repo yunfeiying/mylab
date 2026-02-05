@@ -447,14 +447,18 @@ html {
 /* === Editor Floating Capsule Toolbar === */
 .editor-toolbar-floating {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 20px + var(--keyboard-offset, 0px));
+    bottom: calc(var(--safe-bottom) + 20px);
     left: 0;
     right: 0;
     display: flex;
     justify-content: center;
     z-index: 1000;
     pointer-events: none;
-    /* Let clicks pass through context but capture on buttons */
+    transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.keyboard-visible .editor-toolbar-floating {
+    bottom: var(--keyboard-offset, 0px);
 }
 
 .editor-toolbar-capsule {
@@ -813,13 +817,21 @@ html {
 
 .core-hub {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 12px + var(--keyboard-offset, 0px));
+    bottom: calc(var(--safe-bottom) + 12px);
     left: 12px;
     right: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
     z-index: 1000;
+    transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.keyboard-visible .core-hub {
+    /* Add a small 8px safety margin above the keyboard to prevent icon clipping */
+    bottom: calc(var(--keyboard-offset, 0px) + 8px);
+    left: 8px;
+    right: 8px;
 }
 
 .home-btn-line {
@@ -899,7 +911,8 @@ html {
     align-items: center;
     justify-content: center;
     transition: transform 0.2s, box-shadow 0.2s;
-    flex-shrink: 0;
+    margin-bottom: 2px;
+    /* Micro-adjustment for icon vertical alignment */
 }
 
 .send-btn-line:active {
@@ -969,4 +982,93 @@ html {
 #reader-list-container .note-preview {
     font-size: 12px !important;
     opacity: 0.6 !important;
+}
+
+/* === Reader Snapshot Viewer (Mobile) === */
+.snapshot-toggle-wrapper {
+    margin: 16px 0;
+    width: 100%;
+}
+
+.snapshot-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 16px;
+    background: #f2f2f7;
+    border: none;
+    border-radius: 12px;
+    color: var(--ios-blue);
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.snapshot-toggle-btn:active {
+    background: #e5e5ea;
+    transform: scale(0.98);
+}
+
+.snapshot-toggle-btn .icon {
+    font-size: 18px;
+}
+
+.snapshot-toggle-btn .arrow {
+    margin-left: auto;
+    font-size: 12px;
+    transition: transform 0.3s;
+}
+
+.snapshot-toggle-btn.open .arrow {
+    transform: rotate(180deg);
+}
+
+.snapshot-content {
+    margin-top: 12px;
+    padding: 20px;
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    font-family: -apple-system, system-ui, serif;
+    line-height: 1.6;
+    color: #333;
+    overflow-x: auto;
+    animation: slideDown 0.3s ease-out;
+}
+
+.snapshot-content h1,
+.snapshot-content h2,
+.snapshot-content h3 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: #000;
+}
+
+.snapshot-content p {
+    margin-bottom: 1em;
+}
+
+.snapshot-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hidden {
+    display: none !important;
 }

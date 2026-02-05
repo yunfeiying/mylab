@@ -1,0 +1,511 @@
+{
+  "appName": {
+    "message": "Highlighti - AI 网页划线与笔记"
+  },
+  "appDesc": {
+    "message": "终极网页划线工具与 AI 助手。Highlighti 助您捕捉灵感。"
+  },
+  "optSidebarTitle": {
+    "message": "Highlighti"
+  },
+  "opt_unlock": {
+    "message": "解锁 Pro 版"
+  },
+  "ui_resourceManager": {
+    "message": "资源管理"
+  },
+  "opt_export": {
+    "message": "导出 JSON"
+  },
+  "opt_import": {
+    "message": "导入 JSON"
+  },
+  "opt_exportMd": {
+    "message": "导出 Markdown"
+  },
+  "opt_exportTxt": {
+    "message": "导出 TXT"
+  },
+  "opt_searchPlaceholder": {
+    "message": "搜索..."
+  },
+  "opt_confirm": {
+    "message": "确认"
+  },
+  "opt_emptyState": {
+    "message": "请选择页面查看划线"
+  },
+  "smart_aiGen": {
+    "message": "AI 生成"
+  },
+  "smart_webPreview": {
+    "message": "网页预览"
+  },
+  "opt_syncNow": {
+    "message": "立即同步"
+  },
+  "menu_webdav": {
+    "message": "WebDAV"
+  },
+  "menu_gdrive": {
+    "message": "Google Drive"
+  },
+  "opt_settings": {
+    "message": "设置"
+  },
+  "ui_search": {
+    "message": "搜索"
+  },
+  "ui_selectAll": {
+    "message": "全选"
+  },
+  "ctx_delete": {
+    "message": "删除"
+  },
+  "ui_copySelected": {
+    "message": "复制选中内容"
+  },
+  "sort_doc": {
+    "message": "📄 文档顺序"
+  },
+  "sort_time": {
+    "message": "🕒 时间顺序"
+  },
+  "opt_inspiration": {
+    "message": "灵感笔记"
+  },
+  "opt_globalSettings": {
+    "message": "全局设置"
+  },
+  "opt_upgradeTitle": {
+    "message": "升级到 Pro"
+  },
+  "opt_upgradeDesc": {
+    "message": "解锁高级功能：颜色管理、文件夹、AI 写作、云同步。"
+  },
+  "opt_activate": {
+    "message": "立即激活"
+  },
+  "opt_syncConfig": {
+    "message": "☁️ 云同步配置"
+  },
+  "btn_save": {
+    "message": "保存"
+  },
+  "opt_colorMeaning": {
+    "message": "🎨 颜色含义"
+  },
+  "opt_restore": {
+    "message": "恢复默认"
+  },
+  "opt_close": {
+    "message": "关闭"
+  },
+  "opt_licenseTitle": {
+    "message": "激活 Pro"
+  },
+  "opt_licenseDesc": {
+    "message": "解锁颜色编辑、文件夹、AI 写作和云同步。"
+  },
+  "opt_licenseLinkText": {
+    "message": "点击购买激活码"
+  },
+  "opt_licensePlaceholder": {
+    "message": "输入激活码"
+  },
+  "btn_cancel": {
+    "message": "取消"
+  },
+  "optProActive": {
+    "message": "⚡ Pro 版已激活"
+  },
+  "optTrialLeft": {
+    "message": "⏳ 试用期：还剩 $DAYS$ 天",
+    "placeholders": {
+      "days": {
+        "content": "$1"
+      }
+    }
+  },
+  "optFreeVer": {
+    "message": "🔒 免费版"
+  },
+  "msg_inputKey": {
+    "message": "请输入激活码"
+  },
+  "msg_activateSuccess": {
+    "message": "激活成功！"
+  },
+  "msg_activateFail": {
+    "message": "激活失败：$MSG$",
+    "placeholders": {
+      "msg": {
+        "content": "$1"
+      }
+    }
+  },
+  "ui_proOnly": {
+    "message": "仅限 Pro 功能"
+  },
+  "ui_newFolder": {
+    "message": "新建文件夹"
+  },
+  "ui_deleteConfirm": {
+    "message": "确定删除 \"$TITLE$\"？",
+    "placeholders": {
+      "title": {
+        "content": "$1"
+      }
+    }
+  },
+  "opt_pageCount": {
+    "message": "$COUNT$ 条划线",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "ui_saving": {
+    "message": "正在保存..."
+  },
+  "ui_saved": {
+    "message": "已保存"
+  },
+  "ui_noContent": {
+    "message": "暂无内容"
+  },
+  "ui_backToLevel": {
+    "message": "返回上一级"
+  },
+  "ui_items": {
+    "message": "个项目"
+  },
+  "ui_deleteSelectedConfirm": {
+    "message": "确定删除这 $COUNT$ 个项目吗？",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "ui_selectFirst": {
+    "message": "请先选择项目"
+  },
+  "ui_copied": {
+    "message": "已复制"
+  },
+  "ui_noPreview": {
+    "message": "暂无预览内容"
+  },
+  "color_defaultName": {
+    "message": "颜色 $INDEX$",
+    "placeholders": {
+      "index": {
+        "content": "$1"
+      }
+    }
+  },
+  "msgSyncSuccess": {
+    "message": "同步成功 ✅"
+  },
+  "msgSyncFail": {
+    "message": "同步失败：$ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "msg_webdavSaved": {
+    "message": "WebDAV 配置已保存"
+  },
+  "msg_gdriveSaved": {
+    "message": "Google Drive 设置已更新"
+  },
+  "msgProFeature": {
+    "message": "仅限 Pro 版"
+  },
+  "uiUntitled": {
+    "message": "无标题页面"
+  },
+  "smart_pageTitle": {
+    "message": "智能助手"
+  },
+  "smart_back": {
+    "message": "返回"
+  },
+  "smart_dateTitle": {
+    "message": "当前日期"
+  },
+  "smart_export": {
+    "message": "分享/导出"
+  },
+  "smart_exportMd": {
+    "message": "导出 Markdown"
+  },
+  "smart_exportDoc": {
+    "message": "导出 Word"
+  },
+  "smart_apiKey": {
+    "message": "API 密钥"
+  },
+  "smart_close": {
+    "message": "关闭"
+  },
+  "smart_titlePlaceholder": {
+    "message": "输入文章标题..."
+  },
+  "smart_prompt": {
+    "message": "提示词模板"
+  },
+  "smart_promptPlaceholder": {
+    "message": "默认提示词：你是一位知识专家..."
+  },
+  "smart_mainPlaceholder": {
+    "message": "今日收集的内容或 AI 生成的内容将显示在这里..."
+  },
+  "smart_prevDay": {
+    "message": "前一天"
+  },
+  "smart_nextDay": {
+    "message": "后一天"
+  },
+  "btn_confirm": {
+    "message": "保存"
+  },
+  "smart_defaultTitlePattern": {
+    "message": "总结 $1-$2-$3",
+    "placeholders": {
+      "1": {
+        "content": "$1"
+      },
+      "2": {
+        "content": "$2"
+      },
+      "3": {
+        "content": "$3"
+      }
+    }
+  },
+  "smart_coreIdea": {
+    "message": "核心观点"
+  },
+  "smart_unknownContent": {
+    "message": "未知内容"
+  },
+  "smart_summarySuffix": {
+    "message": "总结"
+  },
+  "smart_defaultPromptText": {
+    "message": "你是一位知识管理专家。请将以下材料整理成一篇图文并茂的文章。保留 [Image URL] 链接。"
+  },
+  "popupReadLater": {
+    "message": "稍后阅读"
+  },
+  "popupAiRead": {
+    "message": "AI 智能阅读"
+  },
+  "popupSettings": {
+    "message": "设置"
+  },
+  "popupInputPlaceholder": {
+    "message": "输入灵感..."
+  },
+  "popupSaved": {
+    "message": "已保存"
+  },
+  "popupAiAnalyzing": {
+    "message": "正在分析页面..."
+  },
+  "popupOpenPdf": {
+    "message": "使用阅读器打开"
+  },
+  "popupClearPage": {
+    "message": "清除页面划线"
+  },
+  "pop_aiSummaryTitle": {
+    "message": "💡 总结与分析"
+  },
+  "pop_aiTimeout": {
+    "message": "后端超时，请刷新重试。"
+  },
+  "pop_aiContextPrefix": {
+    "message": "【当前划线（由新到旧）】："
+  },
+  "pop_aiUserNote": {
+    "message": "(用户笔记: $NOTE$)",
+    "placeholders": {
+      "note": {
+        "content": "$1"
+      }
+    }
+  },
+  "pop_videoMark": {
+    "message": "🎥 [视频标记]"
+  },
+  "pop_tableMark": {
+    "message": "📊 表格标记"
+  },
+  "pop_noText": {
+    "message": "(无文本)"
+  },
+  "pop_mediaPlaceholder": {
+    "message": "[图片/视频内容]"
+  },
+  "pop_inList": {
+    "message": "已在列表中"
+  },
+  "pop_addCurrent": {
+    "message": "+ 添加当前页面"
+  },
+  "pop_addSuccess": {
+    "message": "已添加"
+  },
+  "pop_noData": {
+    "message": "列表为空"
+  },
+  "pop_noHighlights": {
+    "message": "本页暂无划线"
+  },
+  "pop_aiError": {
+    "message": "错误：$MSG$",
+    "placeholders": {
+      "msg": {
+        "content": "$1"
+      }
+    }
+  },
+  "ctx_jumpTo": {
+    "message": "跳转至：$TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
+  "ctx_noVideo": {
+    "message": "未找到视频元素"
+  },
+  "ctx_missing": {
+    "message": "未找到内容（页面可能已更改）"
+  },
+  "ctx_imgSaved": {
+    "message": "图片已保存"
+  },
+  "ctx_capturing": {
+    "message": "正在截屏..."
+  },
+  "ctx_savedTime": {
+    "message": "时刻已记录：$TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
+  "ctx_recorded": {
+    "message": "时间戳已记录：$TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
+  "ctx_copy": {
+    "message": "复制"
+  },
+  "ctx_note": {
+    "message": "笔记"
+  },
+  "ctx_changeColor": {
+    "message": "修改颜色"
+  },
+  "ctx_inputNote": {
+    "message": "输入笔记..."
+  },
+  "ctx_save": {
+    "message": "保存"
+  },
+  "ctx_ocrProcessing": {
+    "message": "正在截图..."
+  },
+  "ctx_ocrFail": {
+    "message": "截图失败"
+  },
+  "ctx_ocrQueue": {
+    "message": "⏳ 排队中..."
+  },
+  "ctx_ocrRunning": {
+    "message": "⚡️ 正在处理（还剩 $COUNT$ 个）...",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "ctx_ocrDone": {
+    "message": "✅ 完成"
+  },
+  "ctx_ocrEmpty": {
+    "message": "⚠️ 未识别到文本"
+  },
+  "ctx_ocrError": {
+    "message": "❌ 错误"
+  },
+  "smart_settingsTitle": {
+    "message": "配置 AI 服务"
+  },
+  "smart_settingsDesc": {
+    "message": "配置 OpenAI 兼容 API（如 DeepSeek、OpenAI、Ollama）。"
+  },
+  "lbl_apiUrl": {
+    "message": "API 基础 URL"
+  },
+  "lbl_model": {
+    "message": "模型名称"
+  },
+  "lbl_apiKey": {
+    "message": "API 密钥"
+  },
+  "ph_apiUrl": {
+    "message": "例如 https://api.deepseek.com"
+  },
+  "ph_model": {
+    "message": "例如 deepseek-chat"
+  },
+  "smart_keySaved": {
+    "message": "AI 配置已保存"
+  },
+  "smart_setKeyFirst": {
+    "message": "请先配置 API 密钥"
+  },
+  "msg_importSuccessCount": {
+    "message": "导入成功！已导入 $COUNT$ 个项目。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "msg_syncSuccessCount": {
+    "message": "同步完成！已添加 $COUNT$ 个新项目。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "msg_importError": {
+    "message": "文件格式错误或已损坏"
+  },
+  "opt_language": {
+    "message": "语言"
+  },
+  "opt_langAuto": {
+    "message": "自动（浏览器默认）"
+  },
+  "btn_viewSnapshot": {
+    "message": "📷 查看网页快照"
+  }
+}

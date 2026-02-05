@@ -19,10 +19,14 @@ class AICoreMobile {
                 setTimeout(() => this.init(), 500);
                 return;
             }
-            const settings = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model']);
-            this.config.apiKey = settings.ai_api_key || '';
-            this.config.baseUrl = settings.ai_base_url || 'https://api.deepseek.com';
-            this.config.model = settings.ai_model || 'deepseek-chat';
+            // Load from both individual keys (standard) and nested object (legacy/mobile-specific)
+            const res = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model', 'settings']);
+            const nested = res.settings || {};
+
+            this.config.apiKey = res.ai_api_key || nested.ai_api_key || '';
+            this.config.baseUrl = res.ai_base_url || nested.ai_base_url || 'https://api.deepseek.com';
+            this.config.model = res.ai_model || nested.ai_model || 'deepseek-chat';
+
             console.log('[AICore] Config loaded successfully.');
         } catch (e) {
             console.error('[AICore] Init failed:', e);
