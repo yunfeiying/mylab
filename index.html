@@ -93,32 +93,7 @@
                 <div class="bottom-spacer"></div>
             </main>
 
-            <!-- The Core Hub: Capsule Floating Input -->
-            <div class="core-hub">
-                <button class="home-btn-line btn-go-home">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                    </svg>
-                </button>
-                <div class="input-capsule">
-                    <input type="text" class="universal-core-input" placeholder="Ask AI or type to search...">
-                    <button class="plus-btn-line universal-plus-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                    </button>
-                </div>
-                <button class="send-btn-line universal-send-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                </button>
-            </div>
+            <!-- Removed local core-hub -->
         </div>
 
         <!-- ============================== -->
@@ -143,27 +118,13 @@
             <main id="chat-content" class="chat-content">
                 <div id="messages-container"></div>
             </main>
-            <!-- Chat uses Core Hub style input -->
-            <div class="core-hub">
-                <button class="home-btn-line btn-go-home">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                    </svg>
-                </button>
-                <div class="input-capsule">
-                    <input type="text" id="chat-input" class="universal-core-input"
-                        placeholder="Ask AI or type to search...">
-                    <button id="btn-new-chat-plus" class="plus-btn-line">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                    </button>
+            <!-- Dedicated Chat Input Area -->
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea id="chat-input" placeholder="Message AI Assistant..." rows="1"></textarea>
                 </div>
-                <button id="btn-chat-send" class="send-btn-line universal-send-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                <button id="btn-chat-send" class="chat-send-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -271,32 +232,7 @@
                 <div id="full-notes-container" style="padding-top:16px;"></div>
                 <div class="bottom-spacer"></div>
             </main>
-            <!-- Notes View Core Hub -->
-            <div class="core-hub">
-                <button class="home-btn-line btn-go-home">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                    </svg>
-                </button>
-                <div class="input-capsule">
-                    <input type="text" class="universal-core-input" placeholder="Search notes or ask AI...">
-                    <button class="plus-btn-line universal-plus-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                    </button>
-                </div>
-                <button class="send-btn-line universal-send-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                </button>
-            </div>
+            <!-- Removed local core-hub -->
         </div>
 
         <!-- ============================== -->
@@ -316,32 +252,7 @@
                 <div id="full-reader-container" style="padding-top:16px;"></div>
                 <div class="bottom-spacer"></div>
             </main>
-            <!-- Reader View Core Hub -->
-            <div class="core-hub">
-                <button class="home-btn-line btn-go-home">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                    </svg>
-                </button>
-                <div class="input-capsule">
-                    <input type="text" class="universal-core-input" placeholder="Search reader or ask AI...">
-                    <button class="plus-btn-line universal-plus-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                    </button>
-                </div>
-                <button class="send-btn-line universal-send-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                </button>
-            </div>
+            <!-- Removed local core-hub -->
         </div>
 
         <!-- ============================== -->
@@ -386,32 +297,29 @@
                 </article>
                 <div class="bottom-spacer"></div>
             </main>
-            <!-- Reader View Core Hub -->
-            <div class="core-hub">
-                <button class="home-btn-line btn-go-home">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                    </svg>
-                </button>
-                <div class="input-capsule">
-                    <input type="text" class="universal-core-input" placeholder="Search or ask AI...">
-                    <button class="plus-btn-line universal-plus-btn">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                    </button>
-                </div>
-                <button class="send-btn-line universal-send-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                        <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                </button>
-            </div>
+            <!-- Removed local core-hub -->
+        </div>
+
+        <!-- Global Core Hub (Simplified Navigation) -->
+        <div class="core-hub" id="global-nav-bar">
+            <button class="home-btn-line btn-go-home active" id="nav-btn-home">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+            </button>
+            <button class="home-btn-line" id="global-btn-new-note">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+            <button class="home-btn-line" id="global-btn-ai-chat">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-13.4 8.38 8.38 0 0 1 3.8.9L21 3.5Z">
+                    </path>
+                </svg>
+            </button>
         </div>
 
     </div>

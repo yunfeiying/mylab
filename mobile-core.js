@@ -15,7 +15,7 @@ class MobileApp {
 
         this.setupKeyboardTracking();
         this.setupEvents();
-        console.log('MobileCore V10.6 (Monolith) Initialized');
+        console.log('MobileCore V10.5 (Monolith) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -145,6 +145,19 @@ class MobileApp {
             };
         }
 
+        // --- Global Navigation Hub ---
+        const btnGlobalNewNote = document.getElementById('global-btn-new-note');
+        if (btnGlobalNewNote) {
+            btnGlobalNewNote.onclick = () => {
+                if (window.mobileEditor) window.mobileEditor.initNewNote();
+            };
+        }
+
+        const btnGlobalAiChat = document.getElementById('global-btn-ai-chat');
+        if (btnGlobalAiChat) {
+            btnGlobalAiChat.onclick = () => this.navigateToChat();
+        }
+
         // Headers
         const notesHeader = document.getElementById('header-notes-all');
         if (notesHeader) notesHeader.onclick = () => this.navigateTo('notes-all');
@@ -184,68 +197,6 @@ class MobileApp {
                 this.navigateTo('reading-all');
             };
         });
-
-        // --- Universal Core Hub Components ---
-        // Handle search inputs
-        document.addEventListener('input', (e) => {
-            if (e.target.classList.contains('universal-core-input')) {
-                this.searchQuery = e.target.value.toLowerCase();
-                this.renderApp();
-            }
-        });
-
-        // Handle enter key in inputs
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.target.classList.contains('universal-core-input')) {
-                e.preventDefault();
-
-                // If in chat view, directly send via mobileChat
-                if (this.activeView === 'chat' && window.mobileChat) {
-                    window.mobileChat.handleSend();
-                } else {
-                    // Otherwise, navigate to chat and send
-                    this.triggerUniversalSend(e.target);
-                }
-            }
-        });
-
-        // Handle clicks on plus and send buttons
-        document.addEventListener('click', (e) => {
-            const plusBtn = e.target.closest('.universal-plus-btn');
-            if (plusBtn) {
-                // Navigate to chat first if not already there
-                if (this.activeView !== 'chat') {
-                    this.navigateTo('chat');
-                }
-                const fileInput = document.getElementById('chat-file-input');
-                if (fileInput) fileInput.click();
-                return;
-            }
-
-            const sendBtn = e.target.closest('.universal-send-btn');
-            if (sendBtn) {
-                const capsule = sendBtn.closest('.core-hub');
-                const input = capsule ? capsule.querySelector('.universal-core-input') : null;
-
-                // If in chat view, directly send via mobileChat
-                if (this.activeView === 'chat' && window.mobileChat) {
-                    window.mobileChat.handleSend();
-                } else if (input) {
-                    // Otherwise, navigate to chat and send
-                    this.triggerUniversalSend(input);
-                }
-            }
-        });
-
-        // Navigate to chat when user focuses on input (home, notes-all, or reading-all)
-        document.addEventListener('focus', (e) => {
-            if (e.target.classList.contains('universal-core-input')) {
-                const viewsToAutoChat = ['home', 'notes-all', 'reading-all'];
-                if (viewsToAutoChat.includes(this.activeView)) {
-                    this.navigateToChat();
-                }
-            }
-        }, true);
 
         // API Settings Dialog
         const apiDialog = document.getElementById('api-settings-dialog');
@@ -565,6 +516,25 @@ class MobileApp {
             target.classList.add('active');
             this.activeView = viewId;
         }
+
+        // Global Nav State
+        const navBar = document.getElementById('global-nav-bar');
+        if (navBar) {
+            // Hide nav in editor to allow more space
+            if (viewId === 'editor') {
+                navBar.classList.add('hidden');
+            } else {
+                navBar.classList.remove('hidden');
+            }
+
+            // Update active state
+            navBar.querySelectorAll('.home-btn-line').forEach(btn => btn.classList.remove('active'));
+            if (viewId === 'home') {
+                document.getElementById('nav-btn-home')?.classList.add('active');
+            } else if (viewId === 'chat') {
+                document.getElementById('global-btn-ai-chat')?.classList.add('active');
+            }
+        }
     }
 
     goBack() {
@@ -863,4 +833,3 @@ document.addEventListener('DOMContentLoaded', () => {
     window.mobileCore = new MobileApp();
     setTimeout(() => window.mobileCore.renderApp(), 500);
 });
-

@@ -827,96 +827,124 @@ html {
     transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.core-hub {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 24px);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 8px 24px;
+    background: var(--ios-blur-bg);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 32px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .keyboard-visible .core-hub {
-    /* Add a small 8px safety margin above the keyboard to prevent icon clipping */
-    bottom: calc(var(--keyboard-offset, 0px) + 8px);
-    left: 8px;
-    right: 8px;
+    bottom: calc(var(--keyboard-offset, 0px) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 1;
+    pointer-events: auto;
+    background: white;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 22px;
+    padding: 6px 16px;
 }
 
 .home-btn-line {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: none;
-    background: white;
+    background: transparent;
     color: var(--ios-text-secondary);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: all 0.2s;
     flex-shrink: 0;
 }
 
 .home-btn-line:active {
-    transform: scale(0.95);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(0.9);
 }
 
-.input-capsule {
-    flex: 1;
+.home-btn-line.active {
+    color: var(--ios-blue);
+}
+
+/* Dedicated Chat Input Area */
+.chat-input-container {
+    padding: 12px 16px calc(12px + var(--safe-bottom));
+    background: var(--ios-blur-bg);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
-    align-items: center;
-    background: white;
-    border-radius: 24px;
-    padding: 0 20px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    height: 48px;
+    align-items: flex-end;
+    gap: 10px;
+    transition: padding 0.3s;
 }
 
-.universal-core-input {
+.keyboard-visible .chat-input-container {
+    padding-bottom: 0;
+    position: fixed;
+    bottom: var(--keyboard-offset, 0px);
+    left: 0;
+    right: 0;
+    z-index: 1001;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.chat-input-wrapper {
+    flex: 1;
+    background: #f2f2f7;
+    border-radius: 20px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: flex-end;
+    min-height: 40px;
+}
+
+.chat-input-wrapper textarea {
     flex: 1;
     border: none;
-    outline: none;
-    font-size: 16px;
     background: transparent;
-    color: var(--ios-text-primary);
+    font-size: 16px;
+    line-height: 20px;
+    max-height: 120px;
+    padding: 2px 4px;
+    resize: none;
+    color: #000;
 }
 
-.universal-core-input::placeholder {
-    color: var(--ios-text-tertiary);
-}
-
-.plus-btn-line {
+.chat-send-btn {
     width: 36px;
     height: 36px;
-    border: none;
-    background: transparent;
-    color: var(--ios-text-secondary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s, opacity 0.2s;
-    flex-shrink: 0;
-}
-
-.plus-btn-line:active {
-    transform: scale(0.9);
-    opacity: 0.6;
-}
-
-.send-btn-line {
-    width: 48px;
-    height: 48px;
     border-radius: 50%;
     border: none;
     background: var(--ios-blue);
     color: white;
-    box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s, box-shadow 0.2s;
     flex-shrink: 0;
+    transition: all 0.2s;
 }
 
-.send-btn-line:active {
-    transform: scale(0.95);
-    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
+.chat-send-btn:active {
+    transform: scale(0.9);
+    opacity: 0.8;
 }
 
 /* Typing indicator animation */

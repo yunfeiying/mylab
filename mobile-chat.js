@@ -47,12 +47,22 @@ class MobileChat {
             };
         }
 
-        const newChatPlus = document.getElementById('btn-new-chat-plus');
-        if (newChatPlus) {
-            newChatPlus.onclick = (e) => {
-                e.stopPropagation();
-                if (fileInput) fileInput.click(); // Also use + in chat for attachments as requested
-            };
+        const sendBtn = document.getElementById('btn-chat-send');
+        if (sendBtn) {
+            sendBtn.onclick = () => this.handleSend();
+        }
+
+        if (this.input) {
+            this.input.addEventListener('input', () => {
+                this.input.style.height = 'auto';
+                this.input.style.height = Math.min(this.input.scrollHeight, 120) + 'px';
+            });
+            this.input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.handleSend();
+                }
+            });
         }
 
         // Session List Click Delegation (CSP Friendly)
