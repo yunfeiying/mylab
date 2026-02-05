@@ -7,7 +7,7 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Highlighti Mobile</title>
     <!-- Fonts -->
-    <link rel="stylesheet" href="mobile.css?v=10.0">
+    <link rel="stylesheet" href="mobile.css?v=10.1">
     <style>
         /* New styles for note date tags */
         .note-title-row {
@@ -49,7 +49,7 @@
                     </svg>
                 </button>
                 <div class="brand-title">Highlighti <span
-                        style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v10.0</span></div>
+                        style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v10.1</span></div>
                 <button class="user-avatar-btn" id="btn-settings">
                     <div class="avatar-icon-wrapper">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -112,10 +112,10 @@
                     </button>
                 </div>
                 <button class="send-btn-line universal-send-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                         stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
                     </svg>
                 </button>
             </div>
@@ -290,10 +290,10 @@
                     </button>
                 </div>
                 <button class="send-btn-line universal-send-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                         stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
                     </svg>
                 </button>
             </div>
@@ -335,10 +335,10 @@
                     </button>
                 </div>
                 <button class="send-btn-line universal-send-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                         stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
                     </svg>
                 </button>
             </div>
@@ -379,40 +379,54 @@
 
     <!-- API Settings Dialog -->
     <div id="api-settings-dialog" class="action-sheet-overlay hidden">
-        <div class="action-sheet" style="max-height: 85vh; display: flex; flex-direction: column;">
-            <div style="padding: 20px; background: white; border-radius: 12px 12px 0 0; overflow-y: auto; flex: 1;">
-                <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">App Settings</h3>
-
-                <h4
-                    style="margin: 0 0 10px 0; font-size: 14px; color: #333; text-transform: uppercase; letter-spacing: 0.5px;">
-                    AI Config</h4>
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">API Key</label>
-                    <input type="text" id="input-api-key" placeholder="Enter your API key"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+        <div class="action-sheet"
+            style="max-height: 80vh; display: flex; flex-direction: column; background: white; border-radius: 16px 16px 0 0; padding: 0;">
+            <!-- Scrollable Body -->
+            <div style="padding: 24px 20px; overflow-y: auto; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <h3 style="margin: 0; font-size: 20px; font-weight: 700;">App Settings</h3>
                 </div>
 
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Base URL</label>
+                <h4
+                    style="margin: 0 0 12px 0; font-size: 13px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;">
+                    AI Config</h4>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #666;">API Key</label>
+                    <input type="text" id="input-api-key" placeholder="Enter your API key"
+                        style="width: 100%; padding: 12px; border: 1px solid #efeff4; background: #f2f2f7; border-radius: 10px; font-size: 16px;">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #666;">Base URL</label>
                     <input type="text" id="input-base-url" placeholder="https://api.deepseek.com"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+                        style="width: 100%; padding: 12px; border: 1px solid #efeff4; background: #f2f2f7; border-radius: 10px; font-size: 16px;">
                 </div>
 
                 <div style="margin-bottom: 24px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Model</label>
+                    <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #666;">Model</label>
                     <input type="text" id="input-model" placeholder="deepseek-chat"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+                        style="width: 100%; padding: 12px; border: 1px solid #efeff4; background: #f2f2f7; border-radius: 10px; font-size: 16px;">
                 </div>
 
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f2f2f7;">
+                    <button id="btn-reset-data"
+                        style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: #fff5f5; color: #ff3b30; font-weight: 600; font-size: 14px;">
+                        Reset Local Data (Danger)
+                    </button>
+                    <p style="font-size: 12px; color: #999; text-align: center; margin-top: 8px;">Deletes all local
+                        notes/settings.</p>
+                </div>
+            </div>
+
+            <!-- Fixed Footer -->
+            <div
+                style="padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px)); border-top: 0.5px solid #eee; background: #fff;">
                 <button id="btn-save-api-settings" class="action-btn"
-                    style="width: 100%; background: var(--ios-blue); color: white; margin-bottom: 8px;">
+                    style="width: 100%; background: var(--ios-blue); color: white; border-radius: 12px; margin-bottom: 10px; height: 50px; font-weight: 600;">
                     Save Settings
                 </button>
-                <button id="btn-reset-data" class="action-btn"
-                    style="width: 100%; background: #fee2e2; color: #dc2626; margin-bottom: 8px; border: 1px solid #fecaca;">
-                    Reset App Data (Danger)
-                </button>
-                <button id="btn-cancel-api-settings" class="action-btn cancel-btn" style="width: 100%;">
+                <button id="btn-cancel-api-settings" class="action-btn cancel-btn"
+                    style="width: 100%; background: #f2f2f7; color: #333; border-radius: 12px; height: 50px; font-weight: 500;">
                     Cancel
                 </button>
             </div>
@@ -527,16 +541,16 @@
     <script src="https://accounts.google.com/gsi/client"></script>
 
     <!-- Scripts -->
-    <script src="tesseract.min.js?v=10.0"></script>
-    <script src="modules/idb-utils.js?v=10.0"></script>
-    <script src="modules/storage-bridge.js?v=10.0"></script>
-    <script src="ai-core-mobile.js?v=10.0"></script>
-    <script src="modules/memory-agent.js?v=10.0"></script>
-    <script src="mobile-core.js?v=10.0"></script>
-    <script src="mobile-editor.js?v=10.0"></script>
-    <script src="mobile-chat.js?v=10.0"></script>
-    <script src="mobile-gdrive.js?v=10.0"></script>
-    <script src="mobile-sync.js?v=10.0"></script>
+    <script src="tesseract.min.js?v=10.1"></script>
+    <script src="modules/idb-utils.js?v=10.1"></script>
+    <script src="modules/storage-bridge.js?v=10.1"></script>
+    <script src="ai-core-mobile.js?v=10.1"></script>
+    <script src="modules/memory-agent.js?v=10.1"></script>
+    <script src="mobile-core.js?v=10.1"></script>
+    <script src="mobile-editor.js?v=10.1"></script>
+    <script src="mobile-chat.js?v=10.1"></script>
+    <script src="mobile-gdrive.js?v=10.1"></script>
+    <script src="mobile-sync.js?v=10.1"></script>
 </body>
 
 </html>

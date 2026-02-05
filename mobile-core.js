@@ -14,7 +14,7 @@ class MobileApp {
         this.dataMap = new Map(); // Store full data objects here to avoid JSON attribute issues
 
         this.setupEvents();
-        console.log('MobileCore V10.0 (Monolith) Initialized');
+        console.log('MobileCore V10.1 (Monolith) Initialized');
     }
 
     triggerUniversalSend(inputEl) {
@@ -263,9 +263,11 @@ class MobileApp {
 
                 await window.appStorage.set({ settings });
 
-                // Update background if possible
-                if (window.mobileChat) {
-                    window.mobileChat.updateConfig(apiKey, baseUrl, model);
+                // Update aiCore config immediately
+                if (window.aiCore) {
+                    window.aiCore.config.apiKey = apiKey;
+                    window.aiCore.config.baseUrl = baseUrl;
+                    window.aiCore.config.model = model;
                 }
 
                 if (apiDialog) apiDialog.classList.add('hidden');
@@ -401,7 +403,7 @@ class MobileApp {
             const deleteBtn = e.target.closest('.note-delete-action');
             if (!deleteBtn) return;
 
-            // Stop propagation immediately in capture phase
+            // Stop propagation immediately
             e.stopPropagation();
             e.preventDefault();
 
@@ -409,29 +411,40 @@ class MobileApp {
             const id = wrapper?.dataset.id;
             const parentKey = wrapper?.dataset.parentKey;
 
-            console.log('[Delete] Capture Phase:', { id, parentKey });
             if (!id || !window.appStorage) return;
 
-            try {
-                const res = await window.appStorage.get(parentKey);
-                const parentData = res[parentKey];
+            const confirmed = confirm('Delete this item?');
+            if (!confirmed) return;
 
-                if (Array.isArray(parentData)) {
-                    const updated = parentData.filter((n, idx) => {
-                        const nid = (n.id || n.timestamp || `idx-${idx}`).toString();
+            try {
+                if (parentKey === 'user_notes') {
+                    // It's in the unified array
+                    const res = await window.appStorage.get('user_notes');
+                    const notes = res.user_notes || [];
+                    const updated = notes.filter(n => {
+                        const nid = (n.id || n.timestamp || '').toString();
                         return nid !== id.toString();
                     });
-                    await window.appStorage.set({ [parentKey]: updated });
+                    await window.appStorage.set({ user_notes: updated });
+                } else if (parentKey) {
+                    // It's a flat entry
+                    await window.appStorage.remove(parentKey);
                 } else {
-                    await window.appStorage.remove(parentKey || id);
+                    // Last resort try by ID
+                    await window.appStorage.remove(id);
+                }
+
+                // Show success feedback
+                if (window.mobileEditor && window.mobileEditor.showToast) {
+                    window.mobileEditor.showToast('Deleted successfully');
+                } else {
+                    alert('Deleted successfully');
                 }
 
                 this.renderApp();
-                if (window.mobileEditor && window.mobileEditor.showToast) {
-                    window.mobileEditor.showToast('Item Deleted');
-                }
             } catch (err) {
                 console.error('[Delete] Failed:', err);
+                alert('Delete failed: ' + err.message);
             }
         }, true); // TRUE for capture phase
 

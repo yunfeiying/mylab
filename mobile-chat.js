@@ -178,6 +178,14 @@ class MobileChat {
         this.startNewChat();
     }
 
+    updateConfig(apiKey, baseUrl, model) {
+        if (window.aiCore) {
+            window.aiCore.config.apiKey = apiKey;
+            window.aiCore.config.baseUrl = baseUrl;
+            window.aiCore.config.model = model;
+        }
+    }
+
     renderCurrentChat() {
         if (!this.messagesContainer) return;
         this.messagesContainer.innerHTML = '';
