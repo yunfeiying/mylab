@@ -10,69 +10,132 @@ class MobileGDrive {
         this.NOTES_FOLDER_NAME = 'notes';
         this.INDEX_FILE_NAME = 'index.json';
         this.MEMORY_FOLDER_NAME = 'memories';
+
+        // GIS Auth Properties
+        this.CLIENT_ID = localStorage.getItem('gdrive_client_id') || '';
+        this.API_KEY = localStorage.getItem('gdrive_api_key') || '';
+        this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        this.access_token = localStorage.getItem('gdrive_web_token') || '';
+        this.tokenClient = null;
+
+        // Auto-load if credentials exist
+        if (this.CLIENT_ID) {
+            setTimeout(() => this.loadScripts(), 1000);
+        }
     }
 
     // ==========================================
-    // Core Auth & API Wrappers
+    // Core Auth & API Wrappers (GIS Version)
     // ==========================================
 
-    async getAuthToken(interactive = true) {
+    loadScripts() {
+        if (window.google && window.google.accounts) {
+            this.initTokenClient();
+            return;
+        }
+        console.log("[Sync] Loading Google GIS Library...");
+    }
+
+    initTokenClient() {
+        if (!window.google || !window.google.accounts) return;
+        try {
+            this.tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: this.CLIENT_ID,
+                scope: this.SCOPES,
+                callback: (resp) => {
+                    if (resp.error) {
+                        console.error("[Auth] GIS Error:", resp);
+                        return;
+                    }
+                    this.access_token = resp.access_token;
+                    localStorage.setItem('gdrive_web_token', resp.access_token);
+                    localStorage.setItem('gdrive_web_token_expiry', Date.now() + (resp.expires_in * 1000));
+                    console.log("[Auth] Token acquired via GIS.");
+                    // Reset sync after auth if needed, or rely on second click
+                },
+            });
+            console.log("[Auth] Token Client Initialized.");
+        } catch (e) {
+            console.error("[Auth] Init failed:", e);
+        }
+    }
+
+    setCredentials(clientId, apiKey) {
+        this.CLIENT_ID = clientId;
+        this.API_KEY = apiKey;
+        localStorage.setItem('gdrive_client_id', clientId);
+        localStorage.setItem('gdrive_api_key', apiKey);
+
+        // Also update settings storage for consistency
+        window.appStorage.get('settings').then(res => {
+            const s = res.settings || {};
+            s.gdrive_client_id = clientId;
+            s.gdrive_api_key = apiKey;
+            window.appStorage.set({ settings: s });
+        });
+
+        this.loadScripts();
+        if (window.google && window.google.accounts) this.initTokenClient();
+        alert('Credentials Saved! Click Sync again to authenticate.');
+    }
+
+    async handleAuthClick() {
         // --- 1. Preferred: Chrome Identity (Extension Context) ---
         if (typeof chrome !== 'undefined' && chrome.identity && chrome.identity.getAuthToken) {
             return new Promise((resolve, reject) => {
-                chrome.identity.getAuthToken({ interactive }, (token) => {
-                    if (chrome.runtime.lastError) {
-                        reject(new Error("Auth Error: " + chrome.runtime.lastError.message));
-                    } else if (!token) {
-                        reject(new Error("Google Identity returned an empty token. Please sign in again."));
-                    } else {
-                        resolve(token);
-                    }
+                chrome.identity.getAuthToken({ interactive: true }, (token) => {
+                    if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                    else resolve(token);
                 });
             });
         }
 
-        // Fallback sensing (Ask user for token if not found or expired)
-        const settingsRes = await window.appStorage.get('settings');
-        const settings = settingsRes.settings || {};
-
-        // --- Restore 'Initial Version' Prompting for ID and Key ---
-        if (!settings.gdrive_client_id || !settings.gdrive_api_key) {
-            const id = prompt("[Setup Required] Please enter your Google Client ID:", settings.gdrive_client_id || "");
-            const key = prompt("[Setup Required] Please enter your Google API Key:", settings.gdrive_api_key || "");
+        // --- 2. Web/PWA Context (GIS) ---
+        if (!this.CLIENT_ID || !this.API_KEY) {
+            const id = prompt("🔑 Step 1/2: Enter Google Client ID\n(From Google Cloud Console -> OAuth Client -> Web Application):", this.CLIENT_ID);
+            if (!id) return null;
+            const key = prompt("🔑 Step 2/2: Enter Google API Key:", this.API_KEY);
             if (id && key) {
-                settings.gdrive_client_id = id;
-                settings.gdrive_api_key = key;
-                await window.appStorage.set({ settings });
-                console.log("[Sync] Client ID and API Key updated from prompt.");
-            } else {
-                throw new Error("Google Client ID and API Key are required for sync.");
+                this.setCredentials(id, key);
+            }
+            return null;
+        }
+
+        // Check cache
+        const expiry = localStorage.getItem('gdrive_web_token_expiry');
+        if (this.access_token && expiry && Date.now() < (parseInt(expiry) - 60000)) {
+            return this.access_token;
+        }
+
+        // Need new token
+        if (!this.tokenClient) {
+            this.initTokenClient();
+            if (!this.tokenClient) {
+                throw new Error("Google Identity Service is not ready. Please check if you are online.");
             }
         }
 
-        const savedToken = localStorage.getItem('gdrive_web_token');
-        const expiry = localStorage.getItem('gdrive_web_token_expiry');
+        return new Promise((resolve) => {
+            // Because tokenClient is async (popup), we have to handle the flow differently
+            // but for a simple "wait and get", we'll use a listener or check periodically
+            this.tokenClient.requestAccessToken({ prompt: 'consent' });
 
-        // If token exists and hasn't expired (leave some buffer)
-        if (savedToken && expiry && Date.now() < (parseInt(expiry) - 60000)) {
-            return savedToken;
-        }
-
-        if (!interactive) return null;
-
-        // Force a new token if we get here and it's interactive
-        const promptMsg = `Your access token has expired or is missing.\n\n` +
-            `Client ID: ${settings.gdrive_client_id}\n\n` +
-            `Please paste a fresh Google Access Token to continue:`;
-
-        const manualToken = prompt("[API Sync Required]\n" + promptMsg, "");
-        if (manualToken) {
-            localStorage.setItem('gdrive_web_token', manualToken);
-            localStorage.setItem('gdrive_web_token_expiry', Date.now() + 3500 * 1000);
-            return manualToken;
-        }
-
-        throw new Error("Google Authentication required. Please provide a token or use WebDAV sync.");
+            // For the sake of the monolith sync(), we might need to block or wait
+            // Let's use an interval to "wait" for the token to appear in this.access_token
+            let checks = 0;
+            const interval = setInterval(() => {
+                const now = Date.now();
+                const exp = localStorage.getItem('gdrive_web_token_expiry');
+                if (this.access_token && exp && now < (parseInt(exp) - 5000)) {
+                    clearInterval(interval);
+                    resolve(this.access_token);
+                }
+                if (checks++ > 60) { // 1 min timeout
+                    clearInterval(interval);
+                    resolve(null);
+                }
+            }, 1000);
+        });
     }
 
     async _wait(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -92,9 +155,10 @@ class MobileGDrive {
             const resp = await fetch(url, options);
             if (!resp.ok) {
                 if (resp.status === 401) {
-                    console.warn("[Sync] Token expired (401), clearing storage...");
+                    console.warn("[Sync] 401: Token expired.");
+                    this.access_token = '';
                     localStorage.removeItem('gdrive_web_token');
-                    localStorage.removeItem('gdrive_web_token_expiry');
+                    localStorage.removeItem('gdrive_web_token_expiry'); // Added this for consistency
                 }
                 const err = await resp.text();
                 throw new Error(`Drive API Error (${resp.status}): ${err}`);
@@ -190,7 +254,11 @@ class MobileGDrive {
             if (!navigator.onLine) throw new Error("You are currently offline. Please check your internet connection.");
 
             toast = this.showToast('🔄 Initializing Folder Sync...');
-            const token = await this.getAuthToken(true);
+            const token = await this.handleAuthClick();
+            if (!token) {
+                if (toast) toast.remove();
+                return; // Auth in progress or cancelled
+            }
 
             // 1. Load Settings (including GDrive Root)
             const settingsRes = await window.appStorage.get('settings');

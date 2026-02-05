@@ -1,4 +1,4 @@
-const CACHE_NAME = 'highlighti-mobile-v17';
+const CACHE_NAME = 'highlighti-mobile-v18';
 const ASSETS = [
     './mobile.html',
     './mobile.css',

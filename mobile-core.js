@@ -14,7 +14,7 @@ class MobileApp {
         this.dataMap = new Map(); // Store full data objects here to avoid JSON attribute issues
 
         this.setupEvents();
-        console.log('MobileCore V9.9 (Monolith) Initialized');
+        console.log('MobileCore V10.0 (Monolith) Initialized');
     }
 
     triggerUniversalSend(inputEl) {
@@ -332,10 +332,10 @@ class MobileApp {
 
                 if (window.mobileGDrive) {
                     window.mobileGDrive.ROOT_FOLDER_NAME = rootFolder;
+                    window.mobileGDrive.setCredentials(clientId, apiKey);
                 }
 
                 if (gdDialog) gdDialog.classList.add('hidden');
-                alert('Google Drive settings saved!');
             };
         }
 
