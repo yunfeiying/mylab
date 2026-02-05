@@ -17,14 +17,14 @@ class MobileGDrive {
     // ==========================================
 
     async getAuthToken(interactive = true) {
-        // --- 1. Chrome Extension Environment ---
+        // --- 1. Preferred: Chrome Identity (Extension Context) ---
         if (typeof chrome !== 'undefined' && chrome.identity && chrome.identity.getAuthToken) {
             return new Promise((resolve, reject) => {
                 chrome.identity.getAuthToken({ interactive }, (token) => {
                     if (chrome.runtime.lastError) {
                         reject(new Error("Auth Error: " + chrome.runtime.lastError.message));
                     } else if (!token) {
-                        reject(new Error("Google Identity returned an empty token."));
+                        reject(new Error("Google Identity returned an empty token. Please sign in again."));
                     } else {
                         resolve(token);
                     }
@@ -32,41 +32,11 @@ class MobileGDrive {
             });
         }
 
-        // --- 2. Web / PWA Environment (Fallback) ---
-        console.log('[Sync] Falling back to Web OAuth2 Flow...');
-        const CLIENT_ID = '377476964353-tomif4h5t501p0pc3m9aukfo9ccca0pb.apps.googleusercontent.com';
-        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
-
-        // Check if we have a token in hash (from redirect)
-        const params = new URLSearchParams(window.location.hash.substring(1));
-        const hashToken = params.get('access_token');
-        if (hashToken) {
-            window.location.hash = ''; // Clear for security
-            localStorage.setItem('gdrive_web_token', hashToken);
-            localStorage.setItem('gdrive_web_token_expiry', Date.now() + 3500 * 1000);
-            return hashToken;
-        }
-
-        // Check local storage
+        // Fallback sensing (No redirect/prompt)
         const savedToken = localStorage.getItem('gdrive_web_token');
-        const expiry = localStorage.getItem('gdrive_web_token_expiry');
-        if (savedToken && expiry && Date.now() < parseInt(expiry)) {
-            return savedToken;
-        }
+        if (savedToken) return savedToken;
 
-        if (!interactive) return null;
-
-        // Redirect to Google Auth
-        const redirectUri = window.location.origin + window.location.pathname;
-        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-            `client_id=${CLIENT_ID}&` +
-            `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-            `response_type=token&` +
-            `scope=${encodeURIComponent(SCOPES)}&` +
-            `prompt=consent`;
-
-        window.location.href = authUrl;
-        throw new Error("Redirecting to Google Login...");
+        throw new Error("Chrome Identity API not available. Please use WebDAV sync if you are on a standard mobile browser.");
     }
 
     async _wait(ms) { return new Promise(r => setTimeout(r, ms)); }

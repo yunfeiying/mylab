@@ -14,7 +14,7 @@ class MobileApp {
         this.dataMap = new Map(); // Store full data objects here to avoid JSON attribute issues
 
         this.setupEvents();
-        console.log('MobileCore V9.2 (Monolith) Initialized');
+        console.log('MobileCore V9.5 (Monolith) Initialized');
     }
 
     triggerUniversalSend(inputEl) {
@@ -79,11 +79,25 @@ class MobileApp {
         const syncBtn = document.getElementById('act-sync');
         if (syncBtn) {
             syncBtn.onclick = () => {
-                sheet.classList.add('hidden');
+                const sheet = document.getElementById('action-sheet-overlay');
+                if (sheet) sheet.classList.add('hidden');
                 if (window.mobileGDrive) {
                     window.mobileGDrive.sync();
                 } else {
-                    alert('Google Drive Sync module not loaded. Please refresh.');
+                    alert('Google Drive module not loaded.');
+                }
+            };
+        }
+
+        const syncWebdavBtn = document.getElementById('act-sync-webdav');
+        if (syncWebdavBtn) {
+            syncWebdavBtn.onclick = () => {
+                const sheet = document.getElementById('action-sheet-overlay');
+                if (sheet) sheet.classList.add('hidden');
+                if (window.mobileSync && window.mobileSync.webDavSync) {
+                    window.mobileSync.webDavSync();
+                } else {
+                    alert('WebDAV module not loaded.');
                 }
             };
         }
