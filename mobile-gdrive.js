@@ -36,14 +36,22 @@ class MobileGDrive {
         const settingsRes = await window.appStorage.get('settings');
         const settings = settingsRes.settings || {};
 
+        // --- Restore 'Initial Version' Prompting for ID and Key ---
+        if (!settings.gdrive_client_id || !settings.gdrive_api_key) {
+            const id = prompt("[Setup Required] Please enter your Google Client ID:", settings.gdrive_client_id || "");
+            const key = prompt("[Setup Required] Please enter your Google API Key:", settings.gdrive_api_key || "");
+            if (id && key) {
+                settings.gdrive_client_id = id;
+                settings.gdrive_api_key = key;
+                await window.appStorage.set({ settings });
+                console.log("[Sync] Client ID and API Key updated from prompt.");
+            } else {
+                throw new Error("Google Client ID and API Key are required for sync.");
+            }
+        }
+
         const savedToken = localStorage.getItem('gdrive_web_token');
         const expiry = localStorage.getItem('gdrive_web_token_expiry');
-
-        // If we have manual CLIENT_ID/API_KEY, we could theoretically refresh, 
-        // but for now we still rely on the Access Token.
-        if (settings.gdrive_client_id) {
-            console.log('[Sync] Using manual Client ID:', settings.gdrive_client_id);
-        }
 
         // If token exists and hasn't expired (leave some buffer)
         if (savedToken && expiry && Date.now() < (parseInt(expiry) - 60000)) {
@@ -53,9 +61,9 @@ class MobileGDrive {
         if (!interactive) return null;
 
         // Force a new token if we get here and it's interactive
-        const promptMsg = settings.gdrive_client_id
-            ? `Your token has expired.\nPlease paste a fresh Google Access Token for Client ID: ${settings.gdrive_client_id}`
-            : `Your token has expired or is missing.\nPlease paste a fresh Google Access Token to continue (obtained from GCP Console):`;
+        const promptMsg = `Your access token has expired or is missing.\n\n` +
+            `Client ID: ${settings.gdrive_client_id}\n\n` +
+            `Please paste a fresh Google Access Token to continue:`;
 
         const manualToken = prompt("[API Sync Required]\n" + promptMsg, "");
         if (manualToken) {

@@ -14,7 +14,7 @@ class MobileApp {
         this.dataMap = new Map(); // Store full data objects here to avoid JSON attribute issues
 
         this.setupEvents();
-        console.log('MobileCore V9.7 (Monolith) Initialized');
+        console.log('MobileCore V9.9 (Monolith) Initialized');
     }
 
     triggerUniversalSend(inputEl) {
@@ -283,6 +283,64 @@ class MobileApp {
                 if (apiDialog) apiDialog.classList.add('hidden');
                 alert('Settings saved successfully!');
             };
+        }
+
+        if (btnCancelApiSettings) {
+            btnCancelApiSettings.onclick = () => { if (apiDialog) apiDialog.classList.add('hidden'); };
+        }
+
+        // --- Dedicated Google Drive Settings ---
+        const gdDialog = document.getElementById('gdrive-settings-dialog');
+        const btnOpenGdSettings = document.getElementById('act-gd-settings');
+        const btnSaveGdSettings = document.getElementById('btn-save-gd-settings');
+        const btnCancelGdSettings = document.getElementById('btn-cancel-gd-settings');
+
+        if (btnOpenGdSettings) {
+            btnOpenGdSettings.onclick = async () => {
+                const actionSheet = document.getElementById('action-sheet-overlay');
+                if (actionSheet) actionSheet.classList.add('hidden');
+
+                const settingsRes = await window.appStorage.get('settings');
+                const settings = settingsRes.settings || {};
+
+                const inputClientId = document.getElementById('input-gd-client-id');
+                const inputApiKeyGd = document.getElementById('input-gd-api-key');
+                const inputRoot = document.getElementById('input-gd-root');
+
+                if (inputClientId) inputClientId.value = settings.gdrive_client_id || '';
+                if (inputApiKeyGd) inputApiKeyGd.value = settings.gdrive_api_key || '';
+                if (inputRoot) inputRoot.value = settings.gdrive_root_folder || 'Highlighti_Data';
+
+                if (gdDialog) gdDialog.classList.remove('hidden');
+            };
+        }
+
+        if (btnSaveGdSettings) {
+            btnSaveGdSettings.onclick = async () => {
+                const clientId = document.getElementById('input-gd-client-id')?.value.trim() || '';
+                const apiKey = document.getElementById('input-gd-api-key')?.value.trim() || '';
+                const rootFolder = document.getElementById('input-gd-root')?.value.trim() || 'Highlighti_Data';
+
+                const settingsRes = await window.appStorage.get('settings');
+                const settings = settingsRes.settings || {};
+
+                settings.gdrive_client_id = clientId;
+                settings.gdrive_api_key = apiKey;
+                settings.gdrive_root_folder = rootFolder;
+
+                await window.appStorage.set({ settings });
+
+                if (window.mobileGDrive) {
+                    window.mobileGDrive.ROOT_FOLDER_NAME = rootFolder;
+                }
+
+                if (gdDialog) gdDialog.classList.add('hidden');
+                alert('Google Drive settings saved!');
+            };
+        }
+
+        if (btnCancelGdSettings) {
+            btnCancelGdSettings.onclick = () => { if (gdDialog) gdDialog.classList.add('hidden'); };
         }
 
         const btnResetData = document.getElementById('btn-reset-data');
