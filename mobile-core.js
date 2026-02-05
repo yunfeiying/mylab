@@ -145,17 +145,29 @@ class MobileApp {
             };
         }
 
-        // --- Global Navigation Hub ---
-        const btnGlobalNewNote = document.getElementById('global-btn-new-note');
-        if (btnGlobalNewNote) {
-            btnGlobalNewNote.onclick = () => {
-                if (window.mobileEditor) window.mobileEditor.initNewNote();
-            };
-        }
+        // --- Global Core Hub logic ---
+        const globalInput = document.getElementById('global-input');
 
-        const btnGlobalAiChat = document.getElementById('global-btn-ai-chat');
-        if (btnGlobalAiChat) {
-            btnGlobalAiChat.onclick = () => this.navigateToChat();
+        if (globalInput) {
+            globalInput.oninput = (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.renderApp();
+            };
+
+            globalInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.triggerUniversalSend(globalInput);
+                }
+            };
+
+            // Auto-navigate to chat when focusing on input from home/list views
+            globalInput.onfocus = () => {
+                const viewsToAutoChat = ['home', 'notes-all', 'reading-all'];
+                if (viewsToAutoChat.includes(this.activeView)) {
+                    this.navigateToChat();
+                }
+            };
         }
 
         // Headers
@@ -517,22 +529,25 @@ class MobileApp {
             this.activeView = viewId;
         }
 
-        // Global Nav State
+        // --- Global Nav Dock Visibility ---
         const navBar = document.getElementById('global-nav-bar');
         if (navBar) {
-            // Hide nav in editor to allow more space
-            if (viewId === 'editor') {
+            // ONLY hide in these two specific deep-level views
+            const hideIn = ['editor', 'reader-detail'];
+            if (hideIn.includes(viewId)) {
                 navBar.classList.add('hidden');
             } else {
                 navBar.classList.remove('hidden');
             }
 
-            // Update active state
-            navBar.querySelectorAll('.home-btn-line').forEach(btn => btn.classList.remove('active'));
-            if (viewId === 'home') {
-                document.getElementById('nav-btn-home')?.classList.add('active');
-            } else if (viewId === 'chat') {
-                document.getElementById('global-btn-ai-chat')?.classList.add('active');
+            // Sync active state for the Home button
+            const homeBtn = document.getElementById('nav-btn-home');
+            if (homeBtn) {
+                if (viewId === 'home') {
+                    homeBtn.classList.add('active');
+                } else {
+                    homeBtn.classList.remove('active');
+                }
             }
         }
     }
@@ -574,30 +589,54 @@ class MobileApp {
 
         if (!container || !contentEl || !toggleBtn) return;
 
-        // Hide by default
+        // Reset state
         container.classList.add('hidden');
         contentEl.classList.add('hidden');
-        toggleBtn.classList.remove('open');
+        toggleBtn.classList.remove('active');
         contentEl.innerHTML = '';
+        const arrow = toggleBtn.querySelector('.arrow');
+        if (arrow) arrow.innerText = '▼';
 
         if (!url) return;
 
         try {
             const key = 'snapshot_' + url;
+            // First, just check if the key exists to show the bar
             const res = await window.appStorage.get(key);
-            const snapshot = res[key];
+            const snapshotData = res[key];
 
-            if (snapshot && snapshot.content) {
+            if (snapshotData && snapshotData.content) {
                 container.classList.remove('hidden');
-                contentEl.innerHTML = `
-                    <div style="font-size: 13px; color: #8e8e93; margin-bottom: 12px; font-style: italic;">
-                        Captured: ${new Date(snapshot.timestamp).toLocaleString()}
-                    </div>
-                    ${snapshot.content}
-                `;
+
+                // Toggle click handler handles lazy loading
+                toggleBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    const isHidden = contentEl.classList.contains('hidden');
+
+                    if (isHidden) {
+                        // If content is empty/missing, fetch and render now
+                        if (!contentEl.innerHTML.trim()) {
+                            contentEl.innerHTML = `
+                                <div style="font-size: 13px; color: #8e8e93; margin-bottom: 12px; padding: 10px; border-left: 3px solid #ddd; font-style: italic;">
+                                    Saved Page Content (Snapshot):
+                                </div>
+                                <div class="snapshot-inner-content" style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
+                                    ${snapshotData.content}
+                                </div>
+                            `;
+                        }
+                        contentEl.classList.remove('hidden');
+                        toggleBtn.classList.add('active');
+                        if (arrow) arrow.innerText = '▲';
+                    } else {
+                        contentEl.classList.add('hidden');
+                        toggleBtn.classList.remove('active');
+                        if (arrow) arrow.innerText = '▼';
+                    }
+                };
             }
         } catch (e) {
-            console.warn('Failed to load snapshot:', e);
+            console.warn('Failed to check/load snapshot:', e);
         }
     }
 
@@ -621,9 +660,12 @@ class MobileApp {
                 ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url) ||
                 (key && (key.startsWith('note-') || key.startsWith('note_')));
 
-            const isReading = val.type === 'reading' ||
+            const isReading = (val.type === 'reading' ||
                 val.url ||
-                (key && (key.startsWith('http') || key.startsWith('meta_')));
+                (key && (key.startsWith('http') || key.startsWith('meta_')))) &&
+                !(key && key.startsWith('snapshot_'));
+
+            if (key && key.startsWith('snapshot_')) return;
 
             if (isNote) {
                 // 1. Determine Identity (ID or ChatSession)
