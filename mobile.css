@@ -1180,3 +1180,49 @@ html {
 .hidden {
     display: none !important;
 }
+/* === Unified Global Input Capsule (V10.6) === */
+.input-capsule {
+    flex: 1;
+    height: 44px;
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    padding: 0 4px 0 16px;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.universal-core-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    height: 100%;
+    padding-right: 40px;
+    outline: none;
+}
+
+.btn-input-add-attachment {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: #8e8e93;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: color 0.2s;
+}
+
+.btn-input-add-attachment:active {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--ios-blue);
+}

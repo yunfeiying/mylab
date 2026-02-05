@@ -94,6 +94,16 @@ class MobileChat {
         }
     }
 
+    /**
+     * Public method called by the global '+' button to add attachments.
+     * @param {FileList} files
+     */
+    addAttachments(files) {
+        if (files && files.length > 0) {
+            this.handleAttachments(files);
+        }
+    }
+
     async handleAttachments(files) {
         for (const file of files) {
             if (file.type.startsWith('image/')) {

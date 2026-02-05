@@ -145,6 +145,9 @@ class MobileApp {
             };
         }
 
+        // --- Attachment Action Sheet Logic ---
+        this.setupAttachmentSheet();
+
         // --- Global Core Hub logic ---
         const globalInput = document.getElementById('global-input');
 
@@ -533,7 +536,7 @@ class MobileApp {
         const navBar = document.getElementById('global-nav-bar');
         if (navBar) {
             // ONLY hide in these two specific deep-level views
-            const hideIn = ['editor', 'reader-detail'];
+            const hideIn = ['editor', 'chat'];
             if (hideIn.includes(viewId)) {
                 navBar.classList.add('hidden');
             } else {
@@ -555,6 +558,88 @@ class MobileApp {
     goBack() {
         this.navigateTo('home');
         this.renderApp();
+    }
+
+    /**
+     * Setup the Attachment Action Sheet triggered by the global '+' button.
+     * This allows users to add photos or files before sending to AI.
+     */
+    setupAttachmentSheet() {
+        const attachSheet = document.getElementById('attachment-sheet-overlay');
+        const globalAddBtn = document.getElementById('btn-global-add');
+        const attCancel = document.getElementById('att-cancel');
+        const attCamera = document.getElementById('att-camera');
+        const attGallery = document.getElementById('att-gallery');
+        const attFile = document.getElementById('att-file');
+
+        // Hidden file inputs
+        const cameraInput = document.getElementById('chat-camera-input');
+        const galleryInput = document.getElementById('global-gallery-input');
+        const fileInput = document.getElementById('chat-file-input');
+
+        // Open attachment sheet
+        if (globalAddBtn && attachSheet) {
+            globalAddBtn.onclick = (e) => {
+                e.stopPropagation();
+                attachSheet.classList.remove('hidden');
+            };
+        }
+
+        // Close on cancel or background click
+        if (attCancel) attCancel.onclick = () => attachSheet.classList.add('hidden');
+        if (attachSheet) {
+            attachSheet.onclick = (e) => {
+                if (e.target === attachSheet) attachSheet.classList.add('hidden');
+            };
+        }
+
+        // Camera action
+        if (attCamera && cameraInput) {
+            attCamera.onclick = () => {
+                attachSheet.classList.add('hidden');
+                cameraInput.click();
+            };
+            cameraInput.onchange = (e) => this.handleAttachment(e.target.files, 'camera');
+        }
+
+        // Gallery action
+        if (attGallery && galleryInput) {
+            attGallery.onclick = () => {
+                attachSheet.classList.add('hidden');
+                galleryInput.click();
+            };
+            galleryInput.onchange = (e) => this.handleAttachment(e.target.files, 'gallery');
+        }
+
+        // File action
+        if (attFile && fileInput) {
+            attFile.onclick = () => {
+                attachSheet.classList.add('hidden');
+                fileInput.click();
+            };
+            fileInput.onchange = (e) => this.handleAttachment(e.target.files, 'file');
+        }
+    }
+
+    /**
+     * Handle selected attachment files - navigate to chat and pass to mobileChat.
+     * @param {FileList} files 
+     * @param {string} source - 'camera', 'gallery', or 'file'
+     */
+    handleAttachment(files, source) {
+        if (!files || files.length === 0) return;
+
+        // Navigate to chat view
+        this.navigateTo('chat');
+
+        // If mobileChat has an attachment handler, use it
+        if (window.mobileChat && typeof window.mobileChat.addAttachments === 'function') {
+            window.mobileChat.addAttachments(files);
+        } else {
+            console.log(`[Attachment] ${files.length} file(s) selected from ${source}`);
+            // Fallback: store for later use
+            this.pendingAttachments = Array.from(files);
+        }
     }
 
     loadReader(data) {
