@@ -84,14 +84,33 @@ class MobileChat {
         }
     }
 
-    handleAttachments(files) {
-        // Mocking attachment behavior: Show as a message in chat
+    async handleAttachments(files) {
         for (const file of files) {
-            this.addUserMessage(`[Attachment] ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, true);
+            if (file.type.startsWith('image/')) {
+                this.addUserMessage(`[Image] ${file.name} - Processing OCR...`, true);
+                if (window.showToast) window.showToast('Extracting text from image...', 2000);
 
-            // If it's an image, we could potentially process it with OCR or preview it
-            if (file.type.startsWith('image/') && typeof window.showToast === 'function') {
-                window.showToast('Processing image attachment...', 2000);
+                try {
+                    // Initialize Tesseract if not already (it's globally defined by script)
+                    const { data: { text } } = await Tesseract.recognize(file, 'chi_sim+eng');
+
+                    if (text && text.trim()) {
+                        this.addAIMessage(`OCR Extracted Text:\n\n${text.trim()}`, true);
+                        // Auto-send to AI for summarization
+                        const prompt = `Following is the text extracted from an image. Please provide a concise summary or extract key points:\n\n${text.trim()}`;
+                        const thinkingEl = this.showAIThinking();
+                        this.isGenerating = true;
+                        await this.getAIResponse(prompt, thinkingEl);
+                        this.isGenerating = false;
+                    } else {
+                        this.addAIMessage("Sorry, I couldn't find any clear text in this image.", false);
+                    }
+                } catch (err) {
+                    console.error('OCR Error:', err);
+                    this.addAIMessage("Error during text extraction: " + err.message, false);
+                }
+            } else {
+                this.addUserMessage(`[Attachment] ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, true);
             }
         }
     }
@@ -319,28 +338,36 @@ class MobileChat {
 
     async getAIResponse(query, thinkingEl) {
         const contentEl = thinkingEl.querySelector('.ai-response-content');
+        if (!contentEl) return;
+
         if (!window.aiCore || !window.aiCore.config.apiKey) {
             contentEl.innerHTML = '<span style="color:red; font-size:12px;">⚠️ 未设置 API Key (请在设置中配置)</span>';
             return;
         }
 
         try {
-            const contextPromise = window.memoryAgent ? window.memoryAgent.retrieveContext(query) : Promise.resolve("");
-            const context = await contextPromise;
+            // Link Recognition Logic: Check if query contains a link we already have in Reader
+            let context = "";
+            const urlMatch = query.match(/https?:\/\/[^\s]+/);
+            if (urlMatch && window.mobileCore && window.mobileCore.dataMap) {
+                const url = urlMatch[0];
+                for (let [id, val] of window.mobileCore.dataMap) {
+                    if (val.url === url) {
+                        context = `[Context from Link: ${val.title}]\n${val.content || val.text}\n\n`;
+                        break;
+                    }
+                }
+            }
 
             const messages = [
                 { role: 'system', content: '你是一个富有创意且擅长架构思维的 AI 助手。请优先构建清晰的逻辑框架，并提供深度的创意建议。直接输出纯文字正文，不使用任何 Markdown 源码符号。' }
             ];
 
-            // Add history for context (last 10 messages)
             const historyForAPI = this.chatHistory.slice(-10).map(m => ({
                 role: m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.content
             }));
 
-            // The last message is already in history, but we need to combine it with context for the API call
-            // Actually, handleSend already pushed the latest user message to history.
-            // Let's adjust:
             const historicalMsgs = historyForAPI.slice(0, -1);
             messages.push(...historicalMsgs);
             messages.push({ role: 'user', content: `上下文：${context}\n问题：${query}` });
@@ -361,15 +388,12 @@ class MobileChat {
                 }
             }
 
-            // Save AI response to history
             this.chatHistory.push({ role: 'assistant', content: fullText });
             this.saveHistory();
 
-            // Interaction processing for memory agent
             if (window.memoryAgent && fullText) {
                 setTimeout(() => window.memoryAgent.processInteraction(query, fullText), 100);
             }
-
         } catch (err) {
             contentEl.innerHTML = `<span style="color:red; font-size:12px;">❌ 错误: ${err.message}</span>`;
         }

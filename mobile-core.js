@@ -15,7 +15,7 @@ class MobileApp {
 
         this.setupKeyboardTracking();
         this.setupEvents();
-        console.log('MobileCore V10.2 (Monolith) Initialized');
+        console.log('MobileCore V10.4 (Monolith) Initialized');
     }
 
     setupKeyboardTracking() {

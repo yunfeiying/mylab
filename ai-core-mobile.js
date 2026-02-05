@@ -83,6 +83,37 @@ class AICoreMobile {
             yield { type: 'error', fullText: `Error: ${e.message}` };
         }
     }
+
+    async generateText(prompt) {
+        if (!this.config.apiKey) throw new Error("API Key missing");
+        const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: this.config.model,
+                messages: [{ role: 'user', content: prompt }],
+                stream: false
+            })
+        });
+        const data = await response.json();
+        return data.choices[0].message.content;
+    }
+
+    async generateJSON(prompt, formatHint = "") {
+        const fullPrompt = prompt + (formatHint ? `\n\nReturn ONLY valid JSON matching this structure: ${formatHint}` : "");
+        const text = await this.generateText(fullPrompt);
+        try {
+            // Basic JSON cleaning: remove markdown code blocks
+            const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            console.error('[AICore] JSON Parse failed:', text);
+            throw e;
+        }
+    }
 }
 
 // Global Singleton
