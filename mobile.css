@@ -880,8 +880,8 @@ html {
 }
 
 .plus-btn-line {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border: none;
     background: transparent;
     color: var(--ios-text-secondary);
@@ -911,8 +911,7 @@ html {
     align-items: center;
     justify-content: center;
     transition: transform 0.2s, box-shadow 0.2s;
-    margin-bottom: 2px;
-    /* Micro-adjustment for icon vertical alignment */
+    flex-shrink: 0;
 }
 
 .send-btn-line:active {
