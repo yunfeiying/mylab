@@ -7,7 +7,7 @@
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Highlighti Mobile</title>
     <!-- Fonts -->
-    <link rel="stylesheet" href="mobile.css?v=9.5">
+    <link rel="stylesheet" href="mobile.css?v=9.7">
     <style>
         /* New styles for note date tags */
         .note-title-row {
@@ -49,7 +49,7 @@
                     </svg>
                 </button>
                 <div class="brand-title">Highlighti <span
-                        style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v9.5</span></div>
+                        style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v9.7</span></div>
                 <button class="user-avatar-btn" id="btn-settings">
                     <div class="avatar-icon-wrapper">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -406,7 +406,18 @@
 
                 <h4
                     style="margin: 0 0 10px 0; font-size: 14px; color: #333; text-transform: uppercase; letter-spacing: 0.5px;">
-                    Google Drive</h4>
+                    Google Drive (API)</h4>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Client ID</label>
+                    <input type="text" id="input-gdrive-client-id" placeholder="804554...apps.googleusercontent.com"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">API Key /
+                        Secret</label>
+                    <input type="text" id="input-gdrive-api-key" placeholder="Enter your GDrive API Key"
+                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+                </div>
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Root Folder
                         Name</label>
@@ -484,16 +495,16 @@
     <input type="file" id="editor-ocr-input" class="hidden" accept="image/*" capture="camera">
 
     <!-- Scripts -->
-    <script src="tesseract.min.js?v=9.5"></script>
-    <script src="modules/idb-utils.js?v=9.5"></script>
-    <script src="modules/storage-bridge.js?v=9.5"></script>
-    <script src="ai-core-mobile.js?v=9.5"></script>
-    <script src="modules/memory-agent.js?v=9.5"></script>
-    <script src="mobile-core.js?v=9.5"></script>
-    <script src="mobile-editor.js?v=9.5"></script>
-    <script src="mobile-chat.js?v=9.5"></script>
-    <script src="mobile-gdrive.js?v=9.5"></script>
-    <script src="mobile-sync.js?v=9.5"></script>
+    <script src="tesseract.min.js?v=9.7"></script>
+    <script src="modules/idb-utils.js?v=9.7"></script>
+    <script src="modules/storage-bridge.js?v=9.7"></script>
+    <script src="ai-core-mobile.js?v=9.7"></script>
+    <script src="modules/memory-agent.js?v=9.7"></script>
+    <script src="mobile-core.js?v=9.7"></script>
+    <script src="mobile-editor.js?v=9.7"></script>
+    <script src="mobile-chat.js?v=9.7"></script>
+    <script src="mobile-gdrive.js?v=9.7"></script>
+    <script src="mobile-sync.js?v=9.7"></script>
 </body>
 
 </html>

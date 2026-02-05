@@ -32,17 +32,35 @@ class MobileGDrive {
             });
         }
 
-        // Fallback sensing (Ask user for token if not found)
+        // Fallback sensing (Ask user for token if not found or expired)
+        const settingsRes = await window.appStorage.get('settings');
+        const settings = settingsRes.settings || {};
+
         const savedToken = localStorage.getItem('gdrive_web_token');
-        if (savedToken) return savedToken;
+        const expiry = localStorage.getItem('gdrive_web_token_expiry');
+
+        // If we have manual CLIENT_ID/API_KEY, we could theoretically refresh, 
+        // but for now we still rely on the Access Token.
+        if (settings.gdrive_client_id) {
+            console.log('[Sync] Using manual Client ID:', settings.gdrive_client_id);
+        }
+
+        // If token exists and hasn't expired (leave some buffer)
+        if (savedToken && expiry && Date.now() < (parseInt(expiry) - 60000)) {
+            return savedToken;
+        }
 
         if (!interactive) return null;
 
-        const manualToken = prompt("[API Sync Required]\nPlease paste your Google Access Token to continue.\n(Sync requires a valid session token from your Google API console):", "");
+        // Force a new token if we get here and it's interactive
+        const promptMsg = settings.gdrive_client_id
+            ? `Your token has expired.\nPlease paste a fresh Google Access Token for Client ID: ${settings.gdrive_client_id}`
+            : `Your token has expired or is missing.\nPlease paste a fresh Google Access Token to continue (obtained from GCP Console):`;
+
+        const manualToken = prompt("[API Sync Required]\n" + promptMsg, "");
         if (manualToken) {
             localStorage.setItem('gdrive_web_token', manualToken);
-            // Optional: set a default expiry of 1 hour if not known
-            localStorage.setItem('gdrive_web_token_expiry', Date.now() + 3600 * 1000);
+            localStorage.setItem('gdrive_web_token_expiry', Date.now() + 3500 * 1000);
             return manualToken;
         }
 
@@ -65,6 +83,11 @@ class MobileGDrive {
         try {
             const resp = await fetch(url, options);
             if (!resp.ok) {
+                if (resp.status === 401) {
+                    console.warn("[Sync] Token expired (401), clearing storage...");
+                    localStorage.removeItem('gdrive_web_token');
+                    localStorage.removeItem('gdrive_web_token_expiry');
+                }
                 const err = await resp.text();
                 throw new Error(`Drive API Error (${resp.status}): ${err}`);
             }

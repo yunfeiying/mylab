@@ -14,7 +14,7 @@ class MobileApp {
         this.dataMap = new Map(); // Store full data objects here to avoid JSON attribute issues
 
         this.setupEvents();
-        console.log('MobileCore V9.5 (Monolith) Initialized');
+        console.log('MobileCore V9.7 (Monolith) Initialized');
     }
 
     triggerUniversalSend(inputEl) {
@@ -236,7 +236,12 @@ class MobileApp {
                 if (inputModel) inputModel.value = settings.ai_model || 'deepseek-chat';
 
                 const gdriveRootInput = document.getElementById('input-gdrive-root');
+                const gdriveClientIdInput = document.getElementById('input-gdrive-client-id');
+                const gdriveApiKeyInput = document.getElementById('input-gdrive-api-key');
+
                 if (gdriveRootInput) gdriveRootInput.value = settings.gdrive_root_folder || 'Highlighti_Data';
+                if (gdriveClientIdInput) gdriveClientIdInput.value = settings.gdrive_client_id || '';
+                if (gdriveApiKeyInput) gdriveApiKeyInput.value = settings.gdrive_api_key || '';
 
                 // Show dialog
                 if (apiDialog) apiDialog.classList.remove('hidden');
@@ -250,34 +255,33 @@ class MobileApp {
                 const model = inputModel ? inputModel.value.trim() : 'deepseek-chat';
 
                 const gdriveRootInput = document.getElementById('input-gdrive-root');
-                const gdriveRoot = gdriveRootInput ? gdriveRootInput.value.trim() : 'Highlighti_Data';
+                const gdriveRoot = document.getElementById('input-gdrive-root')?.value.trim() || 'Highlighti_Data';
+                const gdriveClientId = document.getElementById('input-gdrive-client-id')?.value.trim() || '';
+                const gdriveApiKey = document.getElementById('input-gdrive-api-key')?.value.trim() || '';
 
-                // Save to storage
                 const settingsRes = await window.appStorage.get('settings');
-                const currentSettings = settingsRes.settings || {};
+                const settings = settingsRes.settings || {};
 
-                const newSettings = {
-                    ...currentSettings,
-                    ai_api_key: apiKey,
-                    ai_base_url: baseUrl,
-                    ai_model: model,
-                    gdrive_root_folder: gdriveRoot
-                };
+                settings.ai_api_key = apiKey;
+                settings.ai_base_url = baseUrl;
+                settings.ai_model = model;
+                settings.gdrive_root_folder = gdriveRoot;
+                settings.gdrive_client_id = gdriveClientId;
+                settings.gdrive_api_key = gdriveApiKey;
 
-                await window.appStorage.set({ settings: newSettings });
+                await window.appStorage.set({ settings });
 
-                // Update aiCore config immediately
-                if (window.aiCore) {
-                    window.aiCore.config.apiKey = apiKey;
-                    window.aiCore.config.baseUrl = baseUrl;
-                    window.aiCore.config.model = model;
+                // Update background if possible
+                if (window.mobileChat) {
+                    window.mobileChat.updateConfig(apiKey, baseUrl, model);
                 }
 
-                // Close dialog
-                if (apiDialog) apiDialog.classList.add('hidden');
+                if (window.mobileGDrive) {
+                    window.mobileGDrive.ROOT_FOLDER_NAME = gdriveRoot;
+                }
 
-                // Show success message
-                alert('API settings saved successfully!');
+                if (apiDialog) apiDialog.classList.add('hidden');
+                alert('Settings saved successfully!');
             };
         }
 
