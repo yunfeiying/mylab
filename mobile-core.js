@@ -15,7 +15,7 @@ class MobileApp {
 
         this.setupKeyboardTracking();
         this.setupEvents();
-        console.log('MobileCore V10.7 (Monolith) Initialized');
+        console.log('MobileCore V10.5 (Monolith) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -530,9 +530,9 @@ class MobileApp {
         // --- Global Nav Dock Visibility ---
         const navBar = document.getElementById('global-nav-bar');
         if (navBar) {
-            // ONLY hide in these two specific deep-level views
-            // User requested Dock on Home, Notes, Reader. Chat has its own input. Editor has its own toolbar.
-            const hideIn = ['editor', 'chat'];
+            // ONLY hide in these specific deep-level views or views with their own Local Dock
+            // User requested dedicated docks for Notes and Reader tabs.
+            const hideIn = ['editor', 'chat', 'notes-all', 'reading-all'];
             if (hideIn.includes(viewId)) {
                 navBar.classList.add('hidden');
             } else {
@@ -960,4 +960,3 @@ document.addEventListener('DOMContentLoaded', () => {
     window.mobileCore = new MobileApp();
     setTimeout(() => window.mobileCore.renderApp(), 500);
 });
-
