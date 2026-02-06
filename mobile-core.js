@@ -76,11 +76,20 @@ class MobileApp {
 
     navigateToChat() {
         this.navigateTo('chat');
-        if (window.mobileChat && typeof window.mobileChat.clearMessages === 'function') {
-            window.mobileChat.clearMessages(); // Start fresh conversation
-            setTimeout(() => {
-                if (window.mobileChat.input) window.mobileChat.input.focus();
-            }, 100);
+        if (window.mobileChat) {
+            // Priority 1: If we have a current session (the most recent one), just render it
+            if (window.mobileChat.currentSessionId) {
+                window.mobileChat.renderCurrentChat();
+            } else {
+                // Priority 2: Fallback to new chat if nothing exists
+                window.mobileChat.startNewChat();
+            }
+
+            // Sync global input focus
+            const globalInput = document.getElementById('global-input');
+            if (globalInput) {
+                setTimeout(() => globalInput.focus(), 200);
+            }
         }
     }
 
@@ -162,18 +171,44 @@ class MobileApp {
             globalInput.oninput = (e) => {
                 this.searchQuery = e.target.value.toLowerCase();
                 this.renderApp();
+
+                // Toggle Send Button Visibility
+                if (globalSendBtn) {
+                    if (e.target.value.trim().length > 0) {
+                        globalSendBtn.classList.remove('hidden');
+                    } else {
+                        globalSendBtn.classList.add('hidden');
+                    }
+                }
             };
 
             globalInput.onkeydown = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     this.triggerUniversalSend(globalInput);
+                    if (globalSendBtn) globalSendBtn.classList.add('hidden');
+                }
+            };
+
+            // Support image paste
+            globalInput.onpaste = (e) => {
+                const items = (e.clipboardData || window.clipboardData).items;
+                const files = [];
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        const blob = items[i].getAsFile();
+                        if (blob) files.push(blob);
+                    }
+                }
+                if (files.length > 0) {
+                    // Use existing handler to navigate to chat and process
+                    this.handleAttachment(files, 'paste');
                 }
             };
 
             // Auto-navigate to chat when focusing on input from home/list views
             globalInput.onfocus = () => {
-                const viewsToAutoChat = ['home', 'notes-all', 'reading-all'];
+                const viewsToAutoChat = ['home', 'notes-all', 'reading-all', 'reader-detail'];
                 if (viewsToAutoChat.includes(this.activeView)) {
                     this.navigateToChat();
                 }
@@ -183,6 +218,7 @@ class MobileApp {
         if (globalSendBtn && globalInput) {
             globalSendBtn.onclick = () => {
                 this.triggerUniversalSend(globalInput);
+                globalSendBtn.classList.add('hidden');
             };
         }
 
@@ -208,9 +244,61 @@ class MobileApp {
             };
         }
 
+        // --- Global Nav: Home Button Long Press & Click ---
+        const homeNavBtn = document.getElementById('nav-btn-home');
+        if (homeNavBtn) {
+            let longPressTimer;
+            const startPress = (e) => {
+                longPressTimer = setTimeout(() => {
+                    // LONG PRESS detected
+                    if (window.navigator.vibrate) window.navigator.vibrate(50);
+                    // Visual feedback: show microphone icon
+                    homeNavBtn.innerHTML = `
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ios-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="22"></line>
+                        </svg>
+                    `;
+                    this.startVoiceRecognition(() => {
+                        // Revert icon when recognition results are processed
+                        this.revertHomeIcon(homeNavBtn);
+                    });
+                }, 600);
+            };
+
+            const endPress = () => clearTimeout(longPressTimer);
+
+            // Prevent right-click menu on long press (Windows fix)
+            homeNavBtn.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            };
+
+            // Touch Events
+            homeNavBtn.addEventListener('touchstart', startPress);
+            homeNavBtn.addEventListener('touchend', endPress);
+            homeNavBtn.addEventListener('touchmove', endPress);
+
+            // Mouse Events (Desktop fix)
+            homeNavBtn.addEventListener('mousedown', (e) => {
+                if (e.button === 0) startPress(e); // Only Left Click
+            });
+            homeNavBtn.addEventListener('mouseup', endPress);
+            homeNavBtn.addEventListener('mouseleave', endPress);
+
+            homeNavBtn.onclick = (e) => {
+                // Regular click navigation
+                this.goBack();
+            };
+        }
+
         // General Back Buttons
         document.querySelectorAll('.btn-go-home').forEach(btn => {
-            btn.onclick = () => this.goBack();
+            if (btn.id !== 'nav-btn-home') {
+                btn.onclick = () => this.goBack();
+            }
         });
 
         // Back logic for specific views
@@ -545,7 +633,8 @@ class MobileApp {
         if (navBar) {
             // ONLY hide in these specific deep-level views or views with their own Local Dock
             // User requested that List views (notes-all, reading-all) AND Chat use the Global Dock.
-            const hideIn = ['editor', 'reader-detail'];
+            // We now keep it visible in Editor & Reader as per V4.0 request.
+            const hideIn = []; // No longer hiding in standard views
             if (hideIn.includes(viewId)) {
                 navBar.classList.add('hidden');
             } else {
@@ -628,6 +717,68 @@ class MobileApp {
             };
             fileInput.onchange = (e) => this.handleAttachment(e.target.files, 'file');
         }
+
+        // Voice action
+        const attVoice = document.getElementById('att-voice');
+        if (attVoice) {
+            attVoice.onclick = () => {
+                attachSheet.classList.add('hidden');
+                this.startVoiceRecognition();
+            };
+        }
+    }
+
+    startVoiceRecognition(onFinished = null) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Speech recognition is not supported in this browser.');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'zh-CN';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        if (window.showToast) window.showToast('Listening...', 3000);
+
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            console.log('[Voice] Recognized:', text);
+            if (text) {
+                if (typeof onFinished === 'function' && !onFinished.length) {
+                    // It's a callback for internal logic (like reverting icon)
+                }
+
+                if (this.activeView === 'editor' && window.mobileEditor) {
+                    window.mobileEditor.insertTextAtCursor(text);
+                } else {
+                    this.triggerUniversalSend({ value: text, id: 'voice-input' });
+                }
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error('[Voice] Error:', event.error);
+            if (window.showToast) window.showToast('Voice Error: ' + event.error, 2000);
+        };
+
+        recognition.onend = () => {
+            // If we have a custom callback specifically for the UI revert, trigger it
+            if (typeof onFinished === 'function') onFinished();
+        };
+
+        recognition.start();
+    }
+
+    revertHomeIcon(btn) {
+        if (!btn) return;
+        btn.innerHTML = `
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+        `;
     }
 
     /**

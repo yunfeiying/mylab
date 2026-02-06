@@ -1276,6 +1276,7 @@ html {
 .hidden {
     display: none !important;
 }
+
 /* === Unified Global Input Capsule (V10.6) === */
 .input-capsule {
     flex: 1;
@@ -1337,21 +1338,38 @@ html {
     border-radius: 50%;
     border: none;
     background: #f2f2f7;
-    color: #8e8e93; /* Neutral grey */
+    color: #8e8e93;
+    /* Neutral grey */
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
     cursor: pointer;
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
+
 .core-dock-btn.send-active {
     background: var(--ios-blue);
     color: white;
-    box-shadow: 0 4px 12px rgba(0,122,255,0.3);
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
+
 .core-dock-btn:active {
     transform: scale(0.92);
     opacity: 0.8;
+}
+
+/* Chat Links */
+.chat-link {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.message.user .chat-link {
+    color: #fff !important;
+}
+
+.message.assistant .chat-link {
+    color: var(--ios-blue);
 }
