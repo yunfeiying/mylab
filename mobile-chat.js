@@ -155,29 +155,34 @@ class MobileChat {
     async saveHistory() {
         if (!this.currentSessionId) return;
 
-        const sessionIndex = this.chatSessions.findIndex(s => s.id === this.currentSessionId);
-        if (sessionIndex !== -1) {
-            this.chatSessions[sessionIndex].messages = this.chatHistory;
-            this.chatSessions[sessionIndex].timestamp = Date.now();
-            if (this.chatHistory.length > 0 && this.chatSessions[sessionIndex].title === 'New Chat') {
-                const firstMsg = this.chatHistory.find(m => m.role === 'user');
-                if (firstMsg) {
-                    let title = firstMsg.content.substring(0, 20);
-                    if (firstMsg.content.length > 20) title += '...';
-                    this.chatSessions[sessionIndex].title = title;
-                    if (this.titleEl) this.titleEl.textContent = title;
+        // Only add to chatSessions if there are messages
+        if (this.chatHistory.length > 0) {
+            const sessionIndex = this.chatSessions.findIndex(s => s.id === this.currentSessionId);
+            if (sessionIndex !== -1) {
+                this.chatSessions[sessionIndex].messages = this.chatHistory;
+                this.chatSessions[sessionIndex].timestamp = Date.now();
+                if (this.chatSessions[sessionIndex].title === 'New Chat') {
+                    const firstMsg = this.chatHistory.find(m => m.role === 'user');
+                    if (firstMsg) {
+                        let title = firstMsg.content.substring(0, 20);
+                        if (firstMsg.content.length > 20) title += '...';
+                        this.chatSessions[sessionIndex].title = title;
+                        if (this.titleEl) this.titleEl.textContent = title;
+                    }
                 }
+            } else {
+                this.chatSessions.unshift({
+                    id: this.currentSessionId,
+                    title: this.chatHistory[0] ? this.chatHistory[0].content.substring(0, 20) : 'New Chat',
+                    timestamp: Date.now(),
+                    messages: this.chatHistory
+                });
             }
-        } else {
-            this.chatSessions.unshift({
-                id: this.currentSessionId,
-                title: this.chatHistory[0] ? this.chatHistory[0].content.substring(0, 20) : 'New Chat',
-                timestamp: Date.now(),
-                messages: this.chatHistory
-            });
         }
 
-        await window.idb.set('chat_history_persistent', this.chatSessions);
+        // Filter and save only sessions with content
+        const sessionsToSave = this.chatSessions.filter(s => s.messages && s.messages.length > 0);
+        await window.idb.set('chat_history_persistent', sessionsToSave);
         await window.idb.set('chat_current_session_id', this.currentSessionId);
     }
 
@@ -197,15 +202,9 @@ class MobileChat {
     startNewChat() {
         this.currentSessionId = 'session_' + Date.now();
         this.chatHistory = [];
-        this.chatSessions.unshift({
-            id: this.currentSessionId,
-            title: 'New Chat',
-            timestamp: Date.now(),
-            messages: []
-        });
+        // We don't add to this.chatSessions here to avoid empty history entries
         if (this.titleEl) this.titleEl.textContent = 'New Chat';
         this.renderCurrentChat();
-        this.saveHistory();
     }
 
     clearMessages() {
