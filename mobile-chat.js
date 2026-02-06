@@ -267,7 +267,25 @@ class MobileChat {
 
     formatMarkdown(text) {
         if (!text) return '';
-        return this.escapeHtml(text).replace(/\n/g, '<br>');
+
+        // First escape HTML to prevent XSS, but keep it as a string for regex
+        let escaped = this.escapeHtml(text);
+
+        let html = escaped
+            // Handle bold **text**
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            // Handle headers ###
+            .replace(/^### (.*$)/gm, '<h3 style="margin:8px 0; font-size:17px; font-weight:700;">$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2 style="margin:10px 0; font-size:18px; font-weight:700;">$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1 style="margin:12px 0; font-size:20px; font-weight:700;">$1</h1>')
+            // Handle bullet points
+            .replace(/^[\-\*]\s+(.*)/gm, '<div style="margin-left:4px; margin-bottom:4px;">• $1</div>')
+            // Handle numbered lists
+            .replace(/^\d+\.\s+(.*)/gm, '<div style="margin-left:4px; margin-bottom:4px;">$1</div>')
+            // Preserve newlines
+            .replace(/\n/g, '<br>');
+
+        return html;
     }
 
     scrollToBottom() {

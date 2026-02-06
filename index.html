@@ -119,24 +119,7 @@
                 <div id="messages-container"></div>
             </main>
             <!-- Dedicated Chat Input Area -->
-            <div class="chat-input-container">
-                <button class="chat-send-btn" id="btn-chat-photo" style="background: #e5e5ea; color: #007aff;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
-                        </path>
-                        <circle cx="12" cy="13" r="4"></circle>
-                    </svg>
-                </button>
-                <div class="chat-input-wrapper">
-                    <textarea id="chat-input" rows="1" placeholder="Type a message..."></textarea>
-                </div>
-                <button class="chat-send-btn" id="btn-chat-send">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
-                </button>
-            </div>
+
         </div>
 
         <!-- ============================== -->
@@ -192,7 +175,7 @@
                 <div class="editor-toolbar-capsule">
                     <div class="toolbar-section">
                         <button id="btn-editor-ai-slash" class="toolbar-btn-mini"
-                            style="font-family:monospace; font-weight:700; color:var(--ios-blue); font-size: 18px;">/</button>
+                            style="font-family:monospace; font-weight:700; color:var(--ios-blue); font-size: 18px;">@</button>
                         <button id="btn-editor-bold" class="toolbar-btn-mini"><b>B</b></button>
                         <button id="btn-editor-italic" class="toolbar-btn-mini"><i>I</i></button>
                         <button id="btn-editor-list" class="toolbar-btn-mini">List</button>
@@ -238,7 +221,7 @@
                 <div id="full-notes-container" style="padding-top:16px;"></div>
                 <div class="bottom-spacer"></div>
             </main>
-            <!-- Removed local core-hub -->
+
         </div>
 
         <!-- ============================== -->
@@ -258,7 +241,7 @@
                 <div id="full-reader-container" style="padding-top:16px;"></div>
                 <div class="bottom-spacer"></div>
             </main>
-            <!-- Removed local core-hub -->
+
         </div>
 
         <!-- ============================== -->
@@ -286,49 +269,26 @@
                     <div id="reader-meta" class="reader-meta">source.com • 2024-02-04</div>
 
                     <div id="reader-content" class="reader-body-content">
-                        <!-- Content (including highlights) injected here -->
+                        <!-- Content injected here -->
+                    </div>
+
+                    <!-- Web Snapshot Toggle -->
+                    <div id="reader-snapshot-container" class="snapshot-toggle-wrapper hidden">
+                        <button id="btn-toggle-snapshot" class="snapshot-toggle-btn">
+                            <span class="icon">📷</span>
+                            <span data-i18n="btn_viewSnapshot">View Web Snapshot</span>
+                            <span class="arrow">▼</span>
+                        </button>
+                        <div id="reader-snapshot-content" class="snapshot-content hidden">
+                            <!-- Snapshot content injected here -->
+                        </div>
                     </div>
                 </article>
 
-                <!-- Web Snapshot Toggle (Now at the very end of scroll area) -->
-                <div id="reader-snapshot-container" class="snapshot-toggle-wrapper hidden">
-                    <button id="btn-toggle-snapshot" class="snapshot-toggle-btn">
-                        <span class="icon">📷</span>
-                        <span data-i18n="btn_viewSnapshot">View Web Snapshot</span>
-                        <span class="arrow">▼</span>
-                    </button>
-                    <div id="reader-snapshot-content" class="snapshot-content hidden">
-                        <!-- Snapshot content injected here -->
-                    </div>
-                </div>
                 <div class="bottom-spacer"></div>
             </main>
             <!-- Removed local core-hub -->
         </div>
-
-        <!-- Global Core Hub (The Dock) -->
-        <div class="core-hub" id="global-nav-bar">
-            <!-- Home button outside the input capsule -->
-            <button class="home-btn-line btn-go-home active" id="nav-btn-home">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                    <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-            </button>
-
-            <div class="input-capsule">
-                <input type="text" class="universal-core-input" id="global-input" placeholder="Search or ask AI...">
-                <button class="btn-input-add-attachment" id="btn-global-add">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.5">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    </div>
 
     </div>
 
@@ -533,6 +493,35 @@
     <!-- Google API & Identity (GIS) for Web Sync -->
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
+
+    <div class="core-hub" id="global-nav-bar">
+        <!-- Unified Action Button (Camera/Home) -->
+        <button class="core-dock-btn" id="nav-btn-home">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+        </button>
+
+        <div class="input-capsule">
+            <input type="text" class="universal-core-input" id="global-input" placeholder="Ask AI or search...">
+            <button class="plus-btn-line universal-plus-btn" id="btn-global-add">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+        </div>
+
+        <button class="core-dock-btn send-active hidden" id="btn-global-send">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        </button>
+    </div>
 
     <!-- Scripts -->
     <script src="tesseract.min.js?v=10.5"></script>
