@@ -47,12 +47,22 @@ class MobileChat {
             };
         }
 
-        const newChatPlus = document.getElementById('btn-new-chat-plus');
-        if (newChatPlus) {
-            newChatPlus.onclick = (e) => {
-                e.stopPropagation();
-                if (fileInput) fileInput.click(); // Also use + in chat for attachments as requested
-            };
+        const sendBtn = document.getElementById('btn-chat-send');
+        if (sendBtn) {
+            sendBtn.onclick = () => this.handleSend();
+        }
+
+        if (this.input) {
+            this.input.addEventListener('input', () => {
+                this.input.style.height = 'auto';
+                this.input.style.height = Math.min(this.input.scrollHeight, 120) + 'px';
+            });
+            this.input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.handleSend();
+                }
+            });
         }
 
         // Session List Click Delegation (CSP Friendly)
@@ -84,6 +94,16 @@ class MobileChat {
         }
     }
 
+    /**
+     * Public method called by the global '+' button to add attachments.
+     * @param {FileList} files
+     */
+    addAttachments(files) {
+        if (files && files.length > 0) {
+            this.handleAttachments(files);
+        }
+    }
+
     async handleAttachments(files) {
         for (const file of files) {
             if (file.type.startsWith('image/')) {
@@ -92,12 +112,19 @@ class MobileChat {
 
                 try {
                     // Initialize Tesseract if not already (it's globally defined by script)
-                    const { data: { text } } = await Tesseract.recognize(file, 'chi_sim+eng');
+                    let { data: { text } } = await Tesseract.recognize(file, 'chi_sim+eng');
 
-                    if (text && text.trim()) {
-                        this.addAIMessage(`OCR Extracted Text:\n\n${text.trim()}`, true);
+                    // OCR Cleaning: Remove spaces, newlines, and common artifacts
+                    // \s+ : Removes all spaces and newlines (fixes Chinese segmentation)
+                    // [|｜_] : Removes common vertical bar artifacts from page edges
+                    if (text) {
+                        text = text.replace(/\s+/g, '').replace(/[|｜_]/g, '');
+                    }
+
+                    if (text) {
+                        this.addAIMessage(`OCR Extracted Text:\n\n${text}`, true);
                         // Auto-send to AI for summarization
-                        const prompt = `Following is the text extracted from an image. Please provide a concise summary or extract key points:\n\n${text.trim()}`;
+                        const prompt = `Following is the text extracted from an image. Please provide a concise summary or extract key points:\n\n${text}`;
                         const thinkingEl = this.showAIThinking();
                         this.isGenerating = true;
                         await this.getAIResponse(prompt, thinkingEl);

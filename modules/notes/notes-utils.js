@@ -11,12 +11,15 @@ function escapeHtml(text) {
 }
 
 function formatDate(ts) {
-    const date = new Date(ts);
+    if (window.safeFormatDate) return window.safeFormatDate(ts);
+    const date = new Date(ts || Date.now());
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatShortDate(ts) {
-    const d = new Date(ts);
+    const timeVal = window.safeParseDate ? window.safeParseDate(ts) : Number(ts || 0);
+    if (!timeVal) return '';
+    const d = new Date(timeVal);
     const date = (d.getMonth() + 1) + '/' + d.getDate();
     const time = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
     return `${date} ${time}`;

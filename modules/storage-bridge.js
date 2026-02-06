@@ -49,6 +49,10 @@ class UniversalStorage {
      */
     async set(items) {
         if (this.isExtension) {
+            // Dual-write specific keys to IDB if available (e.g. user_notes for big data)
+            if (window.idb && items.user_notes) {
+                await window.idb.set('user_notes', items.user_notes);
+            }
             return new Promise((resolve) => {
                 chrome.storage.local.set(items, () => resolve());
             });
@@ -82,7 +86,26 @@ class UniversalStorage {
      */
     async getAll() {
         if (this.isExtension) {
-            return new Promise((resolve) => chrome.storage.local.get(null, (res) => resolve(res)));
+            return new Promise(async (resolve) => {
+                // Get Local Storage first
+                chrome.storage.local.get(null, async (localData) => {
+                    // Start with local storage data
+                    const result = { ...localData };
+
+                    // Merge critical IDB data (user_notes) if available
+                    if (window.idb) {
+                        try {
+                            const notes = await window.idb.get('user_notes');
+                            if (notes) {
+                                result.user_notes = notes;
+                            }
+                        } catch (e) {
+                            console.warn('[StorageBridge] Failed to read IDB in Extension mode', e);
+                        }
+                    }
+                    resolve(result);
+                });
+            });
         } else {
             if (!window.idb) return { ...localStorage };
 
@@ -105,13 +128,19 @@ class UniversalStorage {
      */
     async clear() {
         if (this.isExtension) {
+            // Clear BOTH Chrome Storage and IDB
+            if (window.idb && window.idb.clear) {
+                await window.idb.clear();
+            }
             return new Promise((resolve) => chrome.storage.local.clear(() => resolve()));
         } else {
+            // Mobile/Web mode: Clear IDB and LocalStorage
             if (window.idb && window.idb.clear) {
                 await window.idb.clear();
                 console.log('[StorageBridge] IDB Cleared');
             }
-            // Optional: localStorage.clear(); 
+            localStorage.clear();
+            console.log('[StorageBridge] LocalStorage Cleared');
         }
     }
 }

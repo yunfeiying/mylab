@@ -272,39 +272,239 @@ html {
 }
 
 /* === The Core Hub (Floating Capsule) === */
+/* --- Global Dock (Core Hub) --- */
 .core-hub {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 24px + var(--keyboard-offset, 0px));
-    left: 16px;
-    right: 16px;
+    /* Reset all potential offsets */
+    top: auto !important;
+    left: 50% !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+    transform: translateX(-50%) !important;
+
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
-    z-index: 1000;
+    width: 90%;
+    max-width: 440px;
+    height: auto;
+    background: transparent !important;
+    /* Make container invisible */
+    border: none !important;
+    box-shadow: none !important;
+    z-index: 10001;
+    /* Higher than full-screen-view (2000) */
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Keyboard Docked State: Force to very bottom + keyboard height */
+.keyboard-visible .core-hub {
+    bottom: var(--keyboard-offset, 0px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 52px !important;
+    border-radius: 0 !important;
+    background: #f8f8f8 !important;
+    /* Solid matte finish */
+    padding: 0 12px !important;
+    box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
+    border: none !important;
+}
+
+/* Give enough scrolling room so the dock never hides last items */
+.home-scroll-area,
+.reader-scroll-area,
+.chat-content {
+    padding-bottom: 120px !important;
+}
+
+.keyboard-visible .home-scroll-area,
+.keyboard-visible .reader-scroll-area,
+.keyboard-visible .chat-content {
+    padding-bottom: 60px !important;
+}
+
+.keyboard-visible .home-btn-line {
+    width: 38px;
+    height: 38px;
+    background: white;
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.keyboard-visible .input-capsule {
+    /* Removed old chat input styles */
+    height: 38px;
+    background: white;
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
+    border-radius: 19px;
+    box-shadow: none;
+}
+
+.keyboard-visible .send-btn-line {
+    width: 38px;
+    height: 38px;
+    box-shadow: none;
+}
+
+.home-btn-line {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    border: 0.5px solid rgba(0, 0, 0, 0.08);
+    background: var(--ios-blur-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: var(--ios-blue);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .input-capsule {
     flex: 1;
-    height: 52px;
+    height: 48px;
     background: var(--ios-blur-bg);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    /* Thinner, refined border */
-    border-radius: 26px;
-    padding: 0 4px 0 20px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 0.5px solid rgba(0, 0, 0, 0.08);
+    border-radius: 24px;
+    padding: 0 16px;
     display: flex;
     align-items: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    /* Softer, deep shadow */
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
-.input-capsule input {
+.universal-core-input {
     flex: 1;
     border: none;
     background: transparent;
     font-size: 16px;
     color: #1c1c1e;
+    outline: none;
+}
+
+.home-btn-line:active {
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(0.9);
+}
+
+.home-btn-line.active {
+    color: var(--ios-blue);
+}
+
+/* Dedicated Chat Input Area (Replaces Hub in Chat View) */
+.chat-input-container {
+    padding: 12px 16px calc(12px + var(--safe-bottom));
+    background: var(--ios-blur-bg);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    transition: padding 0.3s;
+}
+
+.keyboard-visible .chat-input-container {
+    padding-bottom: 0;
+    position: fixed;
+    bottom: var(--keyboard-offset, 0px);
+    left: 0;
+    right: 0;
+    z-index: 1001;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.chat-input-wrapper {
+    flex: 1;
+    background: #f2f2f7;
+    border-radius: 20px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: flex-end;
+    min-height: 40px;
+}
+
+.chat-input-wrapper textarea {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    line-height: 20px;
+    max-height: 120px;
+    padding: 2px 4px;
+    resize: none;
+    color: #000;
+}
+
+.chat-send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--ios-blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.chat-send-btn:active {
+    transform: scale(0.9);
+    opacity: 0.8;
+}
+
+.chat-send-btn svg {
+    margin-left: 2px;
+}
+
+.send-btn-line {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--ios-blue);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.send-btn-line:active {
+    transform: scale(0.9);
+    filter: brightness(1.1);
+}
+
+.universal-core-input {
+    flex: 1;
+    height: 44px;
+    border: none;
+    background: rgba(255, 255, 255, 0.5);
+    /* Semi-transparent in floating state */
+    border-radius: 22px;
+    padding: 0 20px;
+    font-size: 16px;
+    color: #1c1c1e;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.universal-core-input:focus {
+    background: white;
 }
 
 .input-capsule input::placeholder {
@@ -312,35 +512,27 @@ html {
     opacity: 0.6;
 }
 
-.plus-btn-line {
-    width: 44px;
-    height: 44px;
-    border-radius: 22px;
-    border: none;
-    background: transparent;
-    color: #8e8e93;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.plus-btn-line:active {
-    color: var(--ios-blue);
-    background: rgba(0, 0, 0, 0.03);
-}
+/* Removed plus-btn-line styles */
 
 .send-btn-line {
-    width: 52px;
-    height: 52px;
-    border-radius: 26px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
     border: none;
-    background: transparent;
-    color: var(--ios-blue);
+    background: var(--ios-blue);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+}
+
+.send-btn-line:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
 }
 
 .send-btn-line:active {
@@ -349,7 +541,7 @@ html {
 }
 
 .bottom-spacer {
-    height: 120px;
+    height: 80px;
 }
 
 /* === Editor & Chat Headers === */
@@ -447,14 +639,18 @@ html {
 /* === Editor Floating Capsule Toolbar === */
 .editor-toolbar-floating {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 20px + var(--keyboard-offset, 0px));
+    bottom: calc(var(--safe-bottom) + 20px);
     left: 0;
     right: 0;
     display: flex;
     justify-content: center;
     z-index: 1000;
     pointer-events: none;
-    /* Let clicks pass through context but capture on buttons */
+    transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.keyboard-visible .editor-toolbar-floating {
+    bottom: var(--keyboard-offset, 0px);
 }
 
 .editor-toolbar-capsule {
@@ -969,4 +1165,160 @@ html {
 #reader-list-container .note-preview {
     font-size: 12px !important;
     opacity: 0.6 !important;
+}
+
+/* === Reader Snapshot Viewer (Mobile) === */
+/* --- Web Snapshot Toggle Bar (User Request) --- */
+.snapshot-toggle-wrapper {
+    margin: 30px 0;
+    text-align: center;
+    width: 100%;
+}
+
+.snapshot-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    border: none;
+    color: #4a6fff;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 10px 16px;
+    transition: opacity 0.2s;
+}
+
+.snapshot-toggle-btn:active {
+    opacity: 0.6;
+}
+
+.snapshot-toggle-btn .icon {
+    font-size: 16px;
+    margin-right: 6px;
+    text-decoration: none !important;
+}
+
+.snapshot-toggle-btn span {
+    text-decoration: underline;
+}
+
+.snapshot-toggle-btn .arrow {
+    margin-left: 6px;
+    color: inherit;
+    font-size: 10px;
+    transition: transform 0.3s;
+    text-decoration: none !important;
+}
+
+.snapshot-toggle-btn.active .arrow {
+    transform: rotate(180deg);
+}
+
+/* --- Utilities --- */
+.hidden {
+    display: none !important;
+}
+
+.snapshot-content {
+    margin-top: 12px;
+    padding: 20px;
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    font-family: -apple-system, system-ui, serif;
+    line-height: 1.6;
+    color: #333;
+    overflow-x: auto;
+    animation: slideDown 0.3s ease-out;
+    text-align: left;
+}
+
+/* Ensure hidden state is respected even with animation classes */
+.snapshot-content.hidden {
+    display: none !important;
+}
+
+.snapshot-content h1,
+.snapshot-content h2,
+.snapshot-content h3 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: #000;
+}
+
+.snapshot-content p {
+    margin-bottom: 1em;
+    text-indent: 2em;
+}
+
+.snapshot-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 12px 0;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hidden {
+    display: none !important;
+}
+/* === Unified Global Input Capsule (V10.6) === */
+.input-capsule {
+    flex: 1;
+    height: 44px;
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    padding: 0 4px 0 16px;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.universal-core-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    height: 100%;
+    padding-right: 40px;
+    outline: none;
+}
+
+.btn-input-add-attachment {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: #8e8e93;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: color 0.2s;
+}
+
+.btn-input-add-attachment:active {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--ios-blue);
 }

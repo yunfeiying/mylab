@@ -51,7 +51,7 @@ window.selectPage = async function (url) {
     }
 
     const dateEl = document.getElementById('current-page-date');
-    if (dateEl) dateEl.innerText = new Date(page.timestamp).toLocaleDateString();
+    if (dateEl) dateEl.innerText = window.safeFormatDate ? window.safeFormatDate(page.timestamp, false) : new Date(page.timestamp).toLocaleDateString();
     const countEl = document.getElementById('current-page-count');
     if (countEl) countEl.innerText = `${page.items.length} highlights`;
 
@@ -157,7 +157,7 @@ window.renderHighlightList = function (items) {
                     <div class="highlight-content">
                         ${contentHtml}
                         ${(item.note && item.type !== 'image') ? `<div style="margin-top:8px;color:#666;font-size:12px;background:#f9f9f9;padding:5px;"> ${window.escapeHtml(item.note)}</div>` : ''}
-						<div style="text-align:right;font-size:11px;color:#bbb;margin-top:6px;">${new Date(item.timestamp).toLocaleString()}</div>
+						<div style="text-align:right;font-size:11px;color:#bbb;margin-top:6px;">${window.safeFormatDate ? window.safeFormatDate(item.timestamp) : new Date(item.timestamp).toLocaleString()}</div>
                     </div>
                 </div>
                 <button class="item-delete-btn" title="Delete">${iconRowDel}</button>
@@ -334,7 +334,7 @@ window.renderSnapshot = async function (url) {
         <div class="snapshot-content" id="snapshot-content">
             <h1>${window.escapeHtml(snapshot.title)}</h1>
             <div style="font-size:12px; color:#999; margin-bottom:20px;">
-                Captured: ${new Date(snapshot.timestamp).toLocaleString()}
+            Captured: ${window.safeFormatDate ? window.safeFormatDate(snapshot.timestamp) : new Date(snapshot.timestamp).toLocaleString()}
             </div>
             ${snapshot.content} 
         </div>

@@ -852,7 +852,8 @@ function autoPushToNote(question, answer) {
         data: {
             title: title,
             content: htmlContent,
-            isAutoSaved: true
+            isAutoSaved: true,
+            chatSessionId: currentSessionId
         }
     };
 

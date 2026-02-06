@@ -136,7 +136,7 @@ window.createPageItem = function (page) {
     div.innerHTML = `
       <div class="page-title" title="${window.escapeHtml(page.title)}">${window.escapeHtml(page.title)}</div>
       <div class="page-meta">
-        <span class="page-date">${new Date(page.timestamp).toLocaleDateString()}</span>
+        <span class="page-date">${window.safeFormatDate ? window.safeFormatDate(page.timestamp, false) : new Date(page.timestamp).toLocaleDateString()}</span>
         ${colorDotsHtml}
         <div class="highlight-count">${page.items.length}</div>
       </div>

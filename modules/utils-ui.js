@@ -99,4 +99,28 @@ function showConfirm(message) {
 window.showPrompt = showPrompt;
 window.showConfirm = showConfirm;
 
-console.log('[utils-ui.js] Loaded: showPrompt, showConfirm');
+/**
+ * Robust date parser & formatter to prevent NaN display
+ */
+window.safeParseDate = function (val) {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    const parsed = new Date(val).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+};
+
+window.safeFormatDate = function (ts, showTime = true) {
+    const timeVal = window.safeParseDate(ts);
+    if (!timeVal) return '';
+    try {
+        const d = new Date(timeVal);
+        const options = showTime
+            ? { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }
+            : { month: 'numeric', day: 'numeric', year: 'numeric' };
+        return d.toLocaleString([], options);
+    } catch (e) {
+        return '';
+    }
+};
+
+console.log('[utils-ui.js] Loaded: Date utilities added');

@@ -16,7 +16,9 @@ class SidebarCategorizer {
     }
 
     setData(newData) {
-        this.data = newData;
+        // Sort data by timestamp (newest first) to ensure consistent grouping and display
+        const safeTs = (val) => window.safeParseDate ? window.safeParseDate(val) : Number(val || 0);
+        this.data = [...newData].sort((a, b) => safeTs(b.timestamp) - safeTs(a.timestamp));
         this.render();
     }
 
@@ -43,7 +45,11 @@ class SidebarCategorizer {
         };
 
         this.data.forEach(item => {
-            const ts = item.timestamp;
+            const ts = window.safeParseDate ? window.safeParseDate(item.timestamp) : Number(item.timestamp || 0);
+            if (ts <= 0) {
+                groups.all.push(item);
+                return;
+            }
             if (ts >= startOfToday) groups.today.push(item);
             if (ts >= startOfWeek) groups.week.push(item);
             if (ts >= startOfMonth) groups.month.push(item);

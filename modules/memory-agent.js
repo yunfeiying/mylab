@@ -215,13 +215,18 @@ Return JSON only:
      * Simulates "Hybrid Search" (Keyword + Semantic Tagging)
      */
     async retrieveContext(query) {
+        if (!window.appStorage) {
+            console.warn('[MemoryAgent] appStorage not ready yet. Skipping retrieval.');
+            return "";
+        }
+
         const longTerm = await window.appStorage.get(this.longTermKey);
         const todayKey = this.getTodayKey();
         const shortTerm = await window.appStorage.get(todayKey);
 
         const memoryPool = [
-            { source: 'Long-term', content: longTerm[this.longTermKey] || '' },
-            { source: 'Today', content: shortTerm[todayKey] || '' }
+            { source: 'Long-term', content: (longTerm && longTerm[this.longTermKey]) || '' },
+            { source: 'Today', content: (shortTerm && shortTerm[todayKey]) || '' }
         ];
 
         const keywords = query.toLowerCase().match(/[\w\u4e00-\u9fa5]+/g) || [];
