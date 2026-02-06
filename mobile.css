@@ -447,18 +447,14 @@ html {
 /* === Editor Floating Capsule Toolbar === */
 .editor-toolbar-floating {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 20px);
+    bottom: calc(var(--safe-bottom) + 20px + var(--keyboard-offset, 0px));
     left: 0;
     right: 0;
     display: flex;
     justify-content: center;
     z-index: 1000;
     pointer-events: none;
-    transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.keyboard-visible .editor-toolbar-floating {
-    bottom: var(--keyboard-offset, 0px);
+    /* Let clicks pass through context but capture on buttons */
 }
 
 .editor-toolbar-capsule {
@@ -563,39 +559,6 @@ html {
 
 .hidden {
     display: none !important;
-}
-
-/* --- Web Snapshot Toggle Link (Clean Style) --- */
-.snapshot-toggle-wrapper {
-    margin: 30px 10px;
-    text-align: center;
-    width: auto;
-}
-
-.snapshot-toggle-btn {
-    display: inline-flex;
-    align-items: center;
-    background: transparent;
-    border: none;
-    color: #4a6fff;
-    font-size: 14px;
-    font-weight: 500;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    cursor: pointer;
-    padding: 8px 12px;
-    transition: opacity 0.2s;
-}
-
-.snapshot-toggle-btn .icon {
-    font-size: 16px;
-    margin-right: 6px;
-}
-
-.snapshot-toggle-btn .arrow {
-    margin-left: 6px;
-    font-size: 10px;
-    transition: transform 0.3s;
 }
 
 
@@ -850,94 +813,63 @@ html {
 
 .core-hub {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 12px);
+    bottom: calc(var(--safe-bottom) + 12px + var(--keyboard-offset, 0px));
     left: 12px;
     right: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
     z-index: 1000;
-    transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* --- Global Dock (Core Hub) --- */
-.core-hub {
-    position: fixed;
-    top: auto !important;
-    left: 50% !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
-    transform: translateX(-50%) !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    width: 90%;
-    max-width: 420px;
-    height: 56px;
-    padding: 0 8px;
-    background: var(--ios-blur-bg);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    border: 0.5px solid rgba(0, 0, 0, 0.1);
-    border-radius: 28px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-    z-index: 9999;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.keyboard-visible .core-hub {
-    bottom: var(--keyboard-offset, 0px) !important;
-    left: 0 !important;
-    right: 0 !important;
-    transform: none !important;
-    width: 100% !important;
-    max-width: none !important;
-    height: 52px !important;
-    border-radius: 0 !important;
-    background: #f8f8f8 !important;
-    padding: 0 12px !important;
-    box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
-    border: none !important;
-}
-
-.home-scroll-area,
-.reader-scroll-area,
-.chat-content {
-    padding-bottom: 120px !important;
-}
-
-.keyboard-visible .home-scroll-area,
-.keyboard-visible .reader-scroll-area,
-.keyboard-visible .chat-content {
-    padding-bottom: 64px !important;
-}
-
-.keyboard-visible .home-btn-line {
-    width: 38px;
-    height: 38px;
-    background: white;
-    border: 0.5px solid rgba(0, 0, 0, 0.1);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.keyboard-visible .input-capsule {
-    height: 38px;
-    background: white;
-    border: 0.5px solid rgba(0, 0, 0, 0.1);
-    border-radius: 19px;
-    box-shadow: none;
-}
-
-.keyboard-visible .send-btn-line {
-    width: 38px;
-    height: 38px;
-    box-shadow: none;
 }
 
 .home-btn-line {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
+    border: none;
+    background: white;
+    color: var(--ios-text-secondary);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    flex-shrink: 0;
+}
+
+.home-btn-line:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.input-capsule {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 24px;
+    padding: 0 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    height: 48px;
+}
+
+.universal-core-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    background: transparent;
+    color: var(--ios-text-primary);
+}
+
+.universal-core-input::placeholder {
+    color: var(--ios-text-tertiary);
+}
+
+.plus-btn-line {
+    width: 32px;
+    height: 32px;
     border: none;
     background: transparent;
     color: var(--ios-text-secondary);
@@ -945,81 +877,34 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: transform 0.2s, opacity 0.2s;
     flex-shrink: 0;
 }
 
-.home-btn-line:active {
-    background: rgba(0, 0, 0, 0.05);
+.plus-btn-line:active {
     transform: scale(0.9);
+    opacity: 0.6;
 }
 
-.home-btn-line.active {
-    color: var(--ios-blue);
-}
-
-/* Dedicated Chat Input Area */
-.chat-input-container {
-    padding: 12px 16px calc(12px + var(--safe-bottom));
-    background: var(--ios-blur-bg);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    transition: padding 0.3s;
-}
-
-.keyboard-visible .chat-input-container {
-    padding-bottom: 0;
-    position: fixed;
-    bottom: var(--keyboard-offset, 0px);
-    left: 0;
-    right: 0;
-    z-index: 1001;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.chat-input-wrapper {
-    flex: 1;
-    background: #f2f2f7;
-    border-radius: 20px;
-    padding: 8px 12px;
-    display: flex;
-    align-items: flex-end;
-    min-height: 40px;
-}
-
-.chat-input-wrapper textarea {
-    flex: 1;
-    border: none;
-    background: transparent;
-    font-size: 16px;
-    line-height: 20px;
-    max-height: 120px;
-    padding: 2px 4px;
-    resize: none;
-    color: #000;
-}
-
-.chat-send-btn {
-    width: 36px;
-    height: 36px;
+.send-btn-line {
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     border: none;
     background: var(--ios-blue);
     color: white;
+    box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
     flex-shrink: 0;
-    transition: all 0.2s;
 }
 
-.chat-send-btn:active {
-    transform: scale(0.9);
-    opacity: 0.8;
+.send-btn-line:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
 }
 
 /* Typing indicator animation */
@@ -1084,145 +969,4 @@ html {
 #reader-list-container .note-preview {
     font-size: 12px !important;
     opacity: 0.6 !important;
-}
-
-/* === Reader Snapshot Viewer (Mobile) === */
-.snapshot-toggle-wrapper {
-    margin: 16px 0;
-    width: 100%;
-}
-
-.snapshot-toggle-btn {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 12px 16px;
-    background: #f2f2f7;
-    border: none;
-    border-radius: 12px;
-    color: var(--ios-blue);
-    font-size: 15px;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-.snapshot-toggle-btn:active {
-    background: #e5e5ea;
-    transform: scale(0.98);
-}
-
-.snapshot-toggle-btn .icon {
-    font-size: 18px;
-}
-
-.snapshot-toggle-btn .arrow {
-    margin-left: auto;
-    font-size: 12px;
-    transition: transform 0.3s;
-}
-
-.snapshot-toggle-btn.open .arrow {
-    transform: rotate(180deg);
-}
-
-.snapshot-content {
-    margin-top: 12px;
-    padding: 20px;
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    font-family: -apple-system, system-ui, serif;
-    line-height: 1.6;
-    color: #333;
-    overflow-x: auto;
-    animation: slideDown 0.3s ease-out;
-    text-align: left;
-}
-
-.snapshot-content.hidden {
-    display: none !important;
-}
-
-.snapshot-content h1,
-.snapshot-content h2,
-.snapshot-content h3 {
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    color: #000;
-}
-
-.snapshot-content p {
-    margin-bottom: 1em;
-    text-indent: 2em;
-}
-
-.snapshot-content img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-    margin: 12px 0;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.hidden {
-    display: none !important;
-}
-/* === Unified Global Input Capsule (V10.6) === */
-.input-capsule {
-    flex: 1;
-    height: 44px;
-    background: #fff;
-    border-radius: 22px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    display: flex;
-    align-items: center;
-    padding: 0 4px 0 16px;
-    position: relative;
-    transition: all 0.2s;
-}
-
-.universal-core-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    font-size: 16px;
-    height: 100%;
-    padding-right: 40px;
-    outline: none;
-}
-
-.btn-input-add-attachment {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: transparent;
-    border: none;
-    color: #8e8e93;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    transition: color 0.2s;
-}
-
-.btn-input-add-attachment:active {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--ios-blue);
 }

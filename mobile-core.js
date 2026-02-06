@@ -34,13 +34,6 @@ class MobileApp {
                 // Only apply if offset is significant
                 const finalOffset = offset > 50 ? offset : 0;
                 document.documentElement.style.setProperty('--keyboard-offset', `${finalOffset}px`);
-
-                if (finalOffset > 0) {
-                    document.body.classList.add('keyboard-visible');
-                } else {
-                    document.body.classList.remove('keyboard-visible');
-                }
-
                 if (finalOffset > 0 && document.activeElement) {
                     setTimeout(() => {
                         document.activeElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -145,34 +138,6 @@ class MobileApp {
             };
         }
 
-        // --- Attachment Action Sheet Logic ---
-        this.setupAttachmentSheet();
-
-        // --- Global Core Hub logic ---
-        const globalInput = document.getElementById('global-input');
-
-        if (globalInput) {
-            globalInput.oninput = (e) => {
-                this.searchQuery = e.target.value.toLowerCase();
-                this.renderApp();
-            };
-
-            globalInput.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    this.triggerUniversalSend(globalInput);
-                }
-            };
-
-            // Auto-navigate to chat when focusing on input from home/list views
-            globalInput.onfocus = () => {
-                const viewsToAutoChat = ['home', 'notes-all', 'reading-all'];
-                if (viewsToAutoChat.includes(this.activeView)) {
-                    this.navigateToChat();
-                }
-            };
-        }
-
         // Headers
         const notesHeader = document.getElementById('header-notes-all');
         if (notesHeader) notesHeader.onclick = () => this.navigateTo('notes-all');
@@ -212,6 +177,68 @@ class MobileApp {
                 this.navigateTo('reading-all');
             };
         });
+
+        // --- Universal Core Hub Components ---
+        // Handle search inputs
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('universal-core-input')) {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.renderApp();
+            }
+        });
+
+        // Handle enter key in inputs
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.classList.contains('universal-core-input')) {
+                e.preventDefault();
+
+                // If in chat view, directly send via mobileChat
+                if (this.activeView === 'chat' && window.mobileChat) {
+                    window.mobileChat.handleSend();
+                } else {
+                    // Otherwise, navigate to chat and send
+                    this.triggerUniversalSend(e.target);
+                }
+            }
+        });
+
+        // Handle clicks on plus and send buttons
+        document.addEventListener('click', (e) => {
+            const plusBtn = e.target.closest('.universal-plus-btn');
+            if (plusBtn) {
+                // Navigate to chat first if not already there
+                if (this.activeView !== 'chat') {
+                    this.navigateTo('chat');
+                }
+                const fileInput = document.getElementById('chat-file-input');
+                if (fileInput) fileInput.click();
+                return;
+            }
+
+            const sendBtn = e.target.closest('.universal-send-btn');
+            if (sendBtn) {
+                const capsule = sendBtn.closest('.core-hub');
+                const input = capsule ? capsule.querySelector('.universal-core-input') : null;
+
+                // If in chat view, directly send via mobileChat
+                if (this.activeView === 'chat' && window.mobileChat) {
+                    window.mobileChat.handleSend();
+                } else if (input) {
+                    // Otherwise, navigate to chat and send
+                    this.triggerUniversalSend(input);
+                }
+            }
+        });
+
+        // Navigate to chat when user focuses on input (home, notes-all, or reading-all)
+        document.addEventListener('focus', (e) => {
+            if (e.target.classList.contains('universal-core-input')) {
+                const viewsToAutoChat = ['home', 'notes-all', 'reading-all'];
+                if (viewsToAutoChat.includes(this.activeView)) {
+                    this.navigateToChat();
+                }
+            }
+        }, true);
 
         // API Settings Dialog
         const apiDialog = document.getElementById('api-settings-dialog');
@@ -492,22 +519,6 @@ class MobileApp {
             };
         }
 
-        // Web Snapshot Toggle Logic
-        const snapshotToggle = document.getElementById('btn-toggle-snapshot');
-        const snapshotContent = document.getElementById('reader-snapshot-content');
-        if (snapshotToggle && snapshotContent) {
-            snapshotToggle.onclick = () => {
-                const isOpen = !snapshotContent.classList.contains('hidden');
-                if (isOpen) {
-                    snapshotContent.classList.add('hidden');
-                    snapshotToggle.classList.remove('open');
-                } else {
-                    snapshotContent.classList.remove('hidden');
-                    snapshotToggle.classList.add('open');
-                }
-            };
-        }
-
         this.setupSwipeNavigation();
     }
 
@@ -531,115 +542,11 @@ class MobileApp {
             target.classList.add('active');
             this.activeView = viewId;
         }
-
-        // --- Global Nav Dock Visibility ---
-        const navBar = document.getElementById('global-nav-bar');
-        if (navBar) {
-            // ONLY hide in these two specific deep-level views
-            const hideIn = ['editor', 'chat'];
-            if (hideIn.includes(viewId)) {
-                navBar.classList.add('hidden');
-            } else {
-                navBar.classList.remove('hidden');
-            }
-
-            // Sync active state for the Home button
-            const homeBtn = document.getElementById('nav-btn-home');
-            if (homeBtn) {
-                if (viewId === 'home') {
-                    homeBtn.classList.add('active');
-                } else {
-                    homeBtn.classList.remove('active');
-                }
-            }
-        }
     }
 
     goBack() {
         this.navigateTo('home');
         this.renderApp();
-    }
-
-    /**
-     * Setup the Attachment Action Sheet triggered by the global '+' button.
-     * This allows users to add photos or files before sending to AI.
-     */
-    setupAttachmentSheet() {
-        const attachSheet = document.getElementById('attachment-sheet-overlay');
-        const globalAddBtn = document.getElementById('btn-global-add');
-        const attCancel = document.getElementById('att-cancel');
-        const attCamera = document.getElementById('att-camera');
-        const attGallery = document.getElementById('att-gallery');
-        const attFile = document.getElementById('att-file');
-
-        // Hidden file inputs
-        const cameraInput = document.getElementById('chat-camera-input');
-        const galleryInput = document.getElementById('global-gallery-input');
-        const fileInput = document.getElementById('chat-file-input');
-
-        // Open attachment sheet
-        if (globalAddBtn && attachSheet) {
-            globalAddBtn.onclick = (e) => {
-                e.stopPropagation();
-                attachSheet.classList.remove('hidden');
-            };
-        }
-
-        // Close on cancel or background click
-        if (attCancel) attCancel.onclick = () => attachSheet.classList.add('hidden');
-        if (attachSheet) {
-            attachSheet.onclick = (e) => {
-                if (e.target === attachSheet) attachSheet.classList.add('hidden');
-            };
-        }
-
-        // Camera action
-        if (attCamera && cameraInput) {
-            attCamera.onclick = () => {
-                attachSheet.classList.add('hidden');
-                cameraInput.click();
-            };
-            cameraInput.onchange = (e) => this.handleAttachment(e.target.files, 'camera');
-        }
-
-        // Gallery action
-        if (attGallery && galleryInput) {
-            attGallery.onclick = () => {
-                attachSheet.classList.add('hidden');
-                galleryInput.click();
-            };
-            galleryInput.onchange = (e) => this.handleAttachment(e.target.files, 'gallery');
-        }
-
-        // File action
-        if (attFile && fileInput) {
-            attFile.onclick = () => {
-                attachSheet.classList.add('hidden');
-                fileInput.click();
-            };
-            fileInput.onchange = (e) => this.handleAttachment(e.target.files, 'file');
-        }
-    }
-
-    /**
-     * Handle selected attachment files - navigate to chat and pass to mobileChat.
-     * @param {FileList} files 
-     * @param {string} source - 'camera', 'gallery', or 'file'
-     */
-    handleAttachment(files, source) {
-        if (!files || files.length === 0) return;
-
-        // Navigate to chat view
-        this.navigateTo('chat');
-
-        // If mobileChat has an attachment handler, use it
-        if (window.mobileChat && typeof window.mobileChat.addAttachments === 'function') {
-            window.mobileChat.addAttachments(files);
-        } else {
-            console.log(`[Attachment] ${files.length} file(s) selected from ${source}`);
-            // Fallback: store for later use
-            this.pendingAttachments = Array.from(files);
-        }
     }
 
     loadReader(data) {
@@ -661,68 +568,8 @@ class MobileApp {
         }
 
         this.currentReaderUrl = data.url;
-        this.loadSnapshot(data.url); // Load snapshot if exists
-
         // Scroll to top
         document.querySelector('.reader-scroll-area').scrollTop = 0;
-    }
-
-    async loadSnapshot(url) {
-        const container = document.getElementById('reader-snapshot-container');
-        const contentEl = document.getElementById('reader-snapshot-content');
-        const toggleBtn = document.getElementById('btn-toggle-snapshot');
-
-        if (!container || !contentEl || !toggleBtn) return;
-
-        // Reset state
-        container.classList.add('hidden');
-        contentEl.classList.add('hidden');
-        toggleBtn.classList.remove('active');
-        contentEl.innerHTML = '';
-        const arrow = toggleBtn.querySelector('.arrow');
-        if (arrow) arrow.innerText = '▼';
-
-        if (!url) return;
-
-        try {
-            const key = 'snapshot_' + url;
-            // First, just check if the key exists to show the bar
-            const res = await window.appStorage.get(key);
-            const snapshotData = res[key];
-
-            if (snapshotData && snapshotData.content) {
-                container.classList.remove('hidden');
-
-                // Toggle click handler handles lazy loading
-                toggleBtn.onclick = async (e) => {
-                    e.stopPropagation();
-                    const isHidden = contentEl.classList.contains('hidden');
-
-                    if (isHidden) {
-                        // If content is empty/missing, fetch and render now
-                        if (!contentEl.innerHTML.trim()) {
-                            contentEl.innerHTML = `
-                                <div style="font-size: 13px; color: #8e8e93; margin-bottom: 12px; padding: 10px; border-left: 3px solid #ddd; font-style: italic;">
-                                    Saved Page Content (Snapshot):
-                                </div>
-                                <div class="snapshot-inner-content" style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
-                                    ${snapshotData.content}
-                                </div>
-                            `;
-                        }
-                        contentEl.classList.remove('hidden');
-                        toggleBtn.classList.add('active');
-                        if (arrow) arrow.innerText = '▲';
-                    } else {
-                        contentEl.classList.add('hidden');
-                        toggleBtn.classList.remove('active');
-                        if (arrow) arrow.innerText = '▼';
-                    }
-                };
-            }
-        } catch (e) {
-            console.warn('Failed to check/load snapshot:', e);
-        }
     }
 
     async renderApp() {
@@ -745,12 +592,9 @@ class MobileApp {
                 ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url) ||
                 (key && (key.startsWith('note-') || key.startsWith('note_')));
 
-            const isReading = (val.type === 'reading' ||
+            const isReading = val.type === 'reading' ||
                 val.url ||
-                (key && (key.startsWith('http') || key.startsWith('meta_')))) &&
-                !(key && key.startsWith('snapshot_'));
-
-            if (key && key.startsWith('snapshot_')) return;
+                (key && (key.startsWith('http') || key.startsWith('meta_')));
 
             if (isNote) {
                 // 1. Determine Identity (ID or ChatSession)

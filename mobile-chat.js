@@ -47,22 +47,12 @@ class MobileChat {
             };
         }
 
-        const sendBtn = document.getElementById('btn-chat-send');
-        if (sendBtn) {
-            sendBtn.onclick = () => this.handleSend();
-        }
-
-        if (this.input) {
-            this.input.addEventListener('input', () => {
-                this.input.style.height = 'auto';
-                this.input.style.height = Math.min(this.input.scrollHeight, 120) + 'px';
-            });
-            this.input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.handleSend();
-                }
-            });
+        const newChatPlus = document.getElementById('btn-new-chat-plus');
+        if (newChatPlus) {
+            newChatPlus.onclick = (e) => {
+                e.stopPropagation();
+                if (fileInput) fileInput.click(); // Also use + in chat for attachments as requested
+            };
         }
 
         // Session List Click Delegation (CSP Friendly)
@@ -91,16 +81,6 @@ class MobileChat {
                     if (window.mobileCore) window.mobileCore.navigateTo('chat');
                 }
             };
-        }
-    }
-
-    /**
-     * Public method called by the global '+' button to add attachments.
-     * @param {FileList} files
-     */
-    addAttachments(files) {
-        if (files && files.length > 0) {
-            this.handleAttachments(files);
         }
     }
 
