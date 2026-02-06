@@ -419,16 +419,29 @@ class MobileApp {
                     // It's in the unified array
                     const res = await window.appStorage.get('user_notes');
                     const notes = res.user_notes || [];
-                    const updated = notes.filter(n => {
-                        const nid = (n.id || n.timestamp || '').toString();
-                        return nid !== id.toString();
+
+                    const updated = notes.filter((n, index) => {
+                        // 1. Try safe ID match (handles number vs string)
+                        const nId = (n.id || n.timestamp || '').toString();
+                        if (nId && nId === id.toString()) return false;
+
+                        // 2. Try strict Index match (Fallback for malformed items)
+                        // renderApp generates ID as `idx-${index}` if no internal ID exists
+                        if (id === `idx-${index}`) return false;
+
+                        return true;
                     });
+
+                    if (updated.length === notes.length) {
+                        console.warn('[Delete] Item not found in user_notes array', id);
+                    }
+
                     await window.appStorage.set({ user_notes: updated });
                 } else if (parentKey) {
                     // It's a flat entry
                     await window.appStorage.remove(parentKey);
                 } else {
-                    // Last resort try by ID
+                    // Last resort try by ID (Handle as string or number if needed)
                     await window.appStorage.remove(id);
                 }
 
