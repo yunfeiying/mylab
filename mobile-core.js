@@ -15,7 +15,7 @@ class MobileApp {
 
         this.setupKeyboardTracking();
         this.setupEvents();
-        console.log('MobileCore V10.5 (Monolith) Initialized');
+        console.log('MobileCore V10.8 (Monolith) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -960,3 +960,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.mobileCore = new MobileApp();
     setTimeout(() => window.mobileCore.renderApp(), 500);
 });
+
