@@ -55,14 +55,14 @@ class MobileEditor {
             slashBtn.onclick = () => {
                 if (this.editor) {
                     this.editor.focus();
-                    // Insert /ai at the end or current position
+                    // Insert @ai at the end or current position
                     const selection = window.getSelection();
                     if (selection.rangeCount > 0) {
                         const range = selection.getRangeAt(0);
                         range.deleteContents();
-                        document.execCommand('insertText', false, '/ai ');
+                        document.execCommand('insertText', false, '@ai ');
                     } else {
-                        this.editor.innerText += '/ai ';
+                        this.editor.innerText += '@ai ';
                     }
                 }
             };
@@ -93,11 +93,13 @@ class MobileEditor {
 
     checkSlashCommand(e) {
         const text = this.editor.innerText;
-        const match = text.match(/\/ai(?:\s+(.*))?\s*$/);
+        // Match @ai or /ai to be backwards compatible, but prioritize @
+        const match = text.match(/[@/]ai(?:\s+(.*))?\s*$/);
         if (match) {
             e.preventDefault();
             const prompt = (match[1] || "").trim();
-            this.editor.innerHTML = this.editor.innerHTML.replace(/\/ai(?:\s+.*)?\s*$/, '');
+            // Remove the command text
+            this.editor.innerHTML = this.editor.innerHTML.replace(/[@/]ai(?:\s+.*)?\s*$/, '');
             this.streamAIContent(prompt || "整理内容并排版");
             return true;
         }

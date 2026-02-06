@@ -15,7 +15,7 @@ class MobileApp {
 
         this.setupKeyboardTracking();
         this.setupEvents();
-        console.log('MobileCore V10.8 (Monolith) Initialized');
+        console.log('MobileCore V11.0 (Monolith) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -55,14 +55,20 @@ class MobileApp {
     triggerUniversalSend(inputEl) {
         if (!inputEl) return;
         const text = inputEl.value.trim();
+        if (!text) return;
+
         if (window.mobileChat) {
-            this.navigateTo('chat');
-            if (typeof window.mobileChat.clearMessages === 'function') {
-                window.mobileChat.clearMessages(); // Start fresh or clear
+            // Case 1: Already in Chat view
+            if (this.activeView === 'chat') {
+                window.mobileChat.handleExternalSend(text);
+                inputEl.value = '';
             }
-            if (text) {
-                window.mobileChat.input.value = text;
-                window.mobileChat.handleSend();
+            // Case 2: In Home or List views
+            else {
+                this.navigateTo('chat');
+                // Optional: Clear or start new session if browsing home
+                // window.mobileChat.clearMessages(); 
+                window.mobileChat.handleExternalSend(text);
                 inputEl.value = '';
             }
         }
@@ -150,6 +156,7 @@ class MobileApp {
 
         // --- Global Core Hub logic ---
         const globalInput = document.getElementById('global-input');
+        const globalSendBtn = document.getElementById('btn-global-send');
 
         if (globalInput) {
             globalInput.oninput = (e) => {
@@ -170,6 +177,12 @@ class MobileApp {
                 if (viewsToAutoChat.includes(this.activeView)) {
                     this.navigateToChat();
                 }
+            };
+        }
+
+        if (globalSendBtn && globalInput) {
+            globalSendBtn.onclick = () => {
+                this.triggerUniversalSend(globalInput);
             };
         }
 
@@ -531,8 +544,8 @@ class MobileApp {
         const navBar = document.getElementById('global-nav-bar');
         if (navBar) {
             // ONLY hide in these specific deep-level views or views with their own Local Dock
-            // User requested dedicated docks for Notes and Reader tabs.
-            const hideIn = ['editor', 'chat', 'notes-all', 'reading-all'];
+            // User requested that List views (notes-all, reading-all) AND Chat use the Global Dock.
+            const hideIn = ['editor', 'reader-detail'];
             if (hideIn.includes(viewId)) {
                 navBar.classList.add('hidden');
             } else {
@@ -960,4 +973,3 @@ document.addEventListener('DOMContentLoaded', () => {
     window.mobileCore = new MobileApp();
     setTimeout(() => window.mobileCore.renderApp(), 500);
 });
-

@@ -1322,3 +1322,34 @@ html {
     background: rgba(0, 0, 0, 0.05);
     color: var(--ios-blue);
 }
+
+/* Hotfix for global dock z-index */
+.core-hub {
+    z-index: 2100 !important;
+}
+
+/* Unified Dock Button Styles */
+.core-dock-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: #e5e5ea;
+    color: var(--ios-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.core-dock-btn.send-active {
+    background: var(--ios-blue);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0,122,255,0.3);
+}
+.core-dock-btn:active {
+    transform: scale(0.92);
+    opacity: 0.8;
+}

@@ -1,11 +1,11 @@
 /**
- * mobile-chat.js - Refined Layout Chat Controller (V6.7)
- * Implemented: Chat History & Session Management
+ * mobile-chat.js - Refined Layout Chat Controller (V7.0)
+ * Implemented: Chat History & Session Management, Global Dock Compatibility
  */
 
 class MobileChat {
     constructor() {
-        this.input = document.getElementById('chat-input');
+        // We now use the global input (#global-input) managed by mobile-core.js
         this.messagesContainer = document.getElementById('messages-container');
         this.titleEl = document.getElementById('chat-title');
 
@@ -47,25 +47,7 @@ class MobileChat {
             };
         }
 
-        const sendBtn = document.getElementById('btn-chat-send');
-        if (sendBtn) {
-            sendBtn.onclick = () => this.handleSend();
-        }
-
-        if (this.input) {
-            this.input.addEventListener('input', () => {
-                this.input.style.height = 'auto';
-                this.input.style.height = Math.min(this.input.scrollHeight, 120) + 'px';
-            });
-            this.input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.handleSend();
-                }
-            });
-        }
-
-        // Session List Click Delegation (CSP Friendly)
+        // Session List Click Delegation
         const sessionsContainer = document.getElementById('chat-sessions-container');
         if (sessionsContainer) {
             sessionsContainer.onclick = (e) => {
@@ -95,8 +77,22 @@ class MobileChat {
     }
 
     /**
+     * Called by mobile-core.js when the Global Dock send button is pressed.
+     */
+    async handleExternalSend(text) {
+        if (!text) return;
+        if (this.isGenerating) return;
+
+        this.addUserMessage(text, true);
+
+        const thinkingEl = this.showAIThinking();
+        this.isGenerating = true;
+        await this.getAIResponse(text, thinkingEl);
+        this.isGenerating = false;
+    }
+
+    /**
      * Public method called by the global '+' button to add attachments.
-     * @param {FileList} files
      */
     addAttachments(files) {
         if (files && files.length > 0) {
@@ -111,19 +107,13 @@ class MobileChat {
                 if (window.showToast) window.showToast('Extracting text from image...', 2000);
 
                 try {
-                    // Initialize Tesseract if not already (it's globally defined by script)
                     let { data: { text } } = await Tesseract.recognize(file, 'chi_sim+eng');
-
-                    // OCR Cleaning: Remove spaces, newlines, and common artifacts
-                    // \s+ : Removes all spaces and newlines (fixes Chinese segmentation)
-                    // [|｜_] : Removes common vertical bar artifacts from page edges
                     if (text) {
                         text = text.replace(/\s+/g, '').replace(/[|｜_]/g, '');
                     }
 
                     if (text) {
                         this.addAIMessage(`OCR Extracted Text:\n\n${text}`, true);
-                        // Auto-send to AI for summarization
                         const prompt = `Following is the text extracted from an image. Please provide a concise summary or extract key points:\n\n${text}`;
                         const thinkingEl = this.showAIThinking();
                         this.isGenerating = true;
@@ -138,6 +128,7 @@ class MobileChat {
                 }
             } else {
                 this.addUserMessage(`[Attachment] ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, true);
+                this.addAIMessage(`I've received your file: "${file.name}". \nCurrently I can only process image OCR directly. For other files, please copy the content here if you need analysis.`, false);
             }
         }
     }
@@ -168,7 +159,6 @@ class MobileChat {
         if (sessionIndex !== -1) {
             this.chatSessions[sessionIndex].messages = this.chatHistory;
             this.chatSessions[sessionIndex].timestamp = Date.now();
-            // Update title if it's the first exchange
             if (this.chatHistory.length > 0 && this.chatSessions[sessionIndex].title === 'New Chat') {
                 const firstMsg = this.chatHistory.find(m => m.role === 'user');
                 if (firstMsg) {
@@ -219,17 +209,7 @@ class MobileChat {
     }
 
     clearMessages() {
-        // Called by mobile-core to start a fresh interaction or clear current view
-        // In session-based mode, we might want to start a new session
         this.startNewChat();
-    }
-
-    updateConfig(apiKey, baseUrl, model) {
-        if (window.aiCore) {
-            window.aiCore.config.apiKey = apiKey;
-            window.aiCore.config.baseUrl = baseUrl;
-            window.aiCore.config.model = model;
-        }
     }
 
     renderCurrentChat() {
@@ -242,7 +222,7 @@ class MobileChat {
 
         this.chatHistory.forEach(msg => {
             if (msg.role === 'user') {
-                this.addUserMessage(msg.content, false); // false = don't push to history again
+                this.addUserMessage(msg.content, false);
             } else {
                 this.addAIMessage(msg.content, false);
             }
@@ -273,7 +253,6 @@ class MobileChat {
         }).join('');
     }
 
-    // Helper to prevent XSS
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -288,30 +267,13 @@ class MobileChat {
 
     formatMarkdown(text) {
         if (!text) return '';
-        // 移除所有 Markdown 标记，只保留纯文字
-        return this.escapeHtml(text)
-            .replace(/\n/g, '<br>');
+        return this.escapeHtml(text).replace(/\n/g, '<br>');
     }
 
     scrollToBottom() {
         if (this.messagesContainer) {
             this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
         }
-    }
-
-    async handleSend() {
-        if (this.isGenerating) return;
-        const text = this.input.value.trim();
-        if (!text) return;
-
-        this.addUserMessage(text, true);
-        this.input.value = '';
-        this.input.style.height = 'auto';
-
-        const thinkingEl = this.showAIThinking();
-        this.isGenerating = true;
-        await this.getAIResponse(text, thinkingEl);
-        this.isGenerating = false;
     }
 
     addUserMessage(text, pushToHistory = true) {
@@ -363,6 +325,41 @@ class MobileChat {
         return el;
     }
 
+    buildSystemPrompt(context = {}) {
+        const timestamp = new Date().toLocaleString();
+        const core = [
+            `Role: Highlighti Intelligence (Knowledge Architect)`,
+            `Time: ${timestamp}`,
+            `Tone: Professional, Crisp, High-Signal, Visual (Mobile-First).`,
+            `Philosophy: 'Less is More'. Distill noise, structure chaos.`,
+            ``
+        ];
+
+        if (context.hasLink) {
+            core.push(`[MODE: THE READER (Analysis)]`);
+            core.push(`1. Summary: 1-sentence hook.`);
+            core.push(`2. Key Takeaways: 3-5 high-value bullet points.`);
+            core.push(`3. Critical Analysis: Identify logic gaps or bias.`);
+            core.push(`4. The 'So What?': Impact analysis.`);
+        } else if (context.hasHistory) {
+            core.push(`[MODE: THE THINKER (Contextual)]`);
+            core.push(`- Use mental models to structure answers.`);
+            core.push(`- Proactively suggest connections.`);
+        } else {
+            core.push(`[MODE: GENERAL ASSISTANT]`);
+            core.push(`- Be radically concise.`);
+        }
+
+        core.push(``);
+        core.push(`[STRICT OUTPUT RULES]`);
+        core.push(`- NO Markdown Code Blocks (\`\`\`) for text.`);
+        core.push(`- Paragraphs < 4 lines (Mobile Optimization).`);
+        core.push(`- Use **Bold** for emphasis.`);
+        core.push(`- End deep analysis with a 'Spark': A provocative follow-up question.`);
+
+        return core.join('\n');
+    }
+
     async getAIResponse(query, thinkingEl) {
         const contentEl = thinkingEl.querySelector('.ai-response-content');
         if (!contentEl) return;
@@ -373,23 +370,32 @@ class MobileChat {
         }
 
         try {
-            // Link Recognition Logic: Check if query contains a link we already have in Reader
             let context = "";
-            const urlMatch = query.match(/https?:\/\/[^\s]+/);
-            if (urlMatch && window.mobileCore && window.mobileCore.dataMap) {
+            let urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+)/i);
+
+            if (urlMatch) {
                 const url = urlMatch[0];
-                for (let [id, val] of window.mobileCore.dataMap) {
-                    if (val.url === url) {
-                        context = `[Context from Link: ${val.title}]\n${val.content || val.text}\n\n`;
-                        break;
+                let foundInReader = false;
+                if (window.mobileCore && window.mobileCore.dataMap) {
+                    for (let [id, val] of window.mobileCore.dataMap) {
+                        if (val.url === url || (val.url && url.includes(val.url))) {
+                            context = `[Context from Link: ${val.title}]\n${val.content || val.text}\n\n`;
+                            foundInReader = true;
+                            break;
+                        }
                     }
+                }
+                if (!foundInReader) {
+                    context = `[URL Detected: ${url}]\n(Note: I cannot browse the live web autonomously. If this is a deep link, please copy the content. If it is a known concept, I will analyze it.)\n\n`;
                 }
             }
 
-            const messages = [
-                { role: 'system', content: '你是一个富有创意且擅长架构思维的 AI 助手。请优先构建清晰的逻辑框架，并提供深度的创意建议。直接输出纯文字正文，不使用任何 Markdown 源码符号。' }
-            ];
+            const systemPrompt = this.buildSystemPrompt({
+                hasLink: !!urlMatch,
+                hasHistory: this.chatHistory.length > 0
+            });
 
+            const messages = [{ role: 'system', content: systemPrompt }];
             const historyForAPI = this.chatHistory.slice(-10).map(m => ({
                 role: m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.content
@@ -397,7 +403,7 @@ class MobileChat {
 
             const historicalMsgs = historyForAPI.slice(0, -1);
             messages.push(...historicalMsgs);
-            messages.push({ role: 'user', content: `上下文：${context}\n问题：${query}` });
+            messages.push({ role: 'user', content: context ? `上下文：${context}\n问题：${query}` : query });
 
             const stream = window.aiCore.streamChat(messages);
             let fullText = '';
