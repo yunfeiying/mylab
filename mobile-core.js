@@ -250,9 +250,10 @@ class MobileApp {
         const dockActionBtn = document.getElementById('btn-dock-action');
         const iconMic = document.getElementById('icon-dock-mic');
         const iconSend = document.getElementById('icon-dock-send');
-        const globalAddBtn = document.getElementById('btn-global-add');
+        const globalAddBtn = document.getElementById('btn-global-add'); // Keep this for toggleVoiceMode
 
-        let isTypingMode = false;
+        // Ensure state is tracked as a class property
+        this.isTypingMode = false;
 
         const updateDockState = () => {
             if (!globalInput || !dockActionBtn) return;
@@ -260,15 +261,15 @@ class MobileApp {
 
             if (hasText) {
                 // Typing Mode: Show Send, Hide Mic
-                isTypingMode = true;
-                iconMic.classList.add('hidden');
-                iconSend.classList.remove('hidden');
+                this.isTypingMode = true;
+                if (iconMic) iconMic.classList.add('hidden');
+                if (iconSend) iconSend.classList.remove('hidden');
                 dockActionBtn.classList.add('send-active'); // Optional styling
             } else {
                 // Voice Mode: Show Mic, Hide Send
-                isTypingMode = false;
-                iconMic.classList.remove('hidden');
-                iconSend.classList.add('hidden');
+                this.isTypingMode = false;
+                if (iconMic) iconMic.classList.remove('hidden');
+                if (iconSend) iconSend.classList.add('hidden');
                 dockActionBtn.classList.remove('send-active');
             }
         };
@@ -305,34 +306,35 @@ class MobileApp {
 
         // Action Button Logic
         if (dockActionBtn) {
-            // 1. Click Handler (Send)
+            // 1. Click Handler (Send for text, Hint for voice)
             dockActionBtn.onclick = (e) => {
-                if (isTypingMode) {
+                if (this.isTypingMode) {
                     // Send Action
                     this.triggerUniversalSend(globalInput);
-                    // globalInput.value = ''; // triggerUniversalSend usually clears it? check.
-                    // If not, clear it here.
-                    // Assuming triggerUniversalSend reads value.
-                    // Let's force clear UI update 
+                    // Let's force clear UI update
                     setTimeout(() => updateDockState(), 50);
                 } else {
-                    // Mic Click (Short Tap) -> Maybe toggle voice mode or just hint?
-                    // User wants "Long Press", so Short Tap could be ignored or invoke Voice Search?
-                    // For now, let's just hint or do nothing.
+                    // Mic Click (Short Tap) -> User expects something.
+                    // As per "Long Press to Talk" requirement, a short tap should hint.
+                    if (!this.isRecognitionActive) { // Only show hint if not already recording
+                        if (window.showToast) window.showToast('Hold to Talk (长按说话)');
+                    }
                 }
             };
 
             // 2. Long Press Handler (Voice)
             const startVoice = (e) => {
-                if (isTypingMode) return; // Ignore if typing
-                e.preventDefault(); // Prevent click
+                if (this.isTypingMode) return; // Ignore if typing
+                // Only handle primary mouse button or touch
+                if (e.type === 'mousedown' && e.button !== 0) return;
+
+                e.preventDefault(); // Prevent click, context menu, scrolling
                 dockActionBtn.style.color = '#ff3b30'; // Red feedback
                 this.startVoiceRecognition();
             };
 
             const stopVoice = (e) => {
-                if (isTypingMode) return;
-                // e.preventDefault(); // Don't prevent default on end, might need click? No.
+                if (this.isTypingMode) return;
                 dockActionBtn.style.color = '';
                 this.stopVoiceRecognition();
             };
@@ -341,64 +343,15 @@ class MobileApp {
             dockActionBtn.addEventListener('touchend', stopVoice);
             dockActionBtn.addEventListener('mousedown', startVoice);
             dockActionBtn.addEventListener('mouseup', stopVoice);
-            dockActionBtn.addEventListener('mouseleave', stopVoice);
+            dockActionBtn.addEventListener('mouseleave', stopVoice); // Stop if mouse leaves while holding
         }
 
         // --- API & GDrive Settings Dialogs ---
         this.setupSettingsDialogs();
 
         // Delegation for dynamic cards & Chat Links
-        const handleGlobalClick = async (e) => {
-            const target = e.target;
-
-            // 1. Handle Chat Links (URLs) - Priority
-            // Use closest to catch clicks on inner elements of the link
-            const chatLink = target.closest('.chat-link');
-            if (chatLink) {
-                e.preventDefault();
-                e.stopPropagation(); // Stop bubbling immediately
-
-                const url = chatLink.getAttribute('data-url');
-                console.log('[GlobalClick] Link clicked:', url);
-
-                if (url && window.mobileChat) {
-                    if (window.navigator.vibrate) window.navigator.vibrate(20);
-                    window.mobileChat.openUrl(url);
-                } else {
-                    console.warn('[GlobalClick] MobileChat not ready or URL missing');
-                }
-                return;
-            }
-
-            // 2. Handle Skill Buttons
-            const skillBtn = target.closest('#btn-install-skill');
-            if (skillBtn && window.mobileChat) {
-                const skillData = skillBtn.dataset.skill;
-                if (skillData) window.mobileChat.installSkill(skillData);
-                return;
-            }
-
-            // 3. Handle Note Cards
-            const card = target.closest('.note-card');
-            if (card) {
-                const id = card.dataset.id;
-                const type = card.dataset.type;
-                if (!id) return;
-                const data = this.dataMap.get(id);
-                if (data) {
-                    if (type === 'reader') {
-                        this.loadReader(data);
-                    } else {
-                        // Default to Note
-                        if (window.mobileEditor) window.mobileEditor.loadNote(id, data);
-                        this.navigateTo('editor');
-                    }
-                }
-            }
-        };
-
         // Aggressive binding to capture phase if possible, but basic click usually works
-        document.body.addEventListener('click', handleGlobalClick);
+        document.body.onclick = (e) => this.onGlobalClick(e);
 
         // Reader Source Button (Self-Aware Smart Toggle)
         const readerUrlBtn = document.getElementById('btn-reader-open-url');
@@ -413,6 +366,84 @@ class MobileApp {
         }
 
         this.setupSwipeNavigation();
+    }
+
+    // Consolidated Global Click Handler
+    async onGlobalClick(e) {
+        const target = e.target;
+
+        // 0. Safety Check
+        if (!target) return;
+
+        // 1. Handle Chat Links (URLs) - Priority
+        // Use closest to catch clicks on inner elements of the link
+        const chatLink = target.closest('.chat-link');
+        if (chatLink) {
+            e.preventDefault();
+            e.stopPropagation(); // Stop bubbling immediately
+
+            const url = chatLink.getAttribute('data-url');
+            console.log('[GlobalClick] Link clicked:', url);
+
+            if (url && window.mobileChat) {
+                if (window.navigator.vibrate) window.navigator.vibrate(20);
+                window.mobileChat.openUrl(url);
+            } else {
+                console.warn('[GlobalClick] MobileChat not ready or URL missing');
+            }
+            return;
+        }
+
+        // 2. Handle Skill Buttons
+        const skillBtn = target.closest('#btn-install-skill');
+        if (skillBtn && window.mobileChat) {
+            const skillData = skillBtn.dataset.skill;
+            if (skillData) window.mobileChat.installSkill(skillData);
+            return;
+        }
+
+        // 3. Handle Note Cards
+        // Important: Check for delete action first to prevent opening note
+        const deleteAction = target.closest('.note-delete-action');
+        if (deleteAction) {
+            const card = target.closest('.note-card');
+            if (card) {
+                const id = card.dataset.id;
+                if (id && confirm('Delete this item permanently?')) {
+                    await window.appStorage.remove(id);
+                    this.cacheDirty = true; // Mark cache as dirty
+                    this.renderApp(); // Re-render to update UI
+                    if (window.showToast) window.showToast('Item deleted', 1500);
+                }
+            }
+            return; // Stop further processing if delete action was handled
+        }
+
+        const card = target.closest('.note-card');
+        if (card) {
+            const id = card.dataset.id;
+            const type = card.dataset.type;
+            if (!id) return;
+
+            // Fetch Data from dataMap
+            let data = this.dataMap.get(id);
+            if (!data) {
+                // Fallback: ensure ID is string, though dataMap should store as string
+                data = this.dataMap.get(String(id));
+            }
+
+            if (data) {
+                if (type === 'reader') {
+                    this.loadReader(data);
+                } else {
+                    // Default to Note
+                    if (window.mobileEditor) window.mobileEditor.loadNote(id, data);
+                    this.navigateTo('editor');
+                }
+            } else {
+                console.warn('[GlobalClick] Data not found for card ID:', id);
+            }
+        }
     }
 
     setupSettingsDialogs() {
