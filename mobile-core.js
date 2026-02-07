@@ -1242,14 +1242,23 @@ class MobileApp {
         this.renderNotes(filteredNotes.slice(0, 10), 'notes-list-container');
         this.renderReader(filteredReader.slice(0, 10), 'reader-list-container');
 
-        // Render Full Lists
-        this.renderNotes(filteredNotes, 'full-notes-container');
-        this.renderReader(filteredReader, 'full-reader-container');
+        // Performance: Defer Full Lists rendering to unblock UI
+        setTimeout(() => {
+            this.renderNotes(filteredNotes, 'full-notes-container');
+            this.renderReader(filteredReader, 'full-reader-container');
+        }, 50);
     }
 
     renderNotes(notes, containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
+
+        // Optimisation: If empty, clear and return
+        if (!notes || notes.length === 0) {
+            container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; font-size:13px;">No inputs yet</div>';
+            return;
+        }
+
         container.innerHTML = notes.map((n) => {
             const displayTitle = n.title || 'Untitled Note';
             const body = n.content || n.text || '';
@@ -1300,6 +1309,12 @@ class MobileApp {
     renderReader(items, containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
+
+        if (!items || items.length === 0) {
+            container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; font-size:13px;">No articles saved</div>';
+            return;
+        }
+
         container.innerHTML = items.map(i => {
             const date = i.date || new Date(i.timestamp || Date.now()).toLocaleDateString();
             const parentKey = i._storageKey || '';
@@ -1321,8 +1336,7 @@ class MobileApp {
     }
 
     stripHtml(html) {
-        const doc = new Array();
-        return html.replace(/<[^>]*>?/gm, '');
+        return (html || '').replace(/<[^>]*>?/gm, '');
     }
 }
 

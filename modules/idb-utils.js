@@ -98,6 +98,30 @@ window.idb = {
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
+    },
+
+    /**
+     * Get all key-value pairs as an object (Optimized)
+     */
+    async getAll() {
+        const db = await dbPromise;
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.openCursor();
+            const result = {};
+
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    result[cursor.key] = cursor.value;
+                    cursor.continue();
+                } else {
+                    resolve(result);
+                }
+            };
+            request.onerror = () => reject(request.error);
+        });
     }
 };
 

@@ -110,6 +110,12 @@ class UniversalStorage {
             if (!window.idb) return { ...localStorage };
 
             try {
+                // Optimized bulk fetch
+                if (window.idb.getAll) {
+                    return await window.idb.getAll();
+                }
+
+                // Fallback (slow sequential fetch)
                 const keys = await window.idb.keys();
                 const result = {};
                 for (const k of keys) {
