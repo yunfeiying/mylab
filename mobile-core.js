@@ -349,9 +349,9 @@ class MobileApp {
         // --- API & GDrive Settings Dialogs ---
         this.setupSettingsDialogs();
 
-        // Delegation for dynamic cards & Chat Links
         // Aggressive binding to capture phase if possible, but basic click usually works
-        document.body.onclick = (e) => this.onGlobalClick(e);
+        // Use addEventListener to allow multiple listeners (e.g. from other modules)
+        document.body.addEventListener('click', (e) => this.onGlobalClick(e));
 
         // Reader Source Button (Self-Aware Smart Toggle)
         const readerUrlBtn = document.getElementById('btn-reader-open-url');
