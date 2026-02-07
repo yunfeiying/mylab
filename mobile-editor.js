@@ -67,6 +67,29 @@ class MobileEditor {
                 }
             };
         }
+
+        // Voice button handler (Long Press to Talk)
+        const voiceBtn = document.getElementById('btn-editor-voice');
+        if (voiceBtn) {
+            const startRecording = (e) => {
+                e.preventDefault();
+                if (window.navigator.vibrate) window.navigator.vibrate(50);
+                voiceBtn.style.color = '#ff3b30'; // Red
+                if (window.mobileCore) window.mobileCore.startVoiceRecognition();
+            };
+
+            const stopRecording = (e) => {
+                e.preventDefault();
+                voiceBtn.style.color = ''; // Reset
+                if (window.mobileCore) window.mobileCore.stopVoiceRecognition();
+            };
+
+            voiceBtn.addEventListener('touchstart', startRecording, { passive: false });
+            voiceBtn.addEventListener('touchend', stopRecording);
+            voiceBtn.addEventListener('mousedown', startRecording);
+            voiceBtn.addEventListener('mouseup', stopRecording);
+            voiceBtn.addEventListener('mouseleave', stopRecording);
+        }
     }
 
     triggerAutoSave() {
@@ -104,6 +127,34 @@ class MobileEditor {
             return true;
         }
         return false;
+    }
+
+    insertTextAtCursor(text) {
+        if (!text) return;
+        if (this.editor) {
+            this.editor.focus();
+            // Use execCommand for simple insertion at cursor (works in contenteditable)
+            // Or use Range manipulation if needed.
+            // But verify if document.execCommand is supported (it is deprecated but widely used).
+            // Better: use Range.
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                const node = document.createTextNode(text);
+                range.insertNode(node);
+                // Move cursor after
+                range.setStartAfter(node);
+                range.setEndAfter(node);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            } else {
+                // Append if no selection
+                this.editor.innerText += text;
+            }
+            // Trigger auto-save
+            this.triggerAutoSave();
+        }
     }
 
     // 纯黑白 Markdown 转换

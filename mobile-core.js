@@ -250,25 +250,90 @@ class MobileApp {
         const globalSendBtn = document.getElementById('btn-global-send');
 
         if (globalInput) {
-            // 1. Long Press to Voice Mode
             let inputLongPressTimer;
-            const startInputPress = () => {
-                inputLongPressTimer = setTimeout(() => {
-                    if (window.navigator.vibrate) window.navigator.vibrate(50);
-                    this.toggleVoiceMode();
-                }, 600);
-            };
-            const cancelInputPress = () => clearTimeout(inputLongPressTimer);
+            let isLongPressActive = false;
 
+            const startInputPress = (e) => {
+                // Only left click or single touch
+                if (e.type === 'mousedown' && e.button !== 0) return;
+
+                isLongPressActive = false;
+                inputLongPressTimer = setTimeout(() => {
+                    isLongPressActive = true;
+                    // Trigger Voice Mode
+                    if (window.navigator.vibrate) window.navigator.vibrate(50);
+
+                    // Switch UI to Voice Mode manually to ensure smooth transition
+                    this.isVoiceMode = true;
+                    globalInput.classList.add('hidden');
+                    if (globalAddBtn) globalAddBtn.classList.add('hidden');
+
+                    const holdBtn = document.getElementById('hold-to-talk');
+                    if (holdBtn) {
+                        holdBtn.classList.remove('hidden');
+                        holdBtn.textContent = 'Recording... (Release to Send)';
+                        holdBtn.classList.add('recording');
+                    }
+
+                    // Start Recognition Immediately
+                    this.startVoiceRecognition();
+
+                }, 500); // 500ms threshold
+            };
+
+            const endInputPress = (e) => {
+                clearTimeout(inputLongPressTimer);
+
+                if (isLongPressActive) {
+                    // It was a voice action
+                    e.preventDefault(); // Prevent click/focus
+                    isLongPressActive = false;
+
+                    // Stop Recognition
+                    this.stopVoiceRecognition((text) => {
+                        // Optional callback if needed, but stopVoiceRecognition already sends
+                    });
+
+                    // Reset UI slightly delayed to show "Sent" state or just snap back
+                    setTimeout(() => {
+                        this.isVoiceMode = false;
+                        globalInput.classList.remove('hidden');
+                        if (globalAddBtn) globalAddBtn.classList.remove('hidden');
+                        const holdBtn = document.getElementById('hold-to-talk');
+                        if (holdBtn) {
+                            holdBtn.classList.add('hidden');
+                            holdBtn.classList.remove('recording');
+                            holdBtn.textContent = '按住 说话';
+                        }
+                    }, 300);
+
+                } else {
+                    // It was a short tap (normal input) handled by click/focus events
+                }
+            };
+
+            // Attach to Input
             globalInput.addEventListener('touchstart', startInputPress, { passive: true });
-            globalInput.addEventListener('touchend', cancelInputPress);
-            globalInput.addEventListener('touchmove', cancelInputPress);
+            globalInput.addEventListener('mousedown', startInputPress);
+
+            // Attach End to Window to catch release anywhere
+            window.addEventListener('touchend', (e) => {
+                if (inputLongPressTimer) endInputPress(e);
+            });
+            window.addEventListener('mouseup', (e) => {
+                if (inputLongPressTimer) endInputPress(e);
+            });
+            globalInput.addEventListener('touchmove', () => {
+                // Optional: Cancel if moved too much? For now, keep simple.
+                // clearTimeout(inputLongPressTimer); 
+            });
+
+            // Prevent Context Menu on long press
             globalInput.addEventListener('contextmenu', (e) => {
-                // If long press triggered voice, prevent context menu
-                // But we can't easily know if it triggered.
-                // Generally, on mobile inputs, we might want context menu.
-                // Let's rely on the timer. If timer triggered, the input is hidden, so context menu might be suppressed.
-                // e.preventDefault(); 
+                if (isLongPressActive) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
             });
 
             // 2. Normal Input Behavior
