@@ -34,13 +34,23 @@ class MobileEditor {
     setupEditorEvents() {
         if (!this.editor) return;
 
-        // Auto-save on input
+        // Auto-save on input (Body)
         this.editor.oninput = () => {
             if (this.currentNoteId) {
                 this.isSaved = false;
                 this.triggerAutoSave();
             }
         };
+
+        // Auto-save on input (Title)
+        if (this.headerTitle) {
+            this.headerTitle.oninput = () => {
+                if (this.currentNoteId) {
+                    this.isSaved = false;
+                    this.triggerAutoSave();
+                }
+            };
+        }
 
         this.editor.onkeydown = (e) => {
             if (e.key === 'Enter') {
@@ -231,9 +241,9 @@ class MobileEditor {
 
     async saveNote(isSilent = false) {
         if (!this.currentNoteId) return;
-        // Allow saving even if isSaved is true, to force update timestamp/structure if needed
-        // But for optimization, we usually return. However, "New Note" starts with isSaved=false.
-        if (this.isSaved) return;
+
+        // Force save even if isSaved is true, to ensure data integrity
+        // if (this.isSaved) return; 
 
         let title = this.headerTitle?.value?.trim();
         const content = this.editor.innerHTML;
@@ -244,7 +254,7 @@ class MobileEditor {
         // BUT, if it is a NEW note and empty, maybe skip?
         // Let's save if there is ANY content or title.
         if (!title && !text) {
-            console.log('[Editor] Empty note, skipping auto-save');
+            // console.log('[Editor] Empty note, skipping auto-save');
             return;
         }
 
@@ -282,8 +292,11 @@ class MobileEditor {
                 }
             } catch (e) {
                 console.error('[Editor] Save failed:', e);
-                this.showToast('Save Failed');
+                this.showToast('Save Error: ' + e.message);
             }
+        } else {
+            console.error('[Editor] appStorage missing');
+            if (!isSilent) alert('Error: Storage not available!');
         }
     }
 }

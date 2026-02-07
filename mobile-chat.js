@@ -39,13 +39,48 @@ class MobileChat {
     }
 
     setupEvents() {
-        // Toggle History View
+        // Toggle Chat Menu (New Chat / History)
         const historyBtn = document.getElementById('btn-chat-history');
-        if (historyBtn) {
+        const chatMenuOverlay = document.getElementById('chat-menu-overlay');
+        const actNewChat = document.getElementById('act-menu-new-chat');
+        const actHistory = document.getElementById('act-menu-history');
+        const actMenuCancel = document.getElementById('act-menu-chat-cancel');
+
+        if (historyBtn && chatMenuOverlay) {
             historyBtn.onclick = () => {
-                this.renderSessions();
-                if (window.mobileCore) window.mobileCore.navigateTo('chat-history');
+                chatMenuOverlay.classList.remove('hidden');
+                if (window.navigator.vibrate) window.navigator.vibrate(20);
             };
+
+            // Close on outside click
+            chatMenuOverlay.onclick = (e) => {
+                if (e.target === chatMenuOverlay) chatMenuOverlay.classList.add('hidden');
+            };
+
+            // New Chat Action
+            if (actNewChat) {
+                actNewChat.onclick = () => {
+                    chatMenuOverlay.classList.add('hidden');
+                    this.startNewChat();
+                    if (window.showToast) window.showToast('New Chat Started');
+                };
+            }
+
+            // History Action
+            if (actHistory) {
+                actHistory.onclick = () => {
+                    chatMenuOverlay.classList.add('hidden');
+                    this.renderSessions();
+                    if (window.mobileCore) window.mobileCore.navigateTo('chat-history');
+                };
+            }
+
+            // Cancel Action
+            if (actMenuCancel) {
+                actMenuCancel.onclick = () => {
+                    chatMenuOverlay.classList.add('hidden');
+                };
+            }
         }
 
         // Back from History
