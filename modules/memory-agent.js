@@ -11,7 +11,7 @@ class MemoryAgent {
     constructor() {
         this.longTermKey = 'memory_long_term';
         this.enabled = true;
-        this.backupKeys = ['memory_long_term', 'chat_history_persistent', 'library_metadata_index'];
+        this.backupKeys = ['memory_long_term', 'ai_soul_config', 'chat_history_persistent', 'library_metadata_index'];
     }
 
     /**
@@ -123,36 +123,36 @@ Return the NEW, compacted MEMORY.md content (Markdown). Keep it under 50% of the
         const validationPrompt = `
 You are the Memory Manager for an AI Assistant. 
 Analyze the following interaction to decide if it contains **new, valuable information** worth remembering.
-ignore: casual chit-chat, simple greetings, or temporary questions.
+Ignore: casual chit-chat, simple greetings, or temporary questions.
 
 Interaction:
 User: "${userQuery}"
 AI: "${aiResponse.substring(0, 500)}..."
 
-Criteria:
-- **Long-term**: User preferences, project definitions, career info, core beliefs.
-- **Short-term**: Specific decisions made today, progress on tasks, unique ideas.
+Criteria for "save":
+- **Fact**: User preferences, project definitions, career info.
+- **Decision**: Architectural choices, strict rules (e.g. "No React").
+- **Bugfix**: Solutions to complex bugs.
+- **Feature**: New capabilities added.
+- **Learning**: General patterns or "Aha!" moments.
 
-If saving, extract 3-5 **Semantic Tags**. 
-Tags should include: 
-- Broad topics (e.g., "Management")
-- Specific entities (e.g., "Drucker")
-- Implicit themes (e.g., "Leadership Style" even if the word wasn't used)
+If saving, extract 3-5 **Semantic Tags** and determine the **Category**.
 
 Return JSON only:
 {
     "save": boolean,
-    "type": "long" | "short",
+    "category": "Fact" | "Decision" | "Bugfix" | "Feature" | "Learning",
+    "scope": "Long-term" | "Short-term",
     "content": "concise fact or summary (markdown)",
     "tags": ["tag1", "tag2", ...]
 }`;
 
         try {
-            const decision = await window.aiCore.generateJSON(validationPrompt, '{ "save": boolean, "type": "long"|"short", "content": "string", "tags": [] }');
+            const decision = await window.aiCore.generateJSON(validationPrompt, '{ "save": boolean, "category": "string", "scope": "string", "content": "string", "tags": [] }');
 
             if (decision && decision.save && decision.content) {
-                await this.saveMemory(decision.type, decision.content, decision.tags || []);
-                console.log(`[MemoryAgent] Saved ${decision.type} memory with tags:`, decision.tags);
+                await this.saveMemory(decision.category, decision.scope, decision.content, decision.tags || []);
+                console.log(`[MemoryAgent] Saved ${decision.category} memory (${decision.scope}) with tags:`, decision.tags);
                 if (typeof showToast === 'function') showToast(`🧠 Memory Linked`);
 
                 // Immediately backup after important changes
@@ -166,20 +166,20 @@ Return JSON only:
     /**
      * Commit memory to storage
      */
-    async saveMemory(type, content, tags = []) {
-        const key = type === 'long' ? this.longTermKey : this.getTodayKey();
+    async saveMemory(category, scope, content, tags = []) {
+        const key = scope === 'Long-term' ? this.longTermKey : this.getTodayKey();
         const res = await window.appStorage.get(key);
-        let current = res[key] || (type === 'long' ? '# MEMORY.md\n' : `# Memory Log ${new Date().toLocaleDateString()}\n`);
+        let current = res[key] || (scope === 'Long-term' ? '# MEMORY.md\n' : `# Memory Log ${new Date().toLocaleDateString()}\n`);
 
         const timestamp = new Date().toLocaleTimeString();
-        // Native Format: - [Time] [Tags: t1, t2] Content
+        // Native Format: - [Time] [Category] [Tags: t1, t2] Content
         const tagStr = tags.length > 0 ? ` [Tags: ${tags.join(', ')}]` : '';
-        const entry = `\n- [${timestamp}]${tagStr} ${content}`;
+        const entry = `\n- [${timestamp}] [${category}]${tagStr} ${content}`;
 
         await window.appStorage.set({ [key]: current + entry });
 
         // NEW: If short-term, update the Mid-term Index in MEMORY.md
-        if (type === 'short') {
+        if (scope === 'Short-term') {
             await this.updateMidTermIndex(tags, content);
         }
     }

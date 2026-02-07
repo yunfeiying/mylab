@@ -17,7 +17,11 @@ class MobileChat {
 
         this.setupEvents();
         window.mobileChat = this;
-        setTimeout(() => this.loadHistory(), 100);
+        this.soulConfig = ""; // Loaded from storage
+        setTimeout(() => {
+            this.loadHistory();
+            this.loadSoulConfig();
+        }, 100);
     }
 
     handleExternalSend(text) {
@@ -94,10 +98,12 @@ class MobileChat {
         // Image Modal Events
         const modal = document.getElementById('image-modal-overlay');
         const closeBtn = document.getElementById('btn-close-image-modal');
-        if (modal && closeBtn) {
-            closeBtn.onclick = () => modal.classList.add('hidden');
-            modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+        if (modal) {
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.classList.add('hidden');
+            };
         }
+        if (closeBtn) closeBtn.onclick = () => modal.classList.add('hidden');
     }
 
     showImageModal(src) {
@@ -313,6 +319,90 @@ class MobileChat {
         if (window.mobileCore) window.mobileCore.renderApp();
     }
 
+    async loadSoulConfig() {
+        try {
+            // Load Soul
+            const res = await window.appStorage.get('ai_soul_config');
+            if (res && res.ai_soul_config) {
+                this.soulConfig = res.ai_soul_config;
+            } else {
+                // Default Soul is handled in buildSystemPrompt fallback
+            }
+
+            // Load Evolved Preferences (Self-Learning)
+            const prefs = await window.appStorage.get('ai_user_preferences');
+            this.userPreferences = prefs && prefs.ai_user_preferences ? prefs.ai_user_preferences : {
+                formatting: [],
+                tone: 'professional',
+                dislikes: []
+            };
+            console.log('[MobileChat] User preferences loaded:', this.userPreferences);
+
+        } catch (e) {
+            console.error('Failed to load soul/prefs:', e);
+        }
+    }
+
+    async learnFromInteraction(userText) {
+        // Basic Heuristic Learning (The "Evolution")
+        const text = userText.toLowerCase();
+        let changed = false;
+
+        // 1. Formatting Preferences
+        if (text.includes('use table') || text.includes('make a table')) {
+            if (!this.userPreferences.formatting.includes('table_preferred')) {
+                this.userPreferences.formatting.push('table_preferred');
+                changed = true;
+                window.showToast?.('🧠 AI learned: You prefer tables.');
+            }
+        }
+        if (text.includes('too long') || text.includes('shorter')) {
+            this.userPreferences.conciseness = 'extreme';
+            changed = true;
+            window.showToast?.('🧠 AI learned: Keep it short.');
+        }
+
+        // 2. Clear negative reinforcement
+        if (text.includes("don't") || text.includes("stop")) {
+            // A more advanced NLP would extract *what* to stop, simplified here
+        }
+
+        if (changed) {
+            await window.appStorage.set({ 'ai_user_preferences': this.userPreferences });
+        }
+    }
+
+    buildSystemPrompt(context = {}) {
+        const timestamp = new Date().toLocaleString();
+
+        // 1. Dynamic Soul (Identity)
+        const soulBaseline = this.soulConfig || `Role: Highlighti Intelligence (Knowledge Architect)\nCore Persona: You are the user's Second Brain.`;
+
+        // 2. Learned Preferences (Evolution)
+        let evolutionContext = "";
+        if (this.userPreferences && (this.userPreferences.formatting.length > 0 || this.userPreferences.conciseness)) {
+            evolutionContext = `\n[EVOLVED USER PREFERENCES - OBEY STRICTLY]\n`;
+            if (this.userPreferences.formatting.includes('table_preferred')) {
+                evolutionContext += `- The user loves TABLES. Use Markdown tables whenever comparing data.\n`;
+            }
+            if (this.userPreferences.conciseness === 'extreme') {
+                evolutionContext += `- BREVITY IS KEY. The user hates long-winded answers. Cut the fluff.\n`;
+            }
+        }
+
+        const core = [
+            soulBaseline,
+            evolutionContext,
+            `\nCurrent Time: ${timestamp}`,
+            `\nCommunication Style: Professional, Insightful, Humanized.`,
+            context.hasLink ? `\n[CONTENT SOURCE MODE]\nUser provided a link. \n1. Summarize the main thesis (1 sentence).\n2. Extract 3-5 key hard facts.\n3. Analyze reliability.\n` : '',
+            context.hasMemory ? `\n[MEMORY ACTIVATED]\nUse the provided Knowledge Base context to ground your answer.` : '',
+            context.hasRealTime ? `\n[REAL-TIME DATA]\nPrioritize live data over training data.` : ''
+        ];
+
+        return core.join('\n');
+    }
+
     async loadHistory() {
         try {
             const sessions = await window.idb.get('chat_history_persistent');
@@ -457,12 +547,22 @@ class MobileChat {
             .replace(/^### (.*$)/gm, '<h3 style="margin:8px 0; font-size:17px; font-weight:700;">$1</h3>')
             .replace(/^## (.*$)/gm, '<h2 style="margin:10px 0; font-size:18px; font-weight:700;">$1</h2>')
             .replace(/^# (.*$)/gm, '<h1 style="margin:12px 0; font-size:20px; font-weight:700;">$1</h1>')
+            // Handle standard markdown links [text](url) - DO THIS BEFORE PURE URLS
+            // Handle standard markdown links [text](url) - DO THIS BEFORE PURE URLS
+            .replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, text, url) => {
+                const finalUrl = url.startsWith('http') ? url : `https://${url}`;
+                return `<a href="javascript:void(0)" data-url="${finalUrl}" class="chat-link" style="cursor:pointer; text-decoration:underline; color:var(--ios-blue); font-weight:500;">${text}</a>`;
+            })
             // Handle bullet points
             .replace(/^[\-\*]\s+(.*)/gm, '<div style="margin-left:4px; margin-bottom:4px;">• $1</div>')
             // Handle numbered lists
             .replace(/^\d+\.\s+(.*)/gm, '<div style="margin-left:4px; margin-bottom:4px;">$1</div>')
-            // Handle URLs - Linkify and make them clickable for Reader
-            .replace(/(https?:\/\/[^\s\u4e00-\u9fa5<]+)/g, '<a href="javascript:void(0)" onclick="window.mobileChat.saveUrlToReader(\'$1\')" class="chat-link">$1</a>')
+            // Handle URLs - Linkify and make them clickable (Delegated)
+            // Enhanced Regex: Support both http(s):// and pure domains like news.baidu.com
+            .replace(/(https?:\/\/[^\s\u4e00-\u9fa5<]+|(?<!\/)(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5<]*)?)/g, (match) => {
+                const url = match.startsWith('http') ? match : `https://${match}`;
+                return `<a href="javascript:void(0)" data-url="${url}" class="chat-link" style="cursor:pointer; text-decoration:underline;">${match}</a>`;
+            })
             // Preserve newlines
             .replace(/\n/g, '<br>')
             // Handle Skill Proposals
@@ -472,7 +572,7 @@ class MobileChat {
                     return `<div class="skill-proposal-card" style="margin-top:12px; padding:12px; border:1px solid var(--ios-blue); border-radius:12px; background:rgba(0,122,255,0.05);">
                         <div style="font-weight:600; color:var(--ios-blue); margin-bottom:4px;">✨ 技能提案: ${skill.name}</div>
                         <div style="font-size:12px; color:#666; margin-bottom:8px;">检测到相关需求，是否为 AI 开启此项新技能？</div>
-                        <button onclick='window.mobileChat.installSkill(${JSON.stringify(p1)})' 
+                        <button id="btn-install-skill" data-skill='${p1}' 
                                 style="background:var(--ios-blue); color:white; border:none; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600; width:100%;">
                             立即启用
                         </button>
@@ -529,15 +629,14 @@ class MobileChat {
         el.className = 'message user';
         el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-end; margin:8px 0; width: 100%;';
 
-        let content = `<div class="message-bubble" style="background:var(--ios-blue); color:#fff; padding:10px 16px; border-radius:18px; border-bottom-right-radius:4px; max-width:85%; width: fit-content; word-break: break-word; line-height:1.5; font-size:16px;">${this.formatMarkdown(text)}</div>`;
+        let content = `<div class="message-bubble" style="background:var(--ios-blue); color:#fff; padding:10px 16px; border-radius:18px; border-bottom-right-radius:4px; max-width:90%; width: fit-content; word-break: break-word; line-height:1.5;">${this.formatMarkdown(text)}</div>`;
 
         if (imageBase64) {
             content = `
-                <div class="message-bubble" style="background:var(--ios-blue); color:#fff; padding:8px; border-radius:18px; border-bottom-right-radius:4px; max-width:85%; width: fit-content; overflow:hidden;">
-                    <img src="${imageBase64}" 
-                         style="max-width:100%; border-radius:12px; display:block; margin-bottom:8px; cursor:pointer;"
-                         onclick="window.mobileChat.showImageModal('${imageBase64}')">
-                    <div style="padding:0 8px 4px; font-size:14px; opacity:0.9;">${this.escapeHtml(text)}</div>
+                <div class="message-bubble" style="background:var(--ios-blue); color:#fff; padding:8px; border-radius:18px; border-bottom-right-radius:4px; max-width:90%; width: fit-content; overflow:hidden;">
+                    <img src="${imageBase64}" class="chat-img"
+                         style="max-width:100%; border-radius:12px; display:block; margin-bottom:8px; cursor:pointer;">
+                    <div style="padding:0 8px 4px; font-size:16px; opacity:0.9;">${this.escapeHtml(text)}</div>
                 </div>
             `;
         }
@@ -557,7 +656,7 @@ class MobileChat {
         el.className = 'message assistant';
         el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-start; margin:8px 0; width: 100%;';
         el.innerHTML = `
-            <div class="ai-response-content message-bubble" style="background:#fff; color:#444; padding:10px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:85%; width: fit-content; border:1px solid #eee; line-height:1.5; font-size:16px; word-break: break-word;">${this.formatMarkdown(text)}</div>
+            <div class="ai-response-content message-bubble" style="background:#fff; color:#1c1c1e; padding:10px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:90%; width: fit-content; border:1px solid #eee; line-height:1.5; word-break: break-word;">${this.formatMarkdown(text)}</div>
         `;
         this.messagesContainer.appendChild(el);
         this.scrollToBottom();
@@ -568,7 +667,7 @@ class MobileChat {
         el.className = 'message assistant thinking';
         el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-start; margin:8px 0; width: 100%;';
         el.innerHTML = `
-            <div class="ai-response-content message-bubble" style="background:#fff; color:#444; padding:10px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:85%; width: fit-content; border:1px solid #eee;">
+            <div class="ai-response-content message-bubble" style="background:#fff; color:#444; padding:10px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:90%; width: fit-content; border:1px solid #eee;">
                 <span class="typing-indicator">●●●</span>
             </div>
         `;
@@ -579,16 +678,39 @@ class MobileChat {
 
     buildSystemPrompt(context = {}) {
         const timestamp = new Date().toLocaleString();
+
+        // Use Dynamic Soul if available, fallback to basic Persona
+        const soulBaseline = this.soulConfig || `Role: Highlighti Intelligence (Knowledge Architect & Decision Strategist)\nCore Persona: 你是用户的“第二大脑”和知识策士。`;
+
         const core = [
-            `Role: Highlighti Intelligence (Knowledge Architect & Decision Strategist)`,
-            `Time: ${timestamp}`,
-            `Core Persona: 你是用户的“第二大脑”和知识策士。你不仅记录信息，更负责连接碎片，提供深度决策支持。`,
-            `Communication Style: 专业、凝练、高信息密度。避免废话，直击本质。`,
+            soulBaseline,
+            `\nCurrent Time: ${timestamp}`,
+            `\nCommunication Style: 专业、凝练、高信息密度。避免废话，直击本质。`,
+            `User Profile:`,
+            `- **Core Focus**: Technology (AI, Compute) & Finance (Macro, Markets).`,
+            `- **Thinking Mode**: Systemic Thinking (Value Chain Analysis).`,
+            ``,
             `Knowledge Operations:`,
             `- 【连接者】: 主动发现当前问题与历史笔记、阅读快照之间的联系。`,
             `- 【决策者】: 提供基于逻辑和事实的建议，而不仅仅是总结。`,
-            `- 【极简主义】: 针对移动端优化，段落短小，重点加粗。`,
-            ``
+            `[CORE THOUGHT PROCESS: HOLISTIC DYNAMICS]`,
+            `- Do not apply theories rigidly. Instead, synthesis them into a unified worldview:`,
+            `- **1. Structure & Energy (The "What")**:`,
+            `  - View all systems as **Energy Fields** seeking balance (Pivot Zones).`,
+            `  - Spot the **Exhaustion Point** (Divergence) where energy depletes and reversal is inevitable.`,
+            `- **2. Causality & Chain (The "Why")**:`,
+            `  - Link phenomenon to **Upstream** (Resources) and **Downstream** (Value).`,
+            `  - Find the **Bottleneck** or **"Alpha"**.`,
+            `- **3. Dialectic Balance (The "How")**:`,
+            `  - See the Shadow in the Light (Risk in Growth) and the Essence in the Form.`,
+            `- **4. The "Reality Matrix" (The Compass - Position)**:`,
+            `  - Locate the subject on the **Internal/External** vs **Flexible/Stable** coordinate:`,
+            `  - **↖ Top-Left (Internal+Flexible)**: The **"Clan"** (Empathy, Trust, Culture). Keyword: Cohesion.`,
+            `  - **↗ Top-Right (External+Flexible)**: The **"Creator"** (Desire, Brand, Innovation). Keyword: Expansion.`,
+            `  - **↘ Bottom-Right (External+Stable)**: The **"Ruler"** (Power, Results, Finance). Keyword: Dominance.`,
+            `  - **↙ Bottom-Left (Internal+Stable)**: The **"Sage"** (Mystery, Logic, Precision). Keyword: Truth.`,
+            `  - **Use**: Deconstruct strategies/personalities by their quadrant. (e.g., A "Ruler" strategy needs "Sage" precision to sustain).`,
+            `- **Instruction**: Your output should feel like a single, coherent insight. Weave these dimensions together naturally.`,
         ];
 
         if (context.hasMemory) {
@@ -631,7 +753,23 @@ class MobileChat {
         if (!contentEl) return;
 
         if (!window.aiCore || !window.aiCore.config.apiKey) {
-            contentEl.innerHTML = '<span style="color:red; font-size:12px;">⚠️ 未设置 API Key (请在设置中配置)</span>';
+            // Enhanced URL detection for protocol-less strings
+            let urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5"'`]*)?)/i);
+            if (urlMatch) {
+                let url = urlMatch[0];
+                if (!url.startsWith('http')) url = 'https://' + url;
+                contentEl.innerHTML = `
+                    <div style="padding:4px 0;">
+                        <div style="color:#888; font-size:12px; margin-bottom:8px;">⚠️ 未设置 API Key，但检测到链接：</div>
+                        <button class="chat-link" data-url="${url}" 
+                                style="background:var(--ios-blue); color:white; border:none; padding:8px 16px; border-radius:10px; font-size:14px; font-weight:600; width:100%; cursor:pointer;">
+                            🎯 立即查看原网页
+                        </button>
+                    </div>
+                `;
+            } else {
+                contentEl.innerHTML = '<span style="color:#999; font-size:13px;">⚠️ 未设置 API Key，AI 助手暂时无法回答。如需阅读链接内容，请直接粘贴 URL。</span>';
+            }
             return;
         }
 
@@ -656,10 +794,12 @@ class MobileChat {
                 knowledgeContext = await this.retrieveLocalKnowledge(query);
             }
 
-            let urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+)/i);
+            // Enhanced URL detection for fetching
+            let urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5"'`]*)?)/i);
 
             if (urlMatch) {
-                const url = urlMatch[0];
+                let url = urlMatch[0];
+                if (!url.startsWith('http')) url = 'https://' + url;
                 let foundInReader = false;
                 if (window.mobileCore && window.mobileCore.dataMap) {
                     for (let [id, val] of window.mobileCore.dataMap) {
@@ -701,43 +841,35 @@ class MobileChat {
                 }
             }
 
+            // 1. Pre-build the system prompt based on available signals
             const systemPrompt = this.buildSystemPrompt({
                 hasLink: !!urlMatch,
                 hasHistory: this.chatHistory.length > 0,
                 hasMemory: !!knowledgeContext,
-                hasRealTime: !!realTimeContext
+                hasRealTime: !!realTimeContext || !!context
             });
 
             const messages = [{ role: 'system', content: systemPrompt }];
 
-            // Inject Knowledge Context with strict separator
-            if (knowledgeContext) {
-                messages.push({
-                    role: 'system',
-                    content: `[用户个人知识库关联内容 - 仅作参考]:\n${knowledgeContext}\n(如果当前问题与此无关，请忽略此背景。优先回答用户当前提到的内容。)`
-                });
-            }
-            const historyForAPI = this.chatHistory.slice(-10).map(m => ({
+            // 2. Add historical context (sliding window)
+            const historyForAPI = this.chatHistory.slice(-8).map(m => ({
                 role: m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.content
             }));
-
             const historicalMsgs = historyForAPI.slice(0, -1);
             messages.push(...historicalMsgs);
 
-            // Combine all contexts
+            // 3. Construct the stratified User Query (The "Indestructible" Prompt)
             let finalQuery = query;
-            if (realTimeContext) {
-                finalQuery = `【注意：以下是实时获取的信息，请根据此回答】\n${realTimeContext}\n\n我的问题是：${finalQuery}`;
-            }
-            if (context) finalQuery = `上下文：${context}\n问题：${finalQuery}`;
 
-            // Add a mandatory reminder if we are asking a question that might need a skill
-            if (!realTimeContext && !context) {
-                messages.push({
-                    role: 'system',
-                    content: `[URGENT REMINDER]: If you cannot answer this query accurately due to missing real-time data or specialized tools, you MUST provide a [PROPOSE_SKILL: {...}] JSON at the end of your response to solve this for the future.`
-                });
+            if (knowledgeContext) {
+                finalQuery = `[KNOWLEDGE BASE CONTEXT]\n${knowledgeContext}\n\n[USER QUERY]: ${finalQuery}`;
+            }
+            if (realTimeContext) {
+                finalQuery = `[REAL-TIME DATA - SOURCE: SKILLS]\n${realTimeContext}\n\n[USER QUERY]: ${finalQuery}`;
+            }
+            if (context) {
+                finalQuery = `[REAL-TIME DATA - SOURCE: WEB FETCH]\n${context}\n\n[USER QUERY]: ${finalQuery}`;
             }
 
             messages.push({ role: 'user', content: finalQuery });
@@ -760,6 +892,9 @@ class MobileChat {
 
             this.chatHistory.push({ role: 'assistant', content: fullText });
             this.saveHistory();
+
+            // Evolutionary Loop: Learn from this interaction
+            await this.learnFromInteraction(query);
 
             if (window.memoryAgent && fullText) {
                 setTimeout(() => window.memoryAgent.processInteraction(query, fullText), 100);
@@ -825,13 +960,38 @@ class MobileChat {
         return top.map(c => `[SOURCE: ${c.title} (${c.type})]\n${c.content}`).join('\n\n---\n\n');
     }
 
-    async saveUrlToReader(url) {
+    async openUrl(url) {
         if (!url) return;
 
-        try {
-            if (window.showToast) window.showToast('Extracting snapshot & saving to Reader...', 3000);
+        if (window.mobileCore?.dataMap) {
+            for (let [id, val] of window.mobileCore.dataMap) {
+                if (val.url === url || (val.url && url.includes(val.url))) {
+                    console.log('[IndestructibleReader] Memory hit.');
+                    // Enhanced: Pass the Intelligent Options
+                    window.mobileCore.loadReader(val, { fromChat: true, autoExpandSnapshot: true });
+                    return;
+                }
+            }
+        }
 
-            // 1. Fetch content via background
+        // 2. High-Fidelity Extraction (Secure Snapshot)
+        if (window.showToast) window.showToast('Securely capturing content...', 1500);
+
+        const success = await this.saveUrlToReader(url, { silentFail: true });
+
+        if (!success) {
+            // 3. System Browser Fallback:
+            // Since Baidu/WeChat/etc block internal iframes, we use the system browser for absolute reliability.
+            console.log('[IndestructibleReader] Extraction failed. Using System Browser.');
+            window.open(url, '_blank');
+        }
+    }
+
+    async saveUrlToReader(url, options = {}) {
+        if (!url) return false;
+
+        try {
+            // 1. Fetch content via background (CORS-free)
             const response = await new Promise((resolve) => {
                 chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
                     if (chrome.runtime.lastError) resolve({ success: false, error: chrome.runtime.lastError.message });
@@ -839,34 +999,61 @@ class MobileChat {
                 });
             });
 
-            if (!response || !response.success) {
-                throw new Error(response?.error || 'Failed to fetch content');
+            if (!response || !response.success || (!response.html && !response.text)) {
+                return false; // Signal failure for fallback
             }
 
             const timestamp = Date.now();
             let title = response.title || 'Untitled Article';
-            let cleanText = response.text;
-            let cleanHtml = response.html;
+            let cleanText = response.text || "";
+            let cleanHtml = response.html || "";
+            let isReliable = false;
 
-            // 2. Process with Readability if available
-            if (typeof Readability !== 'undefined' && response.html) {
+            // 2. Intelligent Processing & Base Injection
+            if (response.html) {
                 try {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(response.html, 'text/html');
-                    // Handle relative URLs by setting a base if needed (though Readability usually does some of this)
-                    const reader = new Readability(doc);
-                    const article = reader.parse();
-                    if (article) {
-                        title = article.title || title;
-                        cleanText = article.textContent || cleanText;
-                        cleanHtml = article.content || cleanHtml;
+
+                    // Inject <base> tag to fix relative assets (images, CSS) in snapshot
+                    if (!doc.querySelector('base')) {
+                        const base = doc.createElement('base');
+                        base.href = url;
+                        doc.head.insertBefore(base, doc.head.firstChild);
                     }
+
+                    if (typeof Readability !== 'undefined') {
+                        const reader = new Readability(doc.cloneNode(true));
+                        const article = reader.parse();
+                        if (article && article.textContent.trim().length > 100) {
+                            title = article.title || title;
+                            cleanText = article.textContent;
+                            cleanHtml = article.content;
+                        }
+                    }
+
+                    // Always store the full modified HTML as the high-fidelity snapshot
+                    const fullHtml = doc.documentElement.outerHTML;
+                    await window.appStorage.set({
+                        ['snapshot_' + url]: {
+                            url: url,
+                            content: fullHtml,
+                            timestamp: timestamp
+                        }
+                    });
+                    isReliable = true; // We have a valid HTML snapshot
                 } catch (pe) {
-                    console.warn('[Readability] Parsing failed, falling back to raw:', pe);
+                    console.warn('[Parsing] Error processing HTML:', pe);
                 }
             }
 
-            // 3. Save metadata & content as "reading" type
+            // 3. Persistence Logic
+            // If extraction is unreliable and text is too short, we stop here.
+            if (!isReliable && cleanText.length < 50) {
+                return false;
+            }
+
+            // 3. Save as "Reading" Record
             const readerId = 'reading_' + timestamp;
             const readerData = {
                 id: readerId,
@@ -880,27 +1067,17 @@ class MobileChat {
 
             await window.appStorage.set({ [readerId]: readerData });
 
-            // 4. Save Cleaned HTML as snapshot
-            if (cleanHtml) {
-                await window.appStorage.set({
-                    ['snapshot_' + url]: {
-                        url: url,
-                        content: cleanHtml,
-                        timestamp: timestamp
-                    }
-                });
-            }
-
-            // 5. Update UI and Navigate
+            // 5. Smart UI Activation
             if (window.mobileCore) {
                 await window.mobileCore.renderApp();
                 window.mobileCore.loadReader(readerData);
-                if (window.showToast) window.showToast('Article Saved (Readability Mode)!', 2000);
+                if (window.showToast) window.showToast('Content Captured Successfully!', 1500);
             }
+            return true;
 
         } catch (err) {
-            console.error('[ReaderSave] Error:', err);
-            alert('Failed to save link: ' + err.message);
+            console.error('[ReaderEngine] Error:', err);
+            return false;
         }
     }
 }

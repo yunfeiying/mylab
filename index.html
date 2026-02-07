@@ -6,6 +6,8 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Highlighti Mobile</title>
+    <meta http-equiv="Content-Security-Policy"
+        content="script-src 'self' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.google.com; object-src 'none';">
     <!-- Fonts -->
     <link rel="stylesheet" href="mobile.css?v=10.5">
     <style>
@@ -32,6 +34,7 @@
             white-space: nowrap;
         }
     </style>
+    <script src="modules/web-compat.js?v=10.5"></script>
 </head>
 
 <body>
@@ -49,7 +52,7 @@
                     </svg>
                 </button>
                 <div class="brand-title">Highlighti <span
-                        style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v10.5</span></div>
+                        style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v10.6</span></div>
                 <button class="user-avatar-btn" id="btn-settings">
                     <div class="avatar-icon-wrapper">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -292,7 +295,41 @@
 
                 <div class="bottom-spacer"></div>
             </main>
-            <!-- Removed local core-hub -->
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW: IN-APP BROWSER           -->
+        <!-- ============================== -->
+        <div id="view-browser" class="app-view full-screen-view">
+            <header class="notes-header">
+                <button id="btn-browser-close" class="header-btn back-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <div id="browser-title" class="header-title" style="flex:1; text-align:center;">Loading...</div>
+                <div style="display: flex; align-items: center;">
+                    <button id="btn-browser-save" class="header-btn icon-btn" style="padding: 8px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                    </button>
+                    <button id="btn-browser-refresh" class="header-btn icon-btn" style="padding: 8px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                        </svg>
+                    </button>
+                </div>
+            </header>
+            <main style="flex:1; background:#fff; overflow:hidden;">
+                <iframe id="browser-iframe" style="width:100%; height:100%; border:none;"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+            </main>
         </div>
 
     </div>
@@ -523,6 +560,9 @@
 
         <div class="input-capsule">
             <input type="text" class="universal-core-input" id="global-input" placeholder="Ask AI or search...">
+            <div id="hold-to-talk" class="hidden"
+                style="flex:1; text-align:center; font-weight:600; color:#555; user-select:none; -webkit-user-select:none;">
+                按住 说话</div>
             <button class="btn-input-add-attachment" id="btn-global-add">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -552,16 +592,17 @@
         <img id="modal-image-full" src=""
             style="max-width: 95%; max-height: 85%; object-fit: contain; border-radius: 8px;">
     </div>
-    <script src="modules/idb-utils.js?v=10.5"></script>
-    <script src="modules/storage-bridge.js?v=10.5"></script>
-    <script src="ai-core-mobile.js?v=10.5"></script>
-    <script src="modules/memory-agent.js?v=10.5"></script>
-    <script src="mobile-core.js?v=10.5"></script>
-    <script src="mobile-editor.js?v=10.5"></script>
-    <script src="modules/chat-skills-engine.js?v=10.5"></script>
-    <script src="mobile-chat.js?v=10.5"></script>
-    <script src="mobile-gdrive.js?v=10.5"></script>
-    <script src="mobile-sync.js?v=10.5"></script>
+    <script src="modules/idb-utils.js?v=10.6"></script>
+    <script src="modules/storage-bridge.js?v=10.6"></script>
+    <script src="ai-core-mobile.js?v=10.6"></script>
+    <script src="modules/memory-agent.js?v=10.6"></script>
+    <script src="mobile-browser.js?v=10.6"></script>
+    <script src="mobile-core.js?v=10.6"></script>
+    <script src="mobile-editor.js?v=10.6"></script>
+    <script src="modules/chat-skills-engine.js?v=10.6"></script>
+    <script src="mobile-chat.js?v=10.6"></script>
+    <script src="mobile-gdrive.js?v=10.6"></script>
+    <script src="mobile-sync.js?v=10.6"></script>
 </body>
 
 </html>

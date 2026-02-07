@@ -460,6 +460,41 @@ function setupChatEvents() {
             };
 
             document.addEventListener('mousemove', onMouseMove);
+
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    }
+
+    // Window Resizer (Chat Popover)
+    const winResizer = document.getElementById('chat-win-resizer');
+    if (winResizer && chatView) {
+        let isResizing = false;
+        let startX, startWidth;
+
+        winResizer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = chatView.offsetWidth;
+            winResizer.classList.add('resizing');
+
+            const onMouseMove = (moveEvt) => {
+                if (!isResizing) return;
+                // Dragging RIGHT increases width
+                const dx = moveEvt.clientX - startX;
+                const newWidth = Math.max(300, Math.min(800, startWidth + dx));
+                chatView.style.width = newWidth + 'px';
+            };
+
+            const onMouseUp = () => {
+                isResizing = false;
+                winResizer.classList.remove('resizing');
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
         });
     }

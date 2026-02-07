@@ -205,6 +205,38 @@ window.setupDataIOHandlers = function () {
             setTimeout(() => { document.body.removeChild(input); }, 1000);
         };
     }
+
+    // 6. Export Brain ONLY
+    const btnExportBrain = document.getElementById('menu-export-brain');
+    if (btnExportBrain) {
+        btnExportBrain.onclick = async () => {
+            if (window.showToast) window.showToast('🧠 Protecting Memory...');
+            const allData = await chrome.storage.local.get(null);
+
+            // Filter for brain-related keys
+            const brainData = {};
+            const coreKeys = ['memory_long_term', 'ai_soul_config', 'ai_user_preferences', 'chat_history_persistent', 'chat_current_session_id'];
+
+            Object.keys(allData).forEach(key => {
+                // Include core keys and any daily logs
+                if (coreKeys.includes(key) || key.startsWith('memory_short_') || key.startsWith('ai_')) {
+                    brainData[key] = allData[key];
+                }
+            });
+
+            // Add Metadata
+            brainData['_meta'] = {
+                type: 'highlighti_brain_core',
+                timestamp: Date.now(),
+                version: '5.0',
+                note: 'This file contains the AI Soul, Memory, and Preferences.'
+            };
+
+            const blob = new Blob([JSON.stringify(brainData, null, 2)], { type: 'application/json' });
+            window.downloadBlob(blob, `Highlighti_Brain_Core_${new Date().toISOString().slice(0, 10)}.json`);
+            if (window.showToast) window.showToast('✅ Brain Securely Exported');
+        };
+    }
 };
 
 window.downloadBlob = function (blob, filename) {

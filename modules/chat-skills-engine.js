@@ -114,6 +114,188 @@ class ChatSkillsEngine {
                 });
             }
         });
+
+        // 5. Daily Briefing Skill (Market Scout)
+        this.registerSkill({
+            id: 'daily_briefing',
+            name: 'Daily Briefing',
+            patterns: [/(每日复盘|复盘|daily review|daily briefing|财经早报|市场总结)/i],
+            async execute(query) {
+                return new Promise(async (resolve) => {
+                    const searchUrl = `https://m.baidu.com/s?word=${encodeURIComponent('今日财经新闻 全球股市 黄金 原油 重大事件')}`;
+                    const newsUrl = 'https://news.baidu.com/';
+
+                    // WEB ENVIRONMENT CHECK (CORS Limitation)
+                    if (!window.chrome || !window.chrome.runtime || !window.chrome.runtime.sendMessage) {
+                        resolve(`[SYSTEM INFO: WEB MODE DETECTED]
+无法在纯网页环境进行后台跨域抓取。
+请按以下格式回复用户：
+
+⚠️ **网页版功能受限**
+由于浏览器安全策略，网页版无法自动抓取实时财经数据。请使用插件版，或直接点击下方链接查看：
+
+1. [百度财经搜索](${searchUrl})
+2. [百度新闻头条](${newsUrl})
+
+(不要生成任何其他内容)`);
+                        return;
+                    }
+
+                    // 1. Fetch Market Overview search
+                    let context = "";
+
+                    try {
+                        const searchRes = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: searchUrl }, r));
+                        if (searchRes && searchRes.success) {
+                            context += `[Source: Baidu Search - Market Data]\n${searchRes.text.substring(0, 3000)}\n\n`;
+                        }
+                    } catch (e) { console.warn('Search fetch failed', e); }
+
+                    // 2. Fetch News Home for Headlines
+                    try {
+                        const newsRes = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: 'https://news.baidu.com/' }, r));
+                        if (newsRes && newsRes.success) {
+                            context += `[Source: Baidu News - Headlines]\n${newsRes.text.substring(0, 2000)}\n\n`;
+                        }
+                    } catch (e) { console.warn('News fetch failed', e); }
+
+                    if (context.length > 100) {
+                        resolve(`[DATA FOR DAILY REVIEW]:\n${context}\n\n[STRICT FORMAT INSTRUCTION]:
+[角色设定]: 你是一位资深的财经新闻编辑。
+[核心任务]: 根据以上提供的实时数据，直接生成一份极其精炼的“每日复盘”简报。
+[绝对禁止]: 不要输出任何开场白、方法论介绍或“核心三问复盘法”之类的理论内容。
+
+请严格完全照搬以下格式输出（日期替换为今日）：
+
+2026xxxx 周x 【24h热点】
+1. [全球市场]: 简单列出标普/纳指/A股/恒指/黄金的涨跌数据（如在数据中找到）。
+2. [新闻]: ...
+3. [新闻]: ...
+...
+[玫瑰]【24h前瞻】
+1. TIME [事件描述]
+2. TIME [事件描述]
+
+(如果在数据中找不到确切的未来时间点事件，请根据常识或数据中提到的即将发生的事件列出1-2条即可)`);
+                    } else {
+                        resolve(null);
+                    }
+                });
+            }
+        });
+
+        // 6. Hot Trends Skill
+        this.registerSkill({
+            id: 'hot_trends',
+            name: 'Trending Topics',
+            patterns: [/(值得关注|热点|hot topics|trending|what's new|whats new|热门|热搜|news)/i],
+            async execute(query) {
+                return new Promise(async (resolve) => {
+                    const baiduHotUrl = 'https://top.baidu.com/board?tab=realtime';
+                    const weiboHotUrl = 'https://s.weibo.com/top/summary';
+
+                    // Strategy 1: Extension Background Fetch (Best Quality)
+                    let content = "";
+                    let fetchSuccess = false;
+
+                    if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
+                        try {
+                            const res = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: baiduHotUrl }, r));
+                            if (res && res.success) {
+                                const hotTitles = res.text.match(/[^\s]{4,30}(?=\s\d{5,})/g) || [];
+                                const uniqueTitles = [...new Set(hotTitles)].slice(0, 15);
+                                if (uniqueTitles.length > 0) {
+                                    content = `[Real-time Hot Topics (Source: Baidu Hot)]:\n${uniqueTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n`;
+                                    fetchSuccess = true;
+                                }
+                            }
+                        } catch (e) { console.warn('Extension fetch failed, trying fallback...'); }
+                    }
+
+                    // Strategy 2: Web Mode Fallback (RSS2JSON Proxy)
+                    if (!fetchSuccess) {
+                        try {
+                            // Use Baidu Civil News RSS via RSS2JSON to bypass CORS
+                            // Using a consistent, public proxy to fetch headers
+                            const rssApi = 'https://api.rss2json.com/v1/api.json?rss_url=http%3A%2F%2Fnews.baidu.com%2Fn%3Fcmd%3D1%26class%3Dcivilnews%26tn%3Drss';
+                            const res = await fetch(rssApi);
+                            if (res.ok) {
+                                const data = await res.json();
+                                if (data && data.items) {
+                                    content = `[Real-time News (Source: Baidu RSS)]:\n${data.items.slice(0, 10).map((item, i) => `${i + 1}. [${item.title}](${item.link})`).join('\n')}\n`;
+                                    fetchSuccess = true;
+                                }
+                            }
+                        } catch (e) { console.warn('RSS fallback failed'); }
+                    }
+
+                    // Final Output Construction
+                    if (fetchSuccess) {
+                        content += `\n[More Live Data]:\n- [Weibo Hot Search](${weiboHotUrl})\n- [Baidu Hot Search](${baiduHotUrl})`;
+                        resolve(content);
+                        return;
+                    }
+
+                    // Strategy 3: Graceful Link Fallback (No Error Message)
+                    resolve(`[DATA STREAM]:
+Unable to retrieve plain text list at this moment. Please verify live status via direct feeds:
+
+1. [Baidu Real-time Hot](${baiduHotUrl})
+2. [Weibo Top Summary](${weiboHotUrl})
+
+(Present these links immediately to the user)`);
+                    return;
+
+                });
+            }
+        });
+
+        // 7. Stock Sniper Skill (Technical Pullback)
+        this.registerSkill({
+            id: 'stock_hunt',
+            name: 'Stock Sniper',
+            patterns: [/(推荐股票|值得关注的股票|潜力股|stock pick|bullish stock|what stock|买什么股)/i],
+            async execute(query) {
+                return new Promise(async (resolve) => {
+                    // Logic: Search for "Technical Pullback" (Active 3-5 days, Down 2-3 days)
+                    // Keywords: "Strong stock" + "Pullback"
+                    const searchUrl = `https://m.baidu.com/s?word=${encodeURIComponent('近期强势股缩量回调名单 热门资金回调')}`;
+
+                    let content = "";
+                    let fetchSuccess = false;
+
+                    // 1. Extension Fetch
+                    if (window.chrome && typeof window.chrome.runtime !== 'undefined' && typeof window.chrome.runtime.sendMessage === 'function') {
+                        try {
+                            const res = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: searchUrl }, r));
+                            if (res && res.success) {
+                                content = `[Strategy: Active 3-5d, Pullback 2-3d]\n[Raw Search Data]:\n${res.text.substring(0, 3000)}\n`;
+                                fetchSuccess = true;
+                            }
+                        } catch (e) { }
+                    }
+
+                    if (fetchSuccess) {
+                        resolve(`${content}
+[MANDATORY INSTRUCTION]:
+The user demands CONCRETE RESULTS, NOT THEORY.
+1. Analyze the raw search snippets for specific Stock Names/Codes that are mentioned as "Strong/Hot" but currently "Pulling back/Adjusting".
+2. Select 3-5 candidates from the text.
+3. Format each line as: **Name (Code if found)**: Brief reason based on the text.
+4. DO NOT write an introduction. DO NOT write a disclaimer. DO NOT explain the strategy. JUST THE LIST.
+`);
+                    } else {
+                        // 2. Graceful Link
+                        resolve(`[DATA STREAM]:
+Unable to auto-scan market data. Please view this pre-configured strategy search:
+
+🔗 [Strategy: Strong Stocks Pullback (Click to see results)](${searchUrl})
+
+(Directly provide this link to the user)`);
+                    }
+                });
+            }
+        });
     }
 
     registerSkill(skill) {

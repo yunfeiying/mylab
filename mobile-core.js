@@ -11,11 +11,18 @@ class MobileApp {
 
         this.searchQuery = '';
         this.activeView = 'home';
-        this.dataMap = new Map(); // Store full data objects here to avoid JSON attribute issues
+        this.dataMap = new Map();
+        this.dataCache = null; // Performance: Persistent cache for lists
+        this.cacheDirty = true; // Flag for re-fetch
 
         this.setupKeyboardTracking();
         this.setupEvents();
-        console.log('MobileCore V11.0 (Monolith) Initialized');
+        this.setupVoiceListeners();
+
+        // Initialize external modules if available
+        if (window.initMobileBrowser) window.initMobileBrowser(this);
+
+        console.log('MobileCore V12.0 (Modular) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -122,7 +129,17 @@ class MobileApp {
         const sheet = document.getElementById('action-sheet-overlay');
         const cancelBtn = document.getElementById('act-cancel');
 
-        if (setBtn) setBtn.onclick = () => this.showActionSheet('home');
+        if (setBtn) {
+            const openSettings = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[UI] Opening Settings Action Sheet');
+                this.showActionSheet('home');
+            };
+            // Dual binding for maximum responsiveness
+            setBtn.addEventListener('click', openSettings);
+            setBtn.addEventListener('touchstart', openSettings, { passive: false });
+        }
         if (cancelBtn) cancelBtn.onclick = () => sheet.classList.add('hidden');
         if (sheet) sheet.onclick = (e) => { if (e.target === sheet) sheet.classList.add('hidden'); };
 
@@ -163,65 +180,6 @@ class MobileApp {
         // --- Attachment Action Sheet Logic ---
         this.setupAttachmentSheet();
 
-        // --- Global Core Hub logic ---
-        const globalInput = document.getElementById('global-input');
-        const globalSendBtn = document.getElementById('btn-global-send');
-
-        if (globalInput) {
-            globalInput.oninput = (e) => {
-                this.searchQuery = e.target.value.toLowerCase();
-                this.renderApp();
-
-                // Toggle Send Button Visibility
-                if (globalSendBtn) {
-                    if (e.target.value.trim().length > 0) {
-                        globalSendBtn.classList.remove('hidden');
-                    } else {
-                        globalSendBtn.classList.add('hidden');
-                    }
-                }
-            };
-
-            globalInput.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    this.triggerUniversalSend(globalInput);
-                    if (globalSendBtn) globalSendBtn.classList.add('hidden');
-                }
-            };
-
-            // Support image paste
-            globalInput.onpaste = (e) => {
-                const items = (e.clipboardData || window.clipboardData).items;
-                const files = [];
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf('image') !== -1) {
-                        const blob = items[i].getAsFile();
-                        if (blob) files.push(blob);
-                    }
-                }
-                if (files.length > 0) {
-                    // Use existing handler to navigate to chat and process
-                    this.handleAttachment(files, 'paste');
-                }
-            };
-
-            // Auto-navigate to chat when focusing on input from home/list views
-            globalInput.onfocus = () => {
-                const viewsToAutoChat = ['home', 'notes-all', 'reading-all', 'reader-detail'];
-                if (viewsToAutoChat.includes(this.activeView)) {
-                    this.navigateToChat();
-                }
-            };
-        }
-
-        if (globalSendBtn && globalInput) {
-            globalSendBtn.onclick = () => {
-                this.triggerUniversalSend(globalInput);
-                globalSendBtn.classList.add('hidden');
-            };
-        }
-
         // Headers
         const notesHeader = document.getElementById('header-notes-all');
         if (notesHeader) notesHeader.onclick = () => this.navigateTo('notes-all');
@@ -244,367 +202,313 @@ class MobileApp {
             };
         }
 
-        // --- Global Nav: Home Button Long Press & Click ---
+        // --- Global Nav: Home/Back Button with Voice Toggle (Long Press) ---
         const homeNavBtn = document.getElementById('nav-btn-home');
         if (homeNavBtn) {
             let longPressTimer;
             const startPress = (e) => {
                 longPressTimer = setTimeout(() => {
-                    // LONG PRESS detected
-                    if (window.navigator.vibrate) window.navigator.vibrate(50);
-                    // Visual feedback: show microphone icon
-                    homeNavBtn.innerHTML = `
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ios-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="22"></line>
-                        </svg>
-                    `;
-                    this.startVoiceRecognition(() => {
-                        // Revert icon when recognition results are processed
-                        this.revertHomeIcon(homeNavBtn);
-                    });
+                    this.toggleVoiceMode(); // Switch between Home and Voice states
                 }, 600);
             };
-
             const endPress = () => clearTimeout(longPressTimer);
 
-            // Prevent right-click menu on long press (Windows fix)
-            homeNavBtn.oncontextmenu = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            };
-
-            // Touch Events
+            homeNavBtn.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
             homeNavBtn.addEventListener('touchstart', startPress);
             homeNavBtn.addEventListener('touchend', endPress);
             homeNavBtn.addEventListener('touchmove', endPress);
-
-            // Mouse Events (Desktop fix)
-            homeNavBtn.addEventListener('mousedown', (e) => {
-                if (e.button === 0) startPress(e); // Only Left Click
-            });
+            homeNavBtn.addEventListener('mousedown', (e) => { if (e.button === 0) startPress(e); });
             homeNavBtn.addEventListener('mouseup', endPress);
             homeNavBtn.addEventListener('mouseleave', endPress);
 
             homeNavBtn.onclick = (e) => {
-                // Regular click navigation
-                this.goBack();
+                if (this.isVoiceMode) {
+                    // If in voice mode, first click toggles back to keyboard
+                    this.toggleVoiceMode();
+                } else {
+                    this.goBack();
+                }
             };
         }
 
-        // General Back Buttons
-        document.querySelectorAll('.btn-go-home').forEach(btn => {
-            if (btn.id !== 'nav-btn-home') {
-                btn.onclick = () => this.goBack();
-            }
-        });
-
         // Back logic for specific views
+        document.querySelectorAll('.btn-go-home').forEach(btn => {
+            if (btn.id !== 'nav-btn-home') btn.onclick = () => this.goBack();
+        });
         document.querySelectorAll('.btn-back-to-notes').forEach(btn => {
             btn.onclick = () => {
                 if (window.mobileEditor) window.mobileEditor.saveNote(true);
                 this.navigateTo('notes-all');
             };
         });
-
         document.querySelectorAll('.btn-back-to-reader').forEach(btn => {
-            btn.onclick = () => {
-                this.navigateTo('reading-all');
-            };
+            btn.onclick = () => this.navigateTo('reading-all');
         });
 
-        // API Settings Dialog
+        // --- Global Core Hub: Input \u0026 Send ---
+        const globalInput = document.getElementById('global-input');
+        const globalSendBtn = document.getElementById('btn-global-send');
+
+        if (globalInput) {
+            globalInput.oninput = (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.renderApp();
+                if (globalSendBtn) {
+                    if (e.target.value.trim().length > 0) globalSendBtn.classList.remove('hidden');
+                    else globalSendBtn.classList.add('hidden');
+                }
+            };
+            globalInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.triggerUniversalSend(globalInput);
+                    if (globalSendBtn) globalSendBtn.classList.add('hidden');
+                }
+            };
+            globalInput.onfocus = () => {
+                const viewsToAutoChat = ['home', 'notes-all', 'reading-all', 'reader-detail'];
+                if (viewsToAutoChat.includes(this.activeView)) this.navigateToChat();
+            };
+        }
+
+        if (globalSendBtn && globalInput) {
+            globalSendBtn.onclick = () => {
+                this.triggerUniversalSend(globalInput);
+                globalSendBtn.classList.add('hidden');
+            };
+        }
+
+        // --- API \u0026 GDrive Settings Dialogs ---
+        this.setupSettingsDialogs();
+
+        // Delegation for dynamic cards & Chat Links
+        // Delegation for dynamic cards & Chat Links
+        const handleGlobalClick = async (e) => {
+            const target = e.target;
+
+            // 1. Handle Chat Links (URLs) - Priority
+            // Use closest to catch clicks on inner elements of the link
+            const chatLink = target.closest('.chat-link');
+            if (chatLink) {
+                e.preventDefault();
+                e.stopPropagation(); // Stop bubbling immediately
+
+                const url = chatLink.getAttribute('data-url');
+                console.log('[GlobalClick] Link clicked:', url);
+
+                if (url && window.mobileChat) {
+                    if (window.navigator.vibrate) window.navigator.vibrate(20);
+                    window.mobileChat.openUrl(url);
+                } else {
+                    console.warn('[GlobalClick] MobileChat not ready or URL missing');
+                }
+                return;
+            }
+
+            // 2. Handle Skill Buttons
+            const skillBtn = target.closest('#btn-install-skill');
+            if (skillBtn && window.mobileChat) {
+                const skillData = skillBtn.dataset.skill;
+                if (skillData) window.mobileChat.installSkill(skillData);
+                return;
+            }
+
+            // 3. Handle Note Cards
+            const card = target.closest('.note-card');
+            if (card) {
+                const id = card.dataset.id;
+                const type = card.dataset.type;
+                if (!id) return;
+                const data = this.dataMap.get(id);
+                if (data) {
+                    if (type === 'reader') {
+                        this.loadReader(data);
+                    } else {
+                        // Default to Note
+                        if (window.mobileEditor) window.mobileEditor.loadNote(id, data);
+                        this.navigateTo('editor');
+                    }
+                }
+            }
+        };
+
+        // Aggressive binding to capture phase if possible, but basic click usually works
+        document.body.addEventListener('click', handleGlobalClick);
+
+        // Reader Source Button (Self-Aware Smart Toggle)
+        const readerUrlBtn = document.getElementById('btn-reader-open-url');
+        if (readerUrlBtn) {
+            readerUrlBtn.onclick = () => {
+                const url = this.currentReaderUrl;
+                if (!url) return;
+
+                // Intelligence: If we already have a snapshot, just show/expand it!
+                this.smartToggleSnapshot(url);
+            };
+        }
+
+        this.setupSwipeNavigation();
+    }
+
+    setupSettingsDialogs() {
         const apiDialog = document.getElementById('api-settings-dialog');
         const btnOpenApiSettings = document.getElementById('act-ai');
         const btnSaveApiSettings = document.getElementById('btn-save-api-settings');
         const btnCancelApiSettings = document.getElementById('btn-cancel-api-settings');
+        const btnResetData = document.getElementById('btn-reset-data');
+
         const inputApiKey = document.getElementById('input-api-key');
         const inputBaseUrl = document.getElementById('input-base-url');
         const inputModel = document.getElementById('input-model');
 
+        // 1. Initial Hydration: Load settings immediately so inputs aren't empty after refresh
+        const hydrateSettings = async () => {
+            try {
+                // Try IndexedDB first
+                const res = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model']);
+
+                // Fallback to LocalStorage (The "Bulletproof" Header)
+                let apiKey = res.ai_api_key || localStorage.getItem('global_ai_api_key') || '';
+                let baseUrl = res.ai_base_url || localStorage.getItem('global_ai_base_url') || 'https://api.deepseek.com';
+                let model = res.ai_model || localStorage.getItem('global_ai_model') || 'deepseek-chat';
+
+                if (inputApiKey) inputApiKey.value = apiKey;
+                if (inputBaseUrl) inputBaseUrl.value = baseUrl;
+                if (inputModel) inputModel.value = model;
+
+                // CRITICAL: Synchronize AI Core with stored settings on every load
+                if (window.aiCore) {
+                    window.aiCore.config.apiKey = apiKey;
+                    window.aiCore.config.baseUrl = baseUrl;
+                    window.aiCore.config.model = model;
+                    console.log('[Settings] AI Core Synchronized (Dual-Source)');
+                }
+                console.log('[Settings] UI Hydrated');
+            } catch (e) {
+                console.warn('[Settings] Hydration failed:', e);
+            }
+        };
+        hydrateSettings();
+
+        // 2. Open Dialog logic
         if (btnOpenApiSettings) {
             btnOpenApiSettings.onclick = async () => {
-                // Close action sheet
-                const actionSheet = document.getElementById('action-sheet-overlay');
-                if (actionSheet) actionSheet.classList.add('hidden');
-
-                // Load current settings (try top-level keys first, fallback to nested object)
-                const res = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model', 'gdrive_root_folder', 'gdrive_client_id', 'gdrive_api_key', 'settings']);
-                const nested = res.settings || {};
-
-                if (inputApiKey) inputApiKey.value = res.ai_api_key || nested.ai_api_key || '';
-                if (inputBaseUrl) inputBaseUrl.value = res.ai_base_url || nested.ai_base_url || 'https://api.deepseek.com';
-                if (inputModel) inputModel.value = res.ai_model || nested.ai_model || 'deepseek-chat';
-
-                const gdriveRootInput = document.getElementById('input-gdrive-root');
-                const gdriveClientIdInput = document.getElementById('input-gdrive-client-id');
-                const gdriveApiKeyInput = document.getElementById('input-gdrive-api-key');
-
-                if (gdriveRootInput) gdriveRootInput.value = res.gdrive_root_folder || nested.gdrive_root_folder || 'Highlighti_Data';
-                if (gdriveClientIdInput) gdriveClientIdInput.value = res.gdrive_client_id || nested.gdrive_client_id || '';
-                if (gdriveApiKeyInput) gdriveApiKeyInput.value = res.gdrive_api_key || nested.gdrive_api_key || '';
-
-                // Show dialog
+                const sheet = document.getElementById('action-sheet-overlay');
+                if (sheet) sheet.classList.add('hidden');
+                // Hydrate again just in case storage changed
+                await hydrateSettings();
                 if (apiDialog) apiDialog.classList.remove('hidden');
             };
         }
 
+        // 3. Save Logic
         if (btnSaveApiSettings) {
             btnSaveApiSettings.onclick = async () => {
                 const apiKey = inputApiKey ? inputApiKey.value.trim() : '';
                 const baseUrl = inputBaseUrl ? inputBaseUrl.value.trim() : 'https://api.deepseek.com';
                 const model = inputModel ? inputModel.value.trim() : 'deepseek-chat';
 
-                // Save to individual keys (Extension Standard)
+                // 1. Save to Structured DB
                 await window.appStorage.set({
                     ai_api_key: apiKey,
                     ai_base_url: baseUrl,
                     ai_model: model
                 });
 
-                // Update aiCore config immediately
+                // 2. Save to LocalStorage (Synchronous Backup)
+                localStorage.setItem('global_ai_api_key', apiKey);
+                localStorage.setItem('global_ai_base_url', baseUrl);
+                localStorage.setItem('global_ai_model', model);
+
+                // Update AI Core in real-time
                 if (window.aiCore) {
                     window.aiCore.config.apiKey = apiKey;
                     window.aiCore.config.baseUrl = baseUrl;
                     window.aiCore.config.model = model;
                 }
 
+                if (window.showToast) window.showToast('Settings Saved (Persistent)', 2000);
                 if (apiDialog) apiDialog.classList.add('hidden');
-                alert('App settings saved!');
             };
         }
 
-        if (btnCancelApiSettings) {
-            btnCancelApiSettings.onclick = () => { if (apiDialog) apiDialog.classList.add('hidden'); };
-        }
+        if (btnCancelApiSettings) btnCancelApiSettings.onclick = () => apiDialog.classList.add('hidden');
 
-        // --- Dedicated Google Drive Settings ---
-        const gdDialog = document.getElementById('gdrive-settings-dialog');
-        const btnOpenGdSettings = document.getElementById('act-gd-settings');
-        const btnSaveGdSettings = document.getElementById('btn-save-gd-settings');
-        const btnCancelGdSettings = document.getElementById('btn-cancel-gd-settings');
-
-        if (btnOpenGdSettings) {
-            btnOpenGdSettings.onclick = async () => {
-                const actionSheet = document.getElementById('action-sheet-overlay');
-                if (actionSheet) actionSheet.classList.add('hidden');
-
-                const res = await window.appStorage.get(['gdrive_client_id', 'gdrive_api_key', 'gdrive_root_folder', 'settings']);
-                const nested = res.settings || {};
-
-                const inputClientId = document.getElementById('input-gd-client-id');
-                const inputApiKeyGd = document.getElementById('input-gd-api-key');
-                const inputRoot = document.getElementById('input-gd-root');
-
-                if (inputClientId) inputClientId.value = res.gdrive_client_id || nested.gdrive_client_id || '';
-                if (inputApiKeyGd) inputApiKeyGd.value = res.gdrive_api_key || nested.gdrive_api_key || '';
-                if (inputRoot) inputRoot.value = res.gdrive_root_folder || nested.gdrive_root_folder || 'Highlighti_Data';
-
-                if (gdDialog) gdDialog.classList.remove('hidden');
-            };
-        }
-
-        if (btnSaveGdSettings) {
-            btnSaveGdSettings.onclick = async () => {
-                const clientId = document.getElementById('input-gd-client-id')?.value.trim() || '';
-                const apiKey = document.getElementById('input-gd-api-key')?.value.trim() || '';
-                const rootFolder = document.getElementById('input-gd-root')?.value.trim() || 'Highlighti_Data';
-
-                // Save to individual keys
-                await window.appStorage.set({
-                    gdrive_client_id: clientId,
-                    gdrive_api_key: apiKey,
-                    gdrive_root_folder: rootFolder
-                });
-
-                if (window.mobileGDrive) {
-                    window.mobileGDrive.ROOT_FOLDER_NAME = rootFolder;
-                    window.mobileGDrive.setCredentials(clientId, apiKey);
-                }
-
-                if (gdDialog) gdDialog.classList.add('hidden');
-            };
-        }
-
-        if (btnCancelGdSettings) {
-            btnCancelGdSettings.onclick = () => { if (gdDialog) gdDialog.classList.add('hidden'); };
-        }
-
-        const btnResetData = document.getElementById('btn-reset-data');
+        // 4. Reset Logic (Danger Zone)
         if (btnResetData) {
             btnResetData.onclick = async () => {
-                const confirmed = confirm("WARNING: This will permanently delete ALL local notes, highlights, and settings from this device. Cloud data will NOT be affected.\\n\\nAre you sure you want to continue?");
-                if (confirmed) {
+                if (confirm('⚠️ WARNING: This will PERMANENTLY delete all local notes, chat history, and settings. Continue?')) {
                     if (window.appStorage && window.appStorage.clear) {
                         await window.appStorage.clear();
-                        alert('Local data cleared successfully. The app will now reload.');
-                        location.reload();
+                        window.showToast('Data Wiped. Reloading...', 2000);
+                        setTimeout(() => location.reload(), 2000);
                     }
                 }
             };
         }
+    }
+    setupVoiceListeners() {
+        const holdToTalk = document.getElementById('hold-to-talk');
+        if (!holdToTalk) return;
 
-        if (btnCancelApiSettings) {
-            btnCancelApiSettings.onclick = () => {
-                if (apiDialog) apiDialog.classList.add('hidden');
-            };
-        }
-
-        // Close dialog when clicking overlay
-        if (apiDialog) {
-            apiDialog.onclick = (e) => {
-                if (e.target === apiDialog) {
-                    apiDialog.classList.add('hidden');
-                }
-            };
-        }
-
-        // Delegation for dynamic cards & swipes
-        let touchStart = 0;
-        let activeSwipeCard = null;
-
-        document.addEventListener('touchstart', (e) => {
-            const card = e.target.closest('.note-card');
-            const deleteAction = e.target.closest('.note-delete-action');
-
-            if (card) {
-                touchStart = e.touches[0].clientX;
-                // Close existing swiped card if clicking a different card
-                if (activeSwipeCard && activeSwipeCard !== card) {
-                    activeSwipeCard.classList.remove('swiped');
-                    activeSwipeCard = null;
-                }
-            } else if (activeSwipeCard && !deleteAction) {
-                // Close swiped card if clicking outside, except when clicking the delete button itself
-                activeSwipeCard.classList.remove('swiped');
-                activeSwipeCard = null;
-            }
-        });
-
-        document.addEventListener('touchmove', (e) => {
-            const card = e.target.closest('.note-card');
-            if (!card) return;
-            const touchCurrent = e.touches[0].clientX;
-            const diff = touchStart - touchCurrent;
-
-            if (diff > 50) { // Swipe left
-                card.classList.add('swiped');
-                activeSwipeCard = card;
-            } else if (diff < -50) { // Swipe right
-                card.classList.remove('swiped');
-            }
-        });
-
-        // Use Capture Phase for Deletion to prevent bubbling to the card click
-        document.addEventListener('click', async (e) => {
-            const deleteBtn = e.target.closest('.note-delete-action');
-            if (!deleteBtn) return;
-
-            // Stop propagation immediately
-            e.stopPropagation();
+        const startHold = (e) => {
             e.preventDefault();
+            holdToTalk.textContent = '正在录音...';
+            holdToTalk.classList.add('recording');
+            if (window.navigator.vibrate) window.navigator.vibrate(40);
+            this.startVoiceRecognition();
+        };
+        const stopHold = (e) => {
+            e.preventDefault();
+            holdToTalk.textContent = '按住 说话';
+            holdToTalk.classList.remove('recording');
+            this.stopVoiceRecognition();
+        };
 
-            const wrapper = deleteBtn.closest('.note-item-wrapper');
-            const id = wrapper?.dataset.id;
-            const parentKey = wrapper?.dataset.parentKey;
+        holdToTalk.addEventListener('touchstart', startHold);
+        holdToTalk.addEventListener('touchend', stopHold);
+        holdToTalk.addEventListener('mousedown', startHold);
+        holdToTalk.addEventListener('mouseup', stopHold);
+        holdToTalk.addEventListener('mouseleave', stopHold);
+    }
 
-            if (!id || !window.appStorage) return;
+    toggleVoiceMode() {
+        const homeBtn = document.getElementById('nav-btn-home');
+        const holdToTalk = document.getElementById('hold-to-talk');
+        const globalInput = document.getElementById('global-input');
+        const globalAddBtn = document.getElementById('btn-global-add');
+        if (!homeBtn || !holdToTalk || !globalInput) return;
 
-            const confirmed = confirm('Delete this item?');
-            if (!confirmed) return;
+        this.isVoiceMode = !this.isVoiceMode;
+        if (window.navigator.vibrate) window.navigator.vibrate(50);
 
-            try {
-                if (parentKey === 'user_notes') {
-                    // It's in the unified array
-                    const res = await window.appStorage.get('user_notes');
-                    const notes = res.user_notes || [];
-
-                    const updated = notes.filter((n, index) => {
-                        // 1. Try safe ID match (handles number vs string)
-                        const nId = (n.id || n.timestamp || '').toString();
-                        if (nId && nId === id.toString()) return false;
-
-                        // 2. Try strict Index match (Fallback for malformed items)
-                        // renderApp generates ID as `idx-${index}` if no internal ID exists
-                        if (id === `idx-${index}`) return false;
-
-                        return true;
-                    });
-
-                    if (updated.length === notes.length) {
-                        console.warn('[Delete] Item not found in user_notes array', id);
-                    }
-
-                    await window.appStorage.set({ user_notes: updated });
-                } else if (parentKey) {
-                    // It's a flat entry
-                    await window.appStorage.remove(parentKey);
-                } else {
-                    // Last resort try by ID (Handle as string or number if needed)
-                    await window.appStorage.remove(id);
-                }
-
-                // Show success feedback
-                if (window.mobileEditor && window.mobileEditor.showToast) {
-                    window.mobileEditor.showToast('Deleted successfully');
-                } else {
-                    alert('Deleted successfully');
-                }
-
-                this.renderApp();
-            } catch (err) {
-                console.error('[Delete] Failed:', err);
-                alert('Delete failed: ' + err.message);
-            }
-        }, true); // TRUE for capture phase
-
-        document.addEventListener('click', async (e) => {
-            const card = e.target.closest('.note-card');
-            if (!card) return;
-
-            // If card is swiped, clicking it should close it without opening note
-            if (card.classList.contains('swiped')) {
-                card.classList.remove('swiped');
-                activeSwipeCard = null;
-                return;
-            }
-
-            const id = card.dataset.id;
-            const type = card.dataset.type;
-            if (!id) return; // Ignore cards without explicit ID (like chat session cards handled elsewhere)
-
-            const data = this.dataMap.get(id);
-
-            if (!data) {
-                console.warn('Data not found for ID:', id);
-                return;
-            }
-
-            if (type === 'reader') {
-                this.loadReader(data);
-                this.navigateTo('reader-detail');
-                return;
-            }
-
-            if (type === 'note') {
-                if (window.mobileEditor) window.mobileEditor.loadNote(id, data);
-                this.navigateTo('editor');
-                return;
-            }
-        });
-
-        // Reader Source Button
-        const readerUrlBtn = document.getElementById('btn-reader-open-url');
-        if (readerUrlBtn) {
-            readerUrlBtn.onclick = () => {
-                if (this.currentReaderUrl) window.open(this.currentReaderUrl, '_blank');
-            };
+        if (this.isVoiceMode) {
+            globalInput.classList.add('hidden');
+            if (globalAddBtn) globalAddBtn.classList.add('hidden');
+            holdToTalk.classList.remove('hidden');
+            // State 2: Voice Mode (Microphone Icon)
+            homeBtn.innerHTML = `
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ios-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="22"></line>
+                </svg>`;
+        } else {
+            globalInput.classList.remove('hidden');
+            if (globalAddBtn) globalAddBtn.classList.remove('hidden');
+            holdToTalk.classList.add('hidden');
+            // State 1: Home Mode (Home Icon)
+            homeBtn.innerHTML = `
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>`;
         }
+    }
 
-
-        this.setupSwipeNavigation();
+    // Proxy for backward compatibility if needed, or direct call
+    openInAppBrowser(url) {
+        if (window.mobileBrowser) window.mobileBrowser.open(url);
     }
 
     setupSwipeNavigation() {
@@ -634,7 +538,7 @@ class MobileApp {
             // ONLY hide in these specific deep-level views or views with their own Local Dock
             // User requested that List views (notes-all, reading-all) AND Chat use the Global Dock.
             // We now keep it visible in Editor & Reader as per V4.0 request.
-            const hideIn = []; // No longer hiding in standard views
+            const hideIn = ['browser', 'editor']; // Hide in browser and editor for focus
             if (hideIn.includes(viewId)) {
                 navBar.classList.add('hidden');
             } else {
@@ -644,16 +548,23 @@ class MobileApp {
             // Sync active state for the Home button
             const homeBtn = document.getElementById('nav-btn-home');
             if (homeBtn) {
-                if (viewId === 'home') {
-                    homeBtn.classList.add('active');
-                } else {
-                    homeBtn.classList.remove('active');
-                }
+                if (viewId === 'home') homeBtn.classList.add('active');
+                else homeBtn.classList.remove('active');
+            }
+
+            // Snappy Page Render - for Home and List views
+            if (viewId === 'home' || viewId === 'notes-all' || viewId === 'reading-all') {
+                if (this.renderTimeout) clearTimeout(this.renderTimeout);
+                this.renderTimeout = setTimeout(() => this.renderApp(), 10);
             }
         }
     }
 
     goBack() {
+        // Reset voice mode when navigating back/home
+        if (this.isVoiceMode) {
+            this.toggleVoiceMode();
+        }
         this.navigateTo('home');
         this.renderApp();
     }
@@ -735,51 +646,56 @@ class MobileApp {
             return;
         }
 
+        if (this.currentRecognition) {
+            this.currentRecognition.stop();
+        }
+
         const recognition = new SpeechRecognition();
+        this.currentRecognition = recognition;
+
         recognition.lang = 'zh-CN';
-        recognition.interimResults = false;
+        recognition.interimResults = true; // Use interim results for smoother PTT
         recognition.maxAlternatives = 1;
 
-        if (window.showToast) window.showToast('Listening...', 3000);
-
         recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            console.log('[Voice] Recognized:', text);
-            if (text) {
-                if (typeof onFinished === 'function' && !onFinished.length) {
-                    // It's a callback for internal logic (like reverting icon)
+            let finalTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
                 }
+            }
 
+            if (finalTranscript) {
+                console.log('[Voice] Final Recognized:', finalTranscript);
                 if (this.activeView === 'editor' && window.mobileEditor) {
-                    window.mobileEditor.insertTextAtCursor(text);
+                    window.mobileEditor.insertTextAtCursor(finalTranscript);
                 } else {
-                    this.triggerUniversalSend({ value: text, id: 'voice-input' });
+                    this.triggerUniversalSend({ value: finalTranscript, id: 'voice-input' });
                 }
             }
         };
 
         recognition.onerror = (event) => {
             console.error('[Voice] Error:', event.error);
-            if (window.showToast) window.showToast('Voice Error: ' + event.error, 2000);
+            if (event.error !== 'aborted') {
+                if (window.showToast) window.showToast('Voice Error: ' + event.error, 2000);
+            }
         };
 
         recognition.onend = () => {
-            // If we have a custom callback specifically for the UI revert, trigger it
+            this.currentRecognition = null;
             if (typeof onFinished === 'function') onFinished();
         };
 
         recognition.start();
     }
 
-    revertHomeIcon(btn) {
-        if (!btn) return;
-        btn.innerHTML = `
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-        `;
+    stopVoiceRecognition() {
+        if (this.currentRecognition) {
+            this.currentRecognition.stop();
+        }
     }
+
 
     /**
      * Handle selected attachment files - navigate to chat and pass to mobileChat.
@@ -802,7 +718,7 @@ class MobileApp {
         }
     }
 
-    loadReader(data) {
+    loadReader(data, options = {}) {
         this.navigateTo('reader-detail');
         const titleEl = document.getElementById('reader-title');
         const metaEl = document.getElementById('reader-meta');
@@ -817,11 +733,31 @@ class MobileApp {
         }
 
         if (contentEl) {
-            contentEl.innerHTML = data.content || data.text || '';
+            // Enhanced Readability: Preserve some formatting
+            contentEl.innerHTML = (data.content || data.text || '').replace(/\n/g, '<br>');
         }
 
         this.currentReaderUrl = data.url;
-        this.loadSnapshot(data.url); // Load snapshot if exists
+
+        // Load snapshot
+        this.loadSnapshot(data.url);
+
+        // Auto-Expand Snapshot if requested (e.g. from Chat)
+        if (options && options.autoExpandSnapshot) {
+            setTimeout(() => {
+                const toggleBtn = document.getElementById('btn-toggle-snapshot');
+                if (toggleBtn) toggleBtn.click();
+            }, 300);
+        }
+
+        // Handle navigation state
+        if (options && options.fromChat) {
+            this.returnToChat = true;
+        } else {
+            this.returnToChat = false;
+        }
+
+        this.navigateTo('reader-detail');
 
         // Scroll to top
         document.querySelector('.reader-scroll-area').scrollTop = 0;
@@ -862,13 +798,13 @@ class MobileApp {
                         // If content is empty, fetch and render now
                         if (!contentEl.innerHTML.trim()) {
                             contentEl.innerHTML = `
-                                <div style="font-size: 13px; color: #8e8e93; margin-bottom: 12px; padding: 10px; border-left: 3px solid #ddd; font-style: italic;">
-                                    Saved Page Content (Snapshot):
-                                </div>
-                                <div class="snapshot-inner-content" style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
-                                    ${snapshotData.content}
-                                </div>
-                            `;
+                            <div style="font-size: 13px; color: #8e8e93; margin-bottom: 12px; padding: 10px; border-left: 3px solid #ddd; font-style: italic;">
+                                Saved Page Content (Snapshot):
+                            </div>
+                            <div class="snapshot-inner-content" style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #eee; overflow-x: auto;">
+                                ${snapshotData.content}
+                            </div>
+                        `;
                         }
                         contentEl.classList.remove('hidden');
                         toggleBtn.classList.add('active');
@@ -885,9 +821,50 @@ class MobileApp {
         }
     }
 
-    async renderApp() {
+    async smartToggleSnapshot(url) {
+        if (!url) return;
+        const key = 'snapshot_' + url;
+        const res = await window.appStorage.get(key);
+
+        if (res[key] && res[key].content) {
+            // Success: We have a snapshot. Expand it immediately.
+            const container = document.getElementById('reader-snapshot-container');
+            const contentEl = document.getElementById('reader-snapshot-content');
+            const toggleBtn = document.getElementById('btn-toggle-snapshot');
+
+            if (container && contentEl) {
+                container.classList.remove('hidden');
+                if (contentEl.classList.contains('hidden')) {
+                    if (toggleBtn) toggleBtn.click(); // Trigger the expansion logic
+                }
+                // Scroll to snapshot
+                container.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else {
+            // Failure/Missing: Fetch it now!
+            console.log('[SmartLoad] No snapshot found. Fetching via AI Engine...');
+            if (window.mobileChat) {
+                window.mobileChat.saveUrlToReader(url);
+            }
+        }
+    }
+
+    async renderApp(force = false) {
         if (!window.appStorage) return;
-        const all = await window.appStorage.getAll();
+
+        // Smart Render Guard: Only fetch from IDB if cache is dirty or forced
+        if (this.cacheDirty || force || !this.dataCache) {
+            this.dataCache = await window.appStorage.getAll();
+            this.cacheDirty = false;
+        }
+
+        // Performance: Skip UI update if we are in a deep view
+        const shallowViews = ['home', 'notes-all', 'reading-all'];
+        if (!force && !shallowViews.includes(this.activeView)) {
+            return;
+        }
+
+        const all = this.dataCache;
         const noteMap = new Map(); // Use Map to deduplicate by ID
         const readerMap = {}; // For grouping
 
