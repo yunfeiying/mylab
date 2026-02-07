@@ -61,22 +61,23 @@ class MobileApp {
 
     triggerUniversalSend(inputEl) {
         if (!inputEl) return;
-        const text = inputEl.value.trim();
+        const text = inputEl.value ? inputEl.value.trim() : '';
         if (!text) return;
+
+        // Auto-exit voice mode for visual feedback
+        if (this.isVoiceMode) this.toggleVoiceMode();
 
         if (window.mobileChat) {
             // Case 1: Already in Chat view
             if (this.activeView === 'chat') {
                 window.mobileChat.handleExternalSend(text);
-                inputEl.value = '';
+                if (inputEl.tagName === 'INPUT') inputEl.value = '';
             }
             // Case 2: In Home or List views
             else {
                 this.navigateTo('chat');
-                // Optional: Clear or start new session if browsing home
-                // window.mobileChat.clearMessages(); 
                 window.mobileChat.handleExternalSend(text);
-                inputEl.value = '';
+                if (inputEl.tagName === 'INPUT') inputEl.value = '';
             }
         }
     }
@@ -84,17 +85,13 @@ class MobileApp {
     navigateToChat() {
         this.navigateTo('chat');
         if (window.mobileChat) {
-            // Priority 1: If we have a current session (the most recent one), just render it
             if (window.mobileChat.currentSessionId) {
                 window.mobileChat.renderCurrentChat();
             } else {
-                // Priority 2: Fallback to new chat if nothing exists
                 window.mobileChat.startNewChat();
             }
-
-            // Sync global input focus
             const globalInput = document.getElementById('global-input');
-            if (globalInput) {
+            if (globalInput && !this.isVoiceMode) {
                 setTimeout(() => globalInput.focus(), 200);
             }
         }
@@ -136,7 +133,6 @@ class MobileApp {
                 console.log('[UI] Opening Settings Action Sheet');
                 this.showActionSheet('home');
             };
-            // Dual binding for maximum responsiveness
             setBtn.addEventListener('click', openSettings);
             setBtn.addEventListener('touchstart', openSettings, { passive: false });
         }
@@ -236,8 +232,11 @@ class MobileApp {
             if (btn.id !== 'nav-btn-home') btn.onclick = () => this.goBack();
         });
         document.querySelectorAll('.btn-back-to-notes').forEach(btn => {
-            btn.onclick = () => {
-                if (window.mobileEditor) window.mobileEditor.saveNote(true);
+            btn.onclick = async () => {
+                if (window.mobileEditor) {
+                    // Wait for save before navigating
+                    await window.mobileEditor.saveNote(true);
+                }
                 this.navigateTo('notes-all');
             };
         });
@@ -281,7 +280,6 @@ class MobileApp {
         // --- API \u0026 GDrive Settings Dialogs ---
         this.setupSettingsDialogs();
 
-        // Delegation for dynamic cards & Chat Links
         // Delegation for dynamic cards & Chat Links
         const handleGlobalClick = async (e) => {
             const target = e.target;
@@ -364,7 +362,7 @@ class MobileApp {
         // 1. Initial Hydration: Load settings immediately so inputs aren't empty after refresh
         const hydrateSettings = async () => {
             try {
-                // Try IndexedDB first
+                // Try IndexedDB/Storage first
                 const res = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model']);
 
                 // Fallback to LocalStorage (The "Bulletproof" Header)
@@ -381,13 +379,14 @@ class MobileApp {
                     window.aiCore.config.apiKey = apiKey;
                     window.aiCore.config.baseUrl = baseUrl;
                     window.aiCore.config.model = model;
-                    console.log('[Settings] AI Core Synchronized (Dual-Source)');
+                    console.log('[Settings] AI Core Synchronized (Dual-Source)', apiKey ? 'Key Found' : 'No Key');
                 }
                 console.log('[Settings] UI Hydrated');
             } catch (e) {
                 console.warn('[Settings] Hydration failed:', e);
             }
         };
+        // Call it immediately
         hydrateSettings();
 
         // 2. Open Dialog logic
@@ -408,27 +407,34 @@ class MobileApp {
                 const baseUrl = inputBaseUrl ? inputBaseUrl.value.trim() : 'https://api.deepseek.com';
                 const model = inputModel ? inputModel.value.trim() : 'deepseek-chat';
 
-                // 1. Save to Structured DB
-                await window.appStorage.set({
-                    ai_api_key: apiKey,
-                    ai_base_url: baseUrl,
-                    ai_model: model
-                });
+                console.log('[Settings] Saving...', apiKey.slice(0, 4) + '***');
 
-                // 2. Save to LocalStorage (Synchronous Backup)
-                localStorage.setItem('global_ai_api_key', apiKey);
-                localStorage.setItem('global_ai_base_url', baseUrl);
-                localStorage.setItem('global_ai_model', model);
+                try {
+                    // 1. Save to Structured DB
+                    await window.appStorage.set({
+                        ai_api_key: apiKey,
+                        ai_base_url: baseUrl,
+                        ai_model: model
+                    });
 
-                // Update AI Core in real-time
-                if (window.aiCore) {
-                    window.aiCore.config.apiKey = apiKey;
-                    window.aiCore.config.baseUrl = baseUrl;
-                    window.aiCore.config.model = model;
+                    // 2. Save to LocalStorage (Synchronous Backup)
+                    localStorage.setItem('global_ai_api_key', apiKey);
+                    localStorage.setItem('global_ai_base_url', baseUrl);
+                    localStorage.setItem('global_ai_model', model);
+
+                    // Update AI Core in real-time
+                    if (window.aiCore) {
+                        window.aiCore.config.apiKey = apiKey;
+                        window.aiCore.config.baseUrl = baseUrl;
+                        window.aiCore.config.model = model;
+                    }
+
+                    if (window.showToast) window.showToast('✅ Settings Saved', 2000);
+                    if (apiDialog) apiDialog.classList.add('hidden');
+                } catch (e) {
+                    console.error('Save failed', e);
+                    alert('Save Failed: ' + e.message);
                 }
-
-                if (window.showToast) window.showToast('Settings Saved (Persistent)', 2000);
-                if (apiDialog) apiDialog.classList.add('hidden');
             };
         }
 

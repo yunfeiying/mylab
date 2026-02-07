@@ -59,6 +59,10 @@ window.mobileSync = {
                         alert('CRITICAL ERROR: Database is empty after write! Import failed.');
                     } else {
                         alert(`🎉 Success! Verified ${count} items. Reloading automatically...`);
+
+                        // Force cache refresh
+                        if (window.mobileCore) window.mobileCore.cacheDirty = true;
+
                         setTimeout(() => location.reload(), 2000);
                     }
                 } else {
@@ -135,6 +139,9 @@ window.mobileSync = {
 
             if (upRes.ok || upRes.status === 201 || upRes.status === 204) {
                 if (window.appStorage) await window.appStorage.set(merged);
+                // Clear cache so UI updates
+                if (window.mobileCore) window.mobileCore.cacheDirty = true;
+
                 alert('✅ Sync Success! Verified with ' + Object.keys(merged).length + ' items.');
                 location.reload();
             } else {
