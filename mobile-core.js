@@ -1,5 +1,6 @@
 /**
- * mobile-core.js - The Brain of Mobile App (V10.7)
+ * mobile-core.js - Central Application Logic (V10.12)
+ * Managed by PureJS Tech Lead
  */
 
 class MobileApp {
@@ -12,20 +13,22 @@ class MobileApp {
         this.searchQuery = '';
         this.activeView = 'home';
         this.dataMap = new Map();
-        this.dataCache = null; // Performance: Persistent cache for lists
-        this.cacheDirty = true; // Flag for re-fetch
 
+        // Setup Core
         this.setupKeyboardTracking();
         this.setupEvents();
         this.setupVoiceListeners();
 
-        // Initialize external modules if available
-        if (window.initMobileBrowser) window.initMobileBrowser(this);
+        // Initialize external modules
+        if (typeof window.initMobileBrowser === 'function') window.initMobileBrowser(this);
 
-        console.log('MobileCore V10.7 (Modular) Initialized');
+        console.log('[MobileCore V10.12] Initialized');
+
+        // Auto-refresh periodically
+        setInterval(() => {
+            if (this.activeView === 'home') this.renderApp();
+        }, 30000);
     }
-
-    // Robust date parser to prevent NaN display
     safeParseToNumber(val) {
         if (!val) return 0;
         if (typeof val === 'number') return val;
@@ -1097,23 +1100,56 @@ class MobileApp {
         const processItem = (val, key, arrayIdx = -1) => {
             if (!val || typeof val !== 'object') return;
 
-            // 1. Recursive for Arrays (like user_notes)
+            // 0. Special Case: Array-based Articles (Key is URL)
+            // Fixes "Empty Reader" issue where arrays were recursed and swallowed as Notes
             if (Array.isArray(val)) {
+                if (key && (key.startsWith('http') || key.startsWith('https'))) {
+                    // This is an Article defined as an array of highlights
+                    const rKey = key;
+                    if (!readerMap[rKey]) {
+                        // Inherit or derive metadata from the array (e.g. first item)
+                        const first = val[0] || {};
+                        const time = val.reduce((acc, curr) => Math.max(acc, curr.updatedAt || curr.timestamp || 0), 0);
+
+                        readerMap[rKey] = {
+                            id: rKey,
+                            _storageKey: key,
+                            title: first.title || first.pageTitle || key,
+                            updatedAt: time || Date.now(),
+                            timestamp: time || Date.now(),
+                            contents: []
+                        };
+                    }
+                    val.forEach(item => {
+                        const body = item.text || item.content || item.quote || '';
+                        if (body && !readerMap[rKey].contents.includes(body)) {
+                            readerMap[rKey].contents.push(body);
+                        }
+                    });
+                    return; // Done processing this article
+                }
+
+                // Normal recursion (e.g. user_notes)
                 val.forEach((sub, i) => processItem(sub, key, i));
                 return;
             }
 
             // 2. Detection Logic
-            const isNote = val.type === 'note' ||
+            // CRITICAL FIX: If key implies a URL, it is NEVER a Note.
+            const isUrlKey = key && (key.startsWith('http') || key.startsWith('https'));
+
+            const isNote = !isUrlKey && (
+                val.type === 'note' ||
                 ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url && !val.highlights) ||
-                (key && (key.startsWith('note-') || key.startsWith('note_')));
+                (key && (key.startsWith('note-') || key.startsWith('note_')))
+            );
 
-            const isReading = (val.type === 'reading' || val.type === 'article' ||
+            const isReading = isUrlKey ||
+                val.type === 'reading' || val.type === 'article' ||
                 val.url ||
-                (key && (key.startsWith('http') || key.startsWith('meta_')))) &&
-                !(key && key.startsWith('snapshot_')); // Exclude full snapshots
+                (key && key.startsWith('meta_'));
 
-            if (key && key.startsWith('snapshot_')) return; // Explicitly skip snapshot keys
+            if (key && key.startsWith('snapshot_')) return;
 
             if (isNote) {
                 // 1. Determine Identity (ID or ChatSession)
@@ -1233,6 +1269,10 @@ class MobileApp {
             const timeB = b.updatedAt || b.timestamp || 0;
             return timeB - timeA;
         });
+
+        // 3. Expose sorted lists for external modules (e.g. Chat RAG Performance)
+        this.sortedNotes = filteredNotes;
+        this.sortedReader = filteredReader;
 
         this.dataMap.clear();
         filteredNotes.forEach(n => this.dataMap.set(String(n.id), n));

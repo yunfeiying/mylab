@@ -1,5 +1,5 @@
 /**
- * mobile-chat.js - Refined Layout Chat Controller (V7.0)
+ * mobile-chat.js - Refined Layout Chat Controller (V10.12)
  * Implemented: Chat History & Session Management, Global Dock Compatibility
  */
 
@@ -729,44 +729,37 @@ class MobileChat {
             `- 【连接者】: 主动发现当前问题与历史笔记、阅读快照之间的联系。`,
             `- 【决策者】: 提供基于逻辑和事实的建议，而不仅仅是总结。`,
             `---`,
-            `[CAPABILITIES & LIMITATIONS]`,
-            `- **NO LIVE BROWSING**: You are running in a secure, isolated mobile environment. You CANNOT visit websites or fetch URLs directly.`,
-            `- **How to Handle URLs**: If the user provides a link, ask them to copy-paste the content or use the "Reader Snapshot" feature (if available). Do NOT pretend to read it.`,
-            `- **Memory**: You have access to previous conversations and structured memory. Use it to maintain continuity.`,
-            `- **Style**: Be concise. Use bullet points. Avoid filler words like "I choose to...".`,
+            `[CAPABILITIES & GUIDELINES]`,
+            `- **Data Access**: You have access to real-time data through your attached TOOLS (Weather, Search, News).`,
+            `- **Handling Links**: If the user provides a link, try to analyze it if context is provided. If you cannot read it (e.g. secure browser limit), ask the user to "Paste the content" or provide a direct clickable link.`,
+            `- **Memory**: You have access to previous conversations.`,
+            `- **Style**: Be concise. Use bullet points. Match the user's language style.`,
             `---`,
+            `IMPORTANT: Your CORE PERSONA (defined at the top) OVERRIDES these default guidelines. Act as your Persona first.`,
         ];
 
         if (context.hasMemory) {
             core.push(`[CONTEXT: PERSONAL KNOWLEDGE BASE]`);
-            core.push(`- 以下是你从用户的知识库中检索到的相关信息。`);
-            core.push(`- 请优先基于这些已知信息进行回答，如果信息冲突，说明理由。`);
+            core.push(`- The following is retrieved from the user's notes. Use it to answer.`);
         }
 
         if (context.hasLink) {
-            core.push(`[MODE: THE READER (Analysis)]`);
-            core.push(`1. Summary: 1-sentence hook.`);
-            core.push(`2. Key Takeaways: 3-5 high-value bullet points.`);
-            core.push(`3. Impact: Why this matters to the user.`);
+            core.push(`[MODE: THE READER]`);
+            core.push(`- Analyze the provided link/content.`);
         }
 
-        core.push(`[SKILL SYSTEM - MANDATORY]`);
-        core.push(`- You possess a growing library of SKILLS. Currently: Weather, Search, News, Movies.`);
-        core.push(`- CRITICAL: If a user asks for information you cannot access directly (e.g., Stock prices, Crypto, Flight status, Translation, or specific API data), YOU MUST PROPOSE A NEW SKILL.`);
-        core.push(`- To propose, append technical JSON at the end of your response:`);
-        core.push(`  [PROPOSE_SKILL: {"id": "crypto", "name": "Crypto Tracker", "patterns": ["btc", "crypto", "price"], "apiUrl": "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"}]`);
-        core.push(`- Use "https://m.baidu.com/s?word={query}" as a fallback apiUrl for generic information gathering skills.`);
-        core.push(`- Do NOT apologize for lack of data without offering a [PROPOSE_SKILL] solution.`);
-        core.push(``);
+        core.push(`[SKILL SYSTEM - ACTIVE]`);
+        core.push(`- If the user asks for data you don't have (e.g. Stock Price), PROPOSE A SKILL using the [PROPOSE_SKILL] format.`);
+        core.push(`- Never say "I cannot access the internet" if a relevant Skill (like Search or Weather) could potentially handle it. Instead, say "Let me check..." and assume the system will try to fetch it.`);
+
         core.push(`[STRICT OUTPUT RULES]`);
-        core.push(`- NO Markdown Code Blocks (\`\`\`) for text.`);
-        core.push(`- Use **Bold** for critical concepts.`);
+        core.push(`- NO Markdown Code Blocks (\`\`\`) for plain text.`);
         core.push(`- Keep it actionable.`);
+
         if (context.hasRealTime) {
-            core.push(`[SYSTEM OVERRIDE]:`);
-            core.push(`- YOU HAVE BEEN GIVEN REAL-TIME WEB DATA BELOW.`);
-            core.push(`- DO NOT APOLOGIZE OR SAY YOU CANNOT ACCESS THE INTERNET.`);
-            core.push(`- INTEGRATE THE DATA SEAMLESSLY INTO YOUR RESPONSE AS IF IT'S YOUR NATIVE KNOWLEDGE.`);
+            core.push(`[SYSTEM UPDATE: LIVE DATA RECEIVED]`);
+            core.push(`- You have received live data from the web (see above).`);
+            core.push(`- Answer the user's question using this data directly.`);
         }
 
         return core.join('\n');
@@ -835,35 +828,41 @@ class MobileChat {
                     }
                 }
                 if (!foundInReader) {
-                    // Attempt real-time fetch via Background Script (CORS-free)
+                    // 1. Attempt Extension Background Fetch (Best Quality)
                     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
                         try {
                             if (window.showToast) window.showToast('Reading link content...', 1500);
                             const response = await new Promise((resolve) => {
                                 chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
-                                    if (chrome.runtime.lastError) {
-                                        resolve({ success: false, error: chrome.runtime.lastError.message });
-                                    } else {
-                                        resolve(res);
-                                    }
+                                    if (chrome.runtime.lastError) resolve({ success: false });
+                                    else resolve(res);
                                 });
                             });
 
                             if (response && response.success) {
                                 context = `[Context retrieved from URL: ${url}]\n${response.text}\n\n`;
-                                console.log('[LinkFetch] Success, content length:', response.text.length);
-                            } else {
-                                context = `[URL Detected: ${url}]\n(Fetch failed: ${response?.error || 'Access denied'})\n\n`;
                             }
-                        } catch (err) {
-                            console.error('[LinkFetch] Error:', err);
-                            context = `[URL Detected: ${url}]\n(System error during fetch)\n\n`;
+                        } catch (err) { console.error('[LinkFetch] Ext Error:', err); }
+                    }
+
+                    // 2. Fallback: Jina Reader (Cloud Browser for Web Mode)
+                    if (!context) {
+                        try {
+                            if (window.showToast) window.showToast('Activating Cloud Browser...', 1500);
+                            const jinaUrl = `https://r.jina.ai/${url}`;
+                            const res = await fetch(jinaUrl);
+                            if (res.ok) {
+                                const text = await res.text();
+                                context = `[Context retrieved via Cloud Browser: ${url}]\n${text.substring(0, 5000)}\n\n`;
+                            }
+                        } catch (e) {
+                            console.error('[LinkFetch] Cloud Browser Error:', e);
+                            context = `[URL Detected: ${url}]\n(Unable to read content. Please paste text.)\n\n`;
                         }
-                    } else {
-                        context = `[URL Detected: ${url}]\n(Note: Live web browsing is restricted in this environment. Please paste content if possible.)\n\n`;
                     }
                 }
             }
+
 
             // 1. Pre-build the system prompt based on available signals
             const systemPrompt = this.buildSystemPrompt({
@@ -933,29 +932,49 @@ class MobileChat {
     }
 
     async retrieveLocalKnowledge(query) {
-        if (!window.mobileCore || !window.mobileCore.dataMap) return "";
+        if (!window.mobileCore) return "";
 
         const keywords = query.toLowerCase().match(/[\u4e00-\u9fa5a-zA-Z0-9]+/g) || [];
         if (keywords.length === 0) return "";
 
+        let dataset = [];
+
+        // PERFORMANCE OPTIMIZATION: Use Sorted Lists if available (Top 40 Recent Only)
+        // prevents freezing on large datasets
+        if (window.mobileCore.sortedNotes && window.mobileCore.sortedReader) {
+            dataset = [
+                ...window.mobileCore.sortedNotes.slice(0, 40),
+                ...window.mobileCore.sortedReader.slice(0, 40)
+            ];
+        } else if (window.mobileCore.dataMap) {
+            // Fallback: Random map iteration (slower)
+            let count = 0;
+            for (let [id, item] of window.mobileCore.dataMap) {
+                if (count++ > 100) break;
+                dataset.push(item);
+            }
+        }
+
         let candidates = [];
 
-        // Search through the main dataMap (Notes & Reader)
-        for (let [id, item] of window.mobileCore.dataMap) {
+        for (let item of dataset) {
+            if (!item) continue;
             let score = 0;
             const title = (item.title || "").toLowerCase();
             const content = (item.content || item.text || "").toLowerCase();
 
             keywords.forEach(kw => {
                 if (kw.length < 2) return;
-                if (title.includes(kw)) score += 10;
-                if (content.includes(kw)) score += 2;
+                // High weight for title match
+                if (title.includes(kw)) score += 15;
+                // Moderate weight for content match
+                if (content.includes(kw)) score += 3;
             });
 
             if (score > 5) {
                 candidates.push({
                     title: item.title,
-                    content: (item.content || item.text || "").substring(0, 1000),
+                    content: (item.content || item.text || "").substring(0, 800), // Limit context size
                     score: score,
                     type: item.type
                 });
@@ -1015,13 +1034,39 @@ class MobileChat {
         if (!url) return false;
 
         try {
-            // 1. Fetch content via background (CORS-free)
-            const response = await new Promise((resolve) => {
-                chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
-                    if (chrome.runtime.lastError) resolve({ success: false, error: chrome.runtime.lastError.message });
-                    else resolve(res);
+            let response = { success: false };
+
+            // 1. Try Extension Background Fetch (Best Quality - Full HTML)
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                response = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
+                        if (chrome.runtime.lastError) resolve({ success: false });
+                        else resolve(res);
+                    });
                 });
-            });
+            }
+
+            // 2. Fallback: Jina Reader (Cloud Browser for Web Mode)
+            // If extension failed or we are in pure web mode
+            if (!response || !response.success || (!response.html && !response.text)) {
+                console.log('[Reader] Extension fetch failed, trying Cloud Browser...');
+                try {
+                    const jinaRes = await fetch(`https://r.jina.ai/${url}`);
+                    if (jinaRes.ok) {
+                        const jinaText = await jinaRes.text();
+                        // Jina returns structured Markdown. We treat it as the "Text" content.
+                        response = {
+                            success: true,
+                            text: jinaText,
+                            // Wrap in basic HTML for the Reader view
+                            html: `<html><body><article>${this.formatMarkdown(jinaText)}</article></body></html>`,
+                            title: `Snapshot: ${url.split('//')[1].split('/')[0]}` // Fallback title
+                        };
+                    }
+                } catch (e) {
+                    console.error('[Reader] Cloud fetch failed:', e);
+                }
+            }
 
             if (!response || !response.success || (!response.html && !response.text)) {
                 return false; // Signal failure for fallback
