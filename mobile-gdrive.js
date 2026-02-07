@@ -18,10 +18,10 @@ class MobileGDrive {
         this.access_token = localStorage.getItem('gdrive_web_token') || '';
         this.tokenClient = null;
 
-        // Auto-load if credentials exist
-        if (this.CLIENT_ID) {
-            setTimeout(() => this.loadScripts(), 1000);
-        }
+        // Auto-load disabled for performance in China
+        // if (this.CLIENT_ID) {
+        //     setTimeout(() => this.loadScripts(), 5000); 
+        // }
     }
 
     // ==========================================
@@ -33,11 +33,38 @@ class MobileGDrive {
             this.initTokenClient();
             return;
         }
-        console.log("[Sync] Loading Google GIS Library...");
+
+        if (document.getElementById('g-api-load')) return; // Already loading
+
+        console.log("[Sync] Injecting Google GIS Library...");
+
+        const s1 = document.createElement('script');
+        s1.src = "https://apis.google.com/js/api.js";
+        s1.id = "g-api-load";
+        s1.defer = true;
+        document.body.appendChild(s1);
+
+        const s2 = document.createElement('script');
+        s2.src = "https://accounts.google.com/gsi/client";
+        s2.defer = true;
+        s2.onload = () => {
+            console.log("[Sync] Google GIS Loaded. Initializing...");
+            setTimeout(() => this.initTokenClient(), 500);
+        };
+        s2.onerror = () => {
+            console.warn("[Sync] Google GIS blocked or failed to load.");
+        };
+        document.body.appendChild(s2);
     }
 
     initTokenClient() {
-        if (!window.google || !window.google.accounts) return;
+        if (!window.google || !window.google.accounts) {
+            // Retry once if called too early
+            setTimeout(() => {
+                if (window.google && window.google.accounts) this.initTokenClient();
+            }, 1000);
+            return;
+        }
         try {
             this.tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: this.CLIENT_ID,

@@ -1089,6 +1089,8 @@ class MobileApp {
         }
 
         const all = this.dataCache;
+        console.log(`[Render] Raw Data Keys: ${Object.keys(all).length}`);
+
         const noteMap = new Map(); // Use Map to deduplicate by ID
         const readerMap = {}; // For grouping
 
@@ -1103,10 +1105,10 @@ class MobileApp {
 
             // 2. Detection Logic
             const isNote = val.type === 'note' ||
-                ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url) ||
+                ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url && !val.highlights) ||
                 (key && (key.startsWith('note-') || key.startsWith('note_')));
 
-            const isReading = (val.type === 'reading' ||
+            const isReading = (val.type === 'reading' || val.type === 'article' ||
                 val.url ||
                 (key && (key.startsWith('http') || key.startsWith('meta_')))) &&
                 !(key && key.startsWith('snapshot_')); // Exclude full snapshots
@@ -1132,12 +1134,6 @@ class MobileApp {
                     // If we are replacing an existing but different ID entry, remove the old one
                     if (existing && existing.id !== identity) {
                         noteMap.delete(existing.id);
-                        // [Auto-Clean Registry] Disabled for performance
-                        /* 
-                        if (existing._storageKey && existing._storageKey !== 'user_notes' && existing._storageKey !== key) {
-                             window.appStorage.remove(existing._storageKey);
-                        } 
-                        */
                     }
 
                     noteMap.set(identity, {
@@ -1148,15 +1144,6 @@ class MobileApp {
                         _storageKey: key,
                         _originalIdx: arrayIdx
                     });
-                } else {
-                    // The current item is the duplicate/older one. 
-                    // If it's stored as a redundant flat key, clean it up from IDB immediately.
-                    // Disabled for performance
-                    /*
-                    if (key !== 'user_notes' && key !== identity) {
-                         window.appStorage.remove(key);
-                    }
-                    */
                 }
             } else if (isReading) {
                 const rKey = val.url || val.title || key;
@@ -1171,10 +1158,23 @@ class MobileApp {
                         contents: []
                     };
                 }
+
+                // Extract Body
                 const body = val.content || val.text || val.body || '';
                 if (body && !readerMap[rKey].contents.includes(body)) {
                     readerMap[rKey].contents.push(body);
                 }
+
+                // Extract Highlights (CRITICAL for Reader)
+                if (Array.isArray(val.highlights)) {
+                    val.highlights.forEach(h => {
+                        const hText = h.text || h.content || h.quote || '';
+                        if (hText && !readerMap[rKey].contents.includes(hText)) {
+                            readerMap[rKey].contents.push(hText);
+                        }
+                    });
+                }
+
                 const currentTime = this.safeParseToNumber(val.updatedAt || val.timestamp);
                 if (currentTime > (readerMap[rKey].updatedAt || 0)) {
                     readerMap[rKey].updatedAt = currentTime;
