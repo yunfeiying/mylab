@@ -1132,10 +1132,12 @@ class MobileApp {
                     // If we are replacing an existing but different ID entry, remove the old one
                     if (existing && existing.id !== identity) {
                         noteMap.delete(existing.id);
-                        // [Auto-Clean Registry] If we found a redundant physical key, mark for background removal
+                        // [Auto-Clean Registry] Disabled for performance
+                        /* 
                         if (existing._storageKey && existing._storageKey !== 'user_notes' && existing._storageKey !== key) {
-                            window.appStorage.remove(existing._storageKey);
-                        }
+                             window.appStorage.remove(existing._storageKey);
+                        } 
+                        */
                     }
 
                     noteMap.set(identity, {
@@ -1149,9 +1151,12 @@ class MobileApp {
                 } else {
                     // The current item is the duplicate/older one. 
                     // If it's stored as a redundant flat key, clean it up from IDB immediately.
+                    // Disabled for performance
+                    /*
                     if (key !== 'user_notes' && key !== identity) {
-                        window.appStorage.remove(key);
+                         window.appStorage.remove(key);
                     }
+                    */
                 }
             } else if (isReading) {
                 const rKey = val.url || val.title || key;
