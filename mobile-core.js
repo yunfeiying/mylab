@@ -646,59 +646,127 @@ class MobileApp {
     }
 
     startVoiceRecognition(onFinished = null) {
+        if (this.isRecognitionActive) return; // Prevent double trigger
+
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             alert('Speech recognition is not supported in this browser.');
             return;
         }
 
-        if (this.currentRecognition) {
-            this.currentRecognition.stop();
+        try {
+            const recognition = new SpeechRecognition();
+            this.currentRecognition = recognition;
+
+            recognition.lang = 'zh-CN';
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+            recognition.continuous = true; // Keep listening until explicit stop
+
+            recognition.onstart = () => {
+                this.isRecognitionActive = true;
+                console.log('[Voice] Started');
+                if (window.navigator.vibrate) window.navigator.vibrate(50);
+                const holdBtn = document.getElementById('hold-to-talk');
+                if (holdBtn) {
+                    holdBtn.style.backgroundColor = '#ff3b30'; // Red
+                    holdBtn.textContent = '松开 发送';
+                }
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                // Visual feedback of what is being heard
+                const holdBtn = document.getElementById('hold-to-talk');
+                if (holdBtn && (finalTranscript || interimTranscript)) {
+                    holdBtn.textContent = (finalTranscript + interimTranscript).substring(0, 15) + '...';
+                }
+
+                // If final, send immediately? No, wait for stop.
+                // Store incomplete result
+                this.voiceBuffer = (this.voiceBuffer || '') + finalTranscript;
+            };
+
+            recognition.onerror = (event) => {
+                console.error('[Voice] Error:', event.error);
+                this.isRecognitionActive = false;
+
+                // Specific handling for security blocking
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    if (!isSecure) {
+                        alert('⚠️ Voice Access Blocked\n\nModern browsers REQUIRE "HTTPS" for microphone access.\n\nYou are currently on "HTTP".\nPlease use localhost or setup an HTTPS server/tunnel.');
+                    } else {
+                        alert('⚠️ Microphone Permission Denied.\nPlease check your browser settings.');
+                    }
+                    return;
+                }
+
+                // Only alert on real errors, ignore 'no-speech' or 'aborted' if short press
+                if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                    if (window.showToast) window.showToast('Voice Error: ' + event.error);
+                }
+                const holdBtn = document.getElementById('hold-to-talk');
+                if (holdBtn) {
+                    holdBtn.style.backgroundColor = '';
+                    holdBtn.textContent = '按住 说话';
+                }
+            };
+
+            recognition.onend = () => {
+                this.isRecognitionActive = false;
+                console.log('[Voice] Ended');
+                const holdBtn = document.getElementById('hold-to-talk');
+                if (holdBtn) {
+                    holdBtn.style.backgroundColor = '';
+                    holdBtn.textContent = '按住 说话';
+                }
+
+                // Process the buffer
+                if (this.voiceBuffer && this.voiceBuffer.trim()) {
+                    const text = this.voiceBuffer.trim();
+                    this.voiceBuffer = ''; // Clear
+
+                    if (this.activeView === 'editor' && window.mobileEditor) {
+                        window.mobileEditor.insertTextAtCursor(text);
+                    } else {
+                        this.triggerUniversalSend({ value: text, id: 'voice-input' });
+                    }
+                }
+
+                if (typeof onFinished === 'function') onFinished();
+            };
+
+            this.voiceBuffer = ''; // Reset buffer
+            recognition.start();
+
+        } catch (e) {
+            console.error('[Voice] Start failed:', e);
+            this.isRecognitionActive = false;
         }
-
-        const recognition = new SpeechRecognition();
-        this.currentRecognition = recognition;
-
-        recognition.lang = 'zh-CN';
-        recognition.interimResults = true; // Use interim results for smoother PTT
-        recognition.maxAlternatives = 1;
-
-        recognition.onresult = (event) => {
-            let finalTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                }
-            }
-
-            if (finalTranscript) {
-                console.log('[Voice] Final Recognized:', finalTranscript);
-                if (this.activeView === 'editor' && window.mobileEditor) {
-                    window.mobileEditor.insertTextAtCursor(finalTranscript);
-                } else {
-                    this.triggerUniversalSend({ value: finalTranscript, id: 'voice-input' });
-                }
-            }
-        };
-
-        recognition.onerror = (event) => {
-            console.error('[Voice] Error:', event.error);
-            if (event.error !== 'aborted') {
-                if (window.showToast) window.showToast('Voice Error: ' + event.error, 2000);
-            }
-        };
-
-        recognition.onend = () => {
-            this.currentRecognition = null;
-            if (typeof onFinished === 'function') onFinished();
-        };
-
-        recognition.start();
     }
 
     stopVoiceRecognition() {
-        if (this.currentRecognition) {
-            this.currentRecognition.stop();
+        if (this.currentRecognition && this.isRecognitionActive) {
+            // Give it a tiny delay to catch the last syllable if user speaks fast
+            setTimeout(() => {
+                try {
+                    this.currentRecognition.stop();
+                } catch (e) { console.log(e); }
+            }, 300);
+        } else {
+            // Fallback if stopped before started (short tap)
+            this.isRecognitionActive = false;
         }
     }
 
