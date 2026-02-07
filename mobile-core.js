@@ -245,116 +245,40 @@ class MobileApp {
             btn.onclick = () => this.navigateTo('reading-all');
         });
 
-        // --- Global Core Hub: Input & Send ---
+        // --- Global Core Hub: Input & Dynamic Action Button ---
         const globalInput = document.getElementById('global-input');
-        const globalSendBtn = document.getElementById('btn-global-send');
+        const dockActionBtn = document.getElementById('btn-dock-action');
+        const iconMic = document.getElementById('icon-dock-mic');
+        const iconSend = document.getElementById('icon-dock-send');
+        const globalAddBtn = document.getElementById('btn-global-add');
+
+        let isTypingMode = false;
+
+        const updateDockState = () => {
+            if (!globalInput || !dockActionBtn) return;
+            const hasText = globalInput.value.trim().length > 0;
+
+            if (hasText) {
+                // Typing Mode: Show Send, Hide Mic
+                isTypingMode = true;
+                iconMic.classList.add('hidden');
+                iconSend.classList.remove('hidden');
+                dockActionBtn.classList.add('send-active'); // Optional styling
+            } else {
+                // Voice Mode: Show Mic, Hide Send
+                isTypingMode = false;
+                iconMic.classList.remove('hidden');
+                iconSend.classList.add('hidden');
+                dockActionBtn.classList.remove('send-active');
+            }
+        };
 
         if (globalInput) {
-            let inputLongPressTimer;
-            let isLongPressActive = false;
+            // Check state on load
+            updateDockState();
 
-            const startInputPress = (e) => {
-                // Only left click or single touch
-                if (e.type === 'mousedown' && e.button !== 0) return;
-
-                isLongPressActive = false;
-                inputLongPressTimer = setTimeout(() => {
-                    isLongPressActive = true;
-                    // Trigger Voice Mode
-                    if (window.navigator.vibrate) window.navigator.vibrate(50);
-
-                    // Switch UI to Voice Mode manually to ensure smooth transition
-                    this.isVoiceMode = true;
-                    globalInput.classList.add('hidden');
-                    if (globalAddBtn) globalAddBtn.classList.add('hidden');
-
-                    const holdBtn = document.getElementById('hold-to-talk');
-                    if (holdBtn) {
-                        holdBtn.classList.remove('hidden');
-                        holdBtn.textContent = 'Recording... (Release to Send)';
-                        holdBtn.classList.add('recording');
-                    }
-
-                    // Start Recognition Immediately
-                    this.startVoiceRecognition();
-
-                }, 500); // 500ms threshold
-            };
-
-            const endInputPress = (e) => {
-                clearTimeout(inputLongPressTimer);
-
-                if (isLongPressActive) {
-                    // It was a voice action
-                    e.preventDefault(); // Prevent click/focus
-                    isLongPressActive = false;
-
-                    // Stop Recognition
-                    this.stopVoiceRecognition((text) => {
-                        // Optional callback if needed, but stopVoiceRecognition already sends
-                    });
-
-                    // Reset UI slightly delayed to show "Sent" state or just snap back
-                    setTimeout(() => {
-                        this.isVoiceMode = false;
-                        globalInput.classList.remove('hidden');
-                        if (globalAddBtn) globalAddBtn.classList.remove('hidden');
-                        const holdBtn = document.getElementById('hold-to-talk');
-                        if (holdBtn) {
-                            holdBtn.classList.add('hidden');
-                            holdBtn.classList.remove('recording');
-                            holdBtn.textContent = '按住 说话';
-                        }
-                    }, 300);
-
-                } else {
-                    // It was a short tap (normal input) handled by click/focus events
-                }
-            };
-
-            // Attach to Input
-            globalInput.addEventListener('touchstart', startInputPress, { passive: true });
-            globalInput.addEventListener('mousedown', startInputPress);
-
-            // Attach End to Window to catch release anywhere
-            window.addEventListener('touchend', (e) => {
-                if (inputLongPressTimer) endInputPress(e);
-            });
-            window.addEventListener('mouseup', (e) => {
-                if (inputLongPressTimer) endInputPress(e);
-            });
-            globalInput.addEventListener('touchmove', () => {
-                // Optional: Cancel if moved too much? For now, keep simple.
-                // clearTimeout(inputLongPressTimer); 
-            });
-
-            // Prevent Context Menu on long press
-            globalInput.addEventListener('contextmenu', (e) => {
-                if (isLongPressActive) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }
-            });
-
-            // 2. Normal Input Behavior
-            globalInput.oninput = (e) => {
-                this.searchQuery = e.target.value.toLowerCase();
-                this.renderApp();
-                if (globalSendBtn) {
-                    if (e.target.value.trim().length > 0) globalSendBtn.classList.remove('hidden');
-                    else globalSendBtn.classList.add('hidden');
-                }
-            };
-            globalInput.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    this.triggerUniversalSend(globalInput);
-                    if (globalSendBtn) globalSendBtn.classList.add('hidden');
-                }
-            };
+            // auto-navigate to chat logic
             globalInput.onfocus = () => {
-                // Delay to see if it was a long press (which would hide the input)
-                // But generally, touchstart happens first.
                 setTimeout(() => {
                     if (!this.isVoiceMode) {
                         const viewsToAutoChat = ['home', 'notes-all', 'reading-all', 'reader-detail'];
@@ -362,29 +286,65 @@ class MobileApp {
                     }
                 }, 100);
             };
-        }
 
-        if (globalSendBtn && globalInput) {
-            globalSendBtn.onclick = () => {
-                this.triggerUniversalSend(globalInput);
-                globalSendBtn.classList.add('hidden');
+            globalInput.oninput = (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.renderApp();
+                updateDockState();
+            };
+
+            globalInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.triggerUniversalSend(globalInput);
+                    globalInput.value = ''; // clear
+                    updateDockState();
+                }
             };
         }
 
-        // --- Toggle Voice Mode Back Handler ---
-        const holdToTalk = document.getElementById('hold-to-talk');
-        if (holdToTalk) {
-            // If user taps (short press) hold-to-talk, switch back to text
-            holdToTalk.addEventListener('click', () => {
-                this.toggleVoiceMode();
-                // Re-focus input?
-                setTimeout(() => {
-                    if (globalInput) globalInput.focus();
-                }, 100);
-            });
+        // Action Button Logic
+        if (dockActionBtn) {
+            // 1. Click Handler (Send)
+            dockActionBtn.onclick = (e) => {
+                if (isTypingMode) {
+                    // Send Action
+                    this.triggerUniversalSend(globalInput);
+                    // globalInput.value = ''; // triggerUniversalSend usually clears it? check.
+                    // If not, clear it here.
+                    // Assuming triggerUniversalSend reads value.
+                    // Let's force clear UI update 
+                    setTimeout(() => updateDockState(), 50);
+                } else {
+                    // Mic Click (Short Tap) -> Maybe toggle voice mode or just hint?
+                    // User wants "Long Press", so Short Tap could be ignored or invoke Voice Search?
+                    // For now, let's just hint or do nothing.
+                }
+            };
+
+            // 2. Long Press Handler (Voice)
+            const startVoice = (e) => {
+                if (isTypingMode) return; // Ignore if typing
+                e.preventDefault(); // Prevent click
+                dockActionBtn.style.color = '#ff3b30'; // Red feedback
+                this.startVoiceRecognition();
+            };
+
+            const stopVoice = (e) => {
+                if (isTypingMode) return;
+                // e.preventDefault(); // Don't prevent default on end, might need click? No.
+                dockActionBtn.style.color = '';
+                this.stopVoiceRecognition();
+            };
+
+            dockActionBtn.addEventListener('touchstart', startVoice, { passive: false });
+            dockActionBtn.addEventListener('touchend', stopVoice);
+            dockActionBtn.addEventListener('mousedown', startVoice);
+            dockActionBtn.addEventListener('mouseup', stopVoice);
+            dockActionBtn.addEventListener('mouseleave', stopVoice);
         }
 
-        // --- API \u0026 GDrive Settings Dialogs ---
+        // --- API & GDrive Settings Dialogs ---
         this.setupSettingsDialogs();
 
         // Delegation for dynamic cards & Chat Links
@@ -779,6 +739,9 @@ class MobileApp {
         const editorIndicator = document.getElementById('editor-voice-indicator');
         if (editorIndicator) editorIndicator.classList.remove('hidden');
 
+        const dockIndicator = document.getElementById('dock-voice-indicator');
+        if (dockIndicator) dockIndicator.classList.remove('hidden');
+
         try {
             const recognition = new SpeechRecognition();
             this.currentRecognition = recognition;
@@ -815,6 +778,9 @@ class MobileApp {
                 if (editorIndicator && (finalTranscript || interimTranscript)) {
                     editorIndicator.textContent = displayText;
                 }
+                if (dockIndicator && (finalTranscript || interimTranscript)) {
+                    dockIndicator.textContent = displayText;
+                }
 
                 // Buffer logic
                 this.voiceBuffer = (this.voiceBuffer || '') + finalTranscript;
@@ -846,7 +812,7 @@ class MobileApp {
                 this.isRecognitionActive = false;
                 this.currentRecognition = null;
 
-                // Don't reset UI here immediately if we want to show 'Sending...', 
+                // Don't reset UI here immediately if we want to show 'Sending...',
                 // but for now, reset is safer.
                 this.resetVoiceUI();
 
@@ -885,6 +851,11 @@ class MobileApp {
         if (editorIndicator) {
             editorIndicator.classList.add('hidden');
             editorIndicator.textContent = 'Recording...';
+        }
+        const dockIndicator = document.getElementById('dock-voice-indicator');
+        if (dockIndicator) {
+            dockIndicator.classList.add('hidden');
+            dockIndicator.textContent = 'Recording...';
         }
     }
 
