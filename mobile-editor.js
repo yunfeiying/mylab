@@ -179,13 +179,25 @@ class MobileEditor {
     }
 
     async saveNote(isSilent = false) {
-        if (!this.currentNoteId || this.isSaved) return;
+        if (!this.currentNoteId) return;
+        // Allow saving even if isSaved is true, to force update timestamp/structure if needed
+        // But for optimization, we usually return. However, "New Note" starts with isSaved=false.
+        if (this.isSaved) return;
 
         let title = this.headerTitle?.value?.trim();
         const content = this.editor.innerHTML;
         const text = this.editor.innerText.trim();
 
-        // 自动提取标题：如果标题为空，取第一行文本
+        // If completely empty, don't save yet unless it's an old note being cleared? 
+        // No, we should save empty notes to avoid data loss illusion
+        // BUT, if it is a NEW note and empty, maybe skip?
+        // Let's save if there is ANY content or title.
+        if (!title && !text) {
+            console.log('[Editor] Empty note, skipping auto-save');
+            return;
+        }
+
+        // Auto-extract title
         if (!title && text) {
             const firstLine = text.split('\n')[0].substring(0, 25).trim();
             if (firstLine) {
@@ -199,21 +211,27 @@ class MobileEditor {
             title: title || 'Untitled Note',
             content: content,
             type: 'note',
-            timestamp: Date.now(),
+            timestamp: Date.now(), // Keep original creation time? Ideally yes, but here we simplify
             updatedAt: Date.now()
         };
 
+        // Preserve original timestamp if possible (requires fetching old data or storing it in memory)
+        // For now, simple update.
+
         if (window.appStorage) {
             try {
-                // Using standard .set() method from storage-bridge.js
                 await window.appStorage.set({ [this.currentNoteId]: noteData });
                 this.isSaved = true;
                 if (!isSilent) this.showToast('Saved');
 
-                // If we have mobileCore, refresh the home list
-                if (window.mobileCore) window.mobileCore.renderApp();
+                // Update MobileCore Cache
+                if (window.mobileCore) {
+                    window.mobileCore.cacheDirty = true; // Mark dirty
+                    window.mobileCore.renderApp(); // Refresh UI
+                }
             } catch (e) {
                 console.error('[Editor] Save failed:', e);
+                this.showToast('Save Failed');
             }
         }
     }

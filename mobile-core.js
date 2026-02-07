@@ -1,5 +1,5 @@
 /**
- * mobile-core.js - Monolith Navigation Controller (V9.2)
+ * mobile-core.js - The Brain of Mobile App (V10.7)
  */
 
 class MobileApp {
@@ -22,7 +22,7 @@ class MobileApp {
         // Initialize external modules if available
         if (window.initMobileBrowser) window.initMobileBrowser(this);
 
-        console.log('MobileCore V12.0 (Modular) Initialized');
+        console.log('MobileCore V10.7 (Modular) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -199,37 +199,38 @@ class MobileApp {
         }
 
         // --- Global Nav: Home/Back Button with Voice Toggle (Long Press) ---
+        // --- Global Nav: Home/Back Button (Pure Home Function) ---
         const homeNavBtn = document.getElementById('nav-btn-home');
         if (homeNavBtn) {
-            let longPressTimer;
-            const startPress = (e) => {
-                longPressTimer = setTimeout(() => {
-                    this.toggleVoiceMode(); // Switch between Home and Voice states
-                }, 600);
-            };
-            const endPress = () => clearTimeout(longPressTimer);
-
-            homeNavBtn.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
-            homeNavBtn.addEventListener('touchstart', startPress);
-            homeNavBtn.addEventListener('touchend', endPress);
-            homeNavBtn.addEventListener('touchmove', endPress);
-            homeNavBtn.addEventListener('mousedown', (e) => { if (e.button === 0) startPress(e); });
-            homeNavBtn.addEventListener('mouseup', endPress);
-            homeNavBtn.addEventListener('mouseleave', endPress);
-
             homeNavBtn.onclick = (e) => {
+                // If in voice mode, valid to reset to text mode
                 if (this.isVoiceMode) {
-                    // If in voice mode, first click toggles back to keyboard
                     this.toggleVoiceMode();
+                }
+
+                // Always navigate home
+                if (this.activeView !== 'home') {
+                    this.navigateTo('home');
                 } else {
-                    this.goBack();
+                    // If already at home, maybe refresh or scroll to top?
+                    // For now, just reset search if any
+                    if (this.searchQuery) {
+                        this.searchQuery = '';
+                        const input = document.getElementById('global-input');
+                        if (input) input.value = '';
+                        this.renderApp();
+                    }
                 }
             };
         }
 
         // Back logic for specific views
         document.querySelectorAll('.btn-go-home').forEach(btn => {
-            if (btn.id !== 'nav-btn-home') btn.onclick = () => this.goBack();
+            if (btn.id !== 'nav-btn-home') btn.onclick = () => {
+                // Ensure voice mode is off when leaving deep views?
+                if (this.isVoiceMode) this.toggleVoiceMode();
+                this.navigateTo('home');
+            };
         });
         document.querySelectorAll('.btn-back-to-notes').forEach(btn => {
             btn.onclick = async () => {
@@ -244,11 +245,33 @@ class MobileApp {
             btn.onclick = () => this.navigateTo('reading-all');
         });
 
-        // --- Global Core Hub: Input \u0026 Send ---
+        // --- Global Core Hub: Input & Send ---
         const globalInput = document.getElementById('global-input');
         const globalSendBtn = document.getElementById('btn-global-send');
 
         if (globalInput) {
+            // 1. Long Press to Voice Mode
+            let inputLongPressTimer;
+            const startInputPress = () => {
+                inputLongPressTimer = setTimeout(() => {
+                    if (window.navigator.vibrate) window.navigator.vibrate(50);
+                    this.toggleVoiceMode();
+                }, 600);
+            };
+            const cancelInputPress = () => clearTimeout(inputLongPressTimer);
+
+            globalInput.addEventListener('touchstart', startInputPress, { passive: true });
+            globalInput.addEventListener('touchend', cancelInputPress);
+            globalInput.addEventListener('touchmove', cancelInputPress);
+            globalInput.addEventListener('contextmenu', (e) => {
+                // If long press triggered voice, prevent context menu
+                // But we can't easily know if it triggered.
+                // Generally, on mobile inputs, we might want context menu.
+                // Let's rely on the timer. If timer triggered, the input is hidden, so context menu might be suppressed.
+                // e.preventDefault(); 
+            });
+
+            // 2. Normal Input Behavior
             globalInput.oninput = (e) => {
                 this.searchQuery = e.target.value.toLowerCase();
                 this.renderApp();
@@ -265,8 +288,14 @@ class MobileApp {
                 }
             };
             globalInput.onfocus = () => {
-                const viewsToAutoChat = ['home', 'notes-all', 'reading-all', 'reader-detail'];
-                if (viewsToAutoChat.includes(this.activeView)) this.navigateToChat();
+                // Delay to see if it was a long press (which would hide the input)
+                // But generally, touchstart happens first.
+                setTimeout(() => {
+                    if (!this.isVoiceMode) {
+                        const viewsToAutoChat = ['home', 'notes-all', 'reading-all', 'reader-detail'];
+                        if (viewsToAutoChat.includes(this.activeView)) this.navigateToChat();
+                    }
+                }, 100);
             };
         }
 
@@ -275,6 +304,19 @@ class MobileApp {
                 this.triggerUniversalSend(globalInput);
                 globalSendBtn.classList.add('hidden');
             };
+        }
+
+        // --- Toggle Voice Mode Back Handler ---
+        const holdToTalk = document.getElementById('hold-to-talk');
+        if (holdToTalk) {
+            // If user taps (short press) hold-to-talk, switch back to text
+            holdToTalk.addEventListener('click', () => {
+                this.toggleVoiceMode();
+                // Re-focus input?
+                setTimeout(() => {
+                    if (globalInput) globalInput.focus();
+                }, 100);
+            });
         }
 
         // --- API \u0026 GDrive Settings Dialogs ---
@@ -492,23 +534,12 @@ class MobileApp {
             globalInput.classList.add('hidden');
             if (globalAddBtn) globalAddBtn.classList.add('hidden');
             holdToTalk.classList.remove('hidden');
-            // State 2: Voice Mode (Microphone Icon)
-            homeBtn.innerHTML = `
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ios-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                    <line x1="12" y1="19" x2="12" y2="22"></line>
-                </svg>`;
+            // State 2: Voice Mode (Red style is handled by CSS on .recording class, or just text)
         } else {
             globalInput.classList.remove('hidden');
             if (globalAddBtn) globalAddBtn.classList.remove('hidden');
             holdToTalk.classList.add('hidden');
-            // State 1: Home Mode (Home Icon)
-            homeBtn.innerHTML = `
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                    <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>`;
+            // State 1: Text Mode
         }
     }
 
