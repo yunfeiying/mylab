@@ -742,13 +742,42 @@ class MobileApp {
     }
 
     startVoiceRecognition(onFinished = null) {
-        if (this.isRecognitionActive) return; // Prevent double trigger
+        console.log('[Voice] Triggered');
+
+        // Auto-recover from stale state
+        if (this.isRecognitionActive && !this.currentRecognition) {
+            console.warn('[Voice] Resetting stale active state');
+            this.isRecognitionActive = false;
+        }
+
+        if (this.isRecognitionActive) {
+            console.log('[Voice] Already active, ignoring');
+            return;
+        }
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             alert('Speech recognition is not supported in this browser.');
             return;
         }
+
+        // 1. Immediate UI Feedback (Crucial for UX)
+        if (window.navigator.vibrate) window.navigator.vibrate(50);
+
+        const holdBtn = document.getElementById('hold-to-talk');
+        if (holdBtn) {
+            holdBtn.classList.remove('hidden'); // Ensure visible
+            holdBtn.style.backgroundColor = '#ff3b30'; // Red
+            holdBtn.textContent = 'Listening...';
+            holdBtn.classList.add('recording');
+        }
+
+        // Editor floating button feedback
+        const editorVoiceBtn = document.getElementById('btn-editor-voice');
+        if (editorVoiceBtn) editorVoiceBtn.style.color = '#ff3b30';
+
+        const editorIndicator = document.getElementById('editor-voice-indicator');
+        if (editorIndicator) editorIndicator.classList.remove('hidden');
 
         try {
             const recognition = new SpeechRecognition();
@@ -757,17 +786,13 @@ class MobileApp {
             recognition.lang = 'zh-CN';
             recognition.interimResults = true;
             recognition.maxAlternatives = 1;
-            recognition.continuous = true; // Keep listening until explicit stop
+            recognition.continuous = true;
 
             recognition.onstart = () => {
                 this.isRecognitionActive = true;
-                console.log('[Voice] Started');
-                if (window.navigator.vibrate) window.navigator.vibrate(50);
-                const holdBtn = document.getElementById('hold-to-talk');
-                if (holdBtn) {
-                    holdBtn.style.backgroundColor = '#ff3b30'; // Red
-                    holdBtn.textContent = '松开 发送';
-                }
+                console.log('[Voice] Engine Started');
+                // Double confirm UI
+                if (holdBtn) holdBtn.textContent = '说吧 (Listening)';
             };
 
             recognition.onresult = (event) => {
@@ -782,88 +807,115 @@ class MobileApp {
                     }
                 }
 
-                // Visual feedback of what is being heard
-                const holdBtn = document.getElementById('hold-to-talk');
+                // Visual feedback
+                const displayText = (finalTranscript + interimTranscript).substring(0, 15) + '...';
                 if (holdBtn && (finalTranscript || interimTranscript)) {
-                    holdBtn.textContent = (finalTranscript + interimTranscript).substring(0, 15) + '...';
+                    holdBtn.textContent = displayText;
+                }
+                if (editorIndicator && (finalTranscript || interimTranscript)) {
+                    editorIndicator.textContent = displayText;
                 }
 
-                // If final, send immediately? No, wait for stop.
-                // Store incomplete result
+                // Buffer logic
                 this.voiceBuffer = (this.voiceBuffer || '') + finalTranscript;
             };
 
             recognition.onerror = (event) => {
                 console.error('[Voice] Error:', event.error);
+
+                // Allow restart on next try
                 this.isRecognitionActive = false;
 
-                // Specific handling for security blocking
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                    if (!isSecure) {
-                        alert('⚠️ Voice Access Blocked\n\nModern browsers REQUIRE "HTTPS" for microphone access.\n\nYou are currently on "HTTP".\nPlease use localhost or setup an HTTPS server/tunnel.');
-                    } else {
-                        alert('⚠️ Microphone Permission Denied.\nPlease check your browser settings.');
-                    }
+                // Ignore harmless errors
+                if (event.error === 'no-speech' || event.error === 'aborted') {
                     return;
                 }
 
-                // Only alert on real errors, ignore 'no-speech' or 'aborted' if short press
-                if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    alert('⚠️ Microphone access denied. Please check permission settings (HTTPS required).');
+                } else {
                     if (window.showToast) window.showToast('Voice Error: ' + event.error);
                 }
-                const holdBtn = document.getElementById('hold-to-talk');
-                if (holdBtn) {
-                    holdBtn.style.backgroundColor = '';
-                    holdBtn.textContent = '按住 说话';
-                }
+
+                // Reset UI
+                this.resetVoiceUI();
             };
 
             recognition.onend = () => {
+                console.log('[Voice] Engine Ended');
                 this.isRecognitionActive = false;
-                console.log('[Voice] Ended');
-                const holdBtn = document.getElementById('hold-to-talk');
-                if (holdBtn) {
-                    holdBtn.style.backgroundColor = '';
-                    holdBtn.textContent = '按住 说话';
-                }
+                this.currentRecognition = null;
 
-                // Process the buffer
+                // Don't reset UI here immediately if we want to show 'Sending...', 
+                // but for now, reset is safer.
+                this.resetVoiceUI();
+
+                // Process Buffer
                 if (this.voiceBuffer && this.voiceBuffer.trim()) {
                     const text = this.voiceBuffer.trim();
-                    this.voiceBuffer = ''; // Clear
-
-                    if (this.activeView === 'editor' && window.mobileEditor) {
-                        window.mobileEditor.insertTextAtCursor(text);
-                    } else {
-                        this.triggerUniversalSend({ value: text, id: 'voice-input' });
-                    }
+                    this.voiceBuffer = '';
+                    this.handleVoiceResult(text);
                 }
 
                 if (typeof onFinished === 'function') onFinished();
             };
 
-            this.voiceBuffer = ''; // Reset buffer
+            this.voiceBuffer = '';
             recognition.start();
 
         } catch (e) {
-            console.error('[Voice] Start failed:', e);
+            console.error('[Voice] Start exception:', e);
             this.isRecognitionActive = false;
+            this.resetVoiceUI();
+            alert('Voice Start Failed: ' + e.message);
         }
     }
 
-    stopVoiceRecognition() {
-        if (this.currentRecognition && this.isRecognitionActive) {
-            // Give it a tiny delay to catch the last syllable if user speaks fast
+    resetVoiceUI() {
+        const holdBtn = document.getElementById('hold-to-talk');
+        if (holdBtn) {
+            holdBtn.style.backgroundColor = '';
+            holdBtn.textContent = '按住 说话';
+            holdBtn.classList.remove('recording');
+        }
+        const editorVoiceBtn = document.getElementById('btn-editor-voice');
+        if (editorVoiceBtn) editorVoiceBtn.style.color = '';
+
+        const editorIndicator = document.getElementById('editor-voice-indicator');
+        if (editorIndicator) {
+            editorIndicator.classList.add('hidden');
+            editorIndicator.textContent = 'Recording...';
+        }
+    }
+
+    handleVoiceResult(text) {
+        if (!text) return;
+        if (this.activeView === 'editor' && window.mobileEditor) {
+            window.mobileEditor.insertTextAtCursor(text);
+        } else {
+            // For global chat, send directly
+            this.triggerUniversalSend({ value: text, id: 'voice-input' });
+        }
+    }
+
+    stopVoiceRecognition(callback) {
+        // Immediate UI feedback to show "Processing"
+        const holdBtn = document.getElementById('hold-to-talk');
+        if (holdBtn) holdBtn.textContent = 'Processing...';
+
+        if (this.currentRecognition) {
+            // Delay stop slightly to catch trailing audio
             setTimeout(() => {
                 try {
-                    this.currentRecognition.stop();
+                    if (this.currentRecognition) this.currentRecognition.stop();
                 } catch (e) { console.log(e); }
-            }, 300);
+            }, 500);
         } else {
-            // Fallback if stopped before started (short tap)
             this.isRecognitionActive = false;
+            this.resetVoiceUI();
         }
+
+        if (callback) callback();
     }
 
 
