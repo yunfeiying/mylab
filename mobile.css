@@ -153,6 +153,12 @@ html {
     min-height: 300px;
 }
 
+.editor-body p {
+    text-indent: 2em;
+    margin-bottom: 1em;
+    margin-top: 0;
+}
+
 .editor-body[placeholder]:empty:before {
     content: attr(placeholder);
     color: #ccc;
@@ -391,12 +397,49 @@ html {
     outline: none;
 }
 
-.home-btn-line:active {
-    background: rgba(0, 0, 0, 0.05);
+#hold-to-talk {
+    flex: 1;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f2f2f7;
+    border-radius: 19px;
+    font-weight: 600;
+    color: #1c1c1e;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 0.2s, transform 0.1s;
+}
+
+#hold-to-talk.recording {
+    background: #e5e5ea;
+    transform: scale(0.98);
+}
+
+.core-dock-btn {
+    width: 44px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    transition: transform 0.2s, color 0.2s;
+    cursor: pointer;
+}
+
+.core-dock-btn:active {
     transform: scale(0.9);
 }
 
-.home-btn-line.active {
+.core-dock-btn svg {
+    display: block;
+}
+
+#hold-to-talk:active {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 20px;
     color: var(--ios-blue);
 }
 
@@ -639,7 +682,7 @@ html {
 /* === Editor Floating Capsule Toolbar === */
 .editor-toolbar-floating {
     position: fixed;
-    bottom: calc(var(--safe-bottom) + 20px);
+    bottom: calc(var(--safe-bottom) + 86px);
     left: 0;
     right: 0;
     display: flex;
@@ -1371,5 +1414,83 @@ html {
 }
 
 .message.assistant .chat-link {
+
     color: var(--ios-blue);
+}
+
+/* === File Preview Cards (V10.8) === */
+.chat-file-card {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    padding: 10px 12px;
+    border-radius: 14px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    width: 100%;
+    /* max-width: 260px; Removed max-width to let bubble handle it */
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    text-align: left;
+    transition: transform 0.2s, background 0.2s;
+    cursor: default;
+}
+
+.message.user .chat-file-card {
+    background: rgba(255, 255, 255, 0.2);
+    /* Semi-transparent in blue bubble */
+    border: none;
+    box-shadow: none;
+}
+
+.chat-file-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: #f2f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    color: #555;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.message.user .chat-file-icon {
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--ios-blue);
+}
+
+.chat-file-info {
+    flex: 1;
+    overflow: hidden;
+    min-width: 0;
+    /* Flex fix for ellipsis */
+}
+
+.chat-file-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.message.user .chat-file-name {
+    color: white;
+}
+
+.chat-file-meta {
+    font-size: 11px;
+    color: #8e8e93;
+    margin-top: 2px;
+}
+
+.message.user .chat-file-meta {
+    color: rgba(255, 255, 255, 0.8);
 }

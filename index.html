@@ -34,7 +34,7 @@
             white-space: nowrap;
         }
     </style>
-    <script src="modules/web-compat.js?v=10.5"></script>
+    <script src="modules/web-compat.js?v=10.5" defer></script>
 </head>
 
 <body>
@@ -576,8 +576,9 @@
     <input type="file" id="editor-ocr-input" class="hidden" accept="image/*" capture="camera">
 
     <!-- Google API & Identity (GIS) for Web Sync -->
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://accounts.google.com/gsi/client"></script>
+    <!-- Google API & Identity (GIS) for Web Sync - REMOVED: Now lazy loaded in mobile-gdrive.js -->
+    <!-- <script src="https://apis.google.com/js/api.js"></script> -->
+    <!-- <script src="https://accounts.google.com/gsi/client"></script> -->
 
     <div id="attachment-preview-container" class="attachment-preview-container hidden"></div>
 
@@ -627,8 +628,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="../tesseract.min.js?v=10.5"></script>
-    <script src="../lib/Readability.js?v=10.5"></script>
+    <!-- Scripts - Deferred for performance -->
+    <!-- Tesseract & Readability are now Lazy Loaded by mobile-chat.js -->
 
     <!-- Image Preview Modal (Lightbox) -->
     <div id="image-modal-overlay" class="action-sheet-overlay hidden"
@@ -638,17 +639,18 @@
         <img id="modal-image-full" src=""
             style="max-width: 95%; max-height: 85%; object-fit: contain; border-radius: 8px;">
     </div>
-    <script src="modules/idb-utils.js?v=10.6"></script>
-    <script src="modules/storage-bridge.js?v=10.6"></script>
-    <script src="ai-core-mobile.js?v=10.6"></script>
-    <script src="modules/memory-agent.js?v=10.6"></script>
-    <script src="mobile-browser.js?v=10.6"></script>
-    <script src="mobile-core.js?v=10.6"></script>
-    <script src="mobile-editor.js?v=10.6"></script>
-    <script src="modules/chat-skills-engine.js?v=10.6"></script>
-    <script src="mobile-chat.js?v=10.6"></script>
-    <script src="mobile-gdrive.js?v=10.6"></script>
-    <script src="mobile-sync.js?v=10.6"></script>
+    <script src="modules/idb-utils.js?v=10.6" defer></script>
+    <script src="modules/storage-bridge.js?v=10.6" defer></script>
+    <script src="ai-core-mobile.js?v=10.6" defer></script>
+    <script src="modules/memory-agent.js?v=10.6" defer></script>
+    <script src="mobile-browser.js?v=10.6" defer></script>
+    <script src="mobile-core.js?v=10.6" defer></script>
+    <script src="mobile-editor.js?v=10.6" defer></script>
+    <script src="mobile-attachment-manager.js?v=10.6" defer></script>
+    <script src="modules/chat-skills-engine.js?v=10.6" defer></script>
+    <script src="mobile-chat.js?v=10.6" defer></script>
+    <script src="mobile-gdrive.js?v=10.6" defer></script>
+    <script src="mobile-sync.js?v=10.6" defer></script>
 </body>
 
 </html>

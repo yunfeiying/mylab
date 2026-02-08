@@ -1,5 +1,5 @@
 /**
- * mobile-chat.js - Refined Layout Chat Controller (V10.12)
+ * mobile-chat.js - Refined Layout Chat Controller (V7.0)
  * Implemented: Chat History & Session Management, Global Dock Compatibility
  */
 
@@ -14,6 +14,9 @@ class MobileChat {
         this.chatHistory = [];
         this.isGenerating = false;
         this.pendingFiles = []; // For the global dock preview
+
+        // Initialize Attachment Manager
+        this.attachmentManager = new MobileAttachmentManager(this);
 
         this.setupEvents();
         window.mobileChat = this;
@@ -175,148 +178,9 @@ class MobileChat {
     }
 
     async handleAttachments(files) {
-        for (const file of files) {
-            const fileName = file.name || `attachment_${Date.now()}.${file.type.split('/')[1] || 'png'}`;
-            const fileType = file.type;
-
-            try {
-                let extractedText = "";
-                let base64 = null;
-
-                if (fileType.startsWith('image/')) {
-                    // Image OCR logic
-                    const reader = new FileReader();
-                    const result = await new Promise((resolve, reject) => {
-                        reader.onload = async (e) => {
-                            const b64 = e.target.result;
-                            // Show thumbnail immediately
-                            this.addUserMessage(`[Image] ${fileName} - Processing...`, true, b64);
-                            if (window.showToast) window.showToast('Extracting text...', 2000);
-
-                            try {
-                                const TESS = await this.loadLibrary('Tesseract', '../tesseract.min.js');
-
-                                // Configure Tesseract to use local worker and core
-                                const worker = await TESS.createWorker('chi_sim+eng', 1, {
-                                    workerPath: '../worker.min.js',
-                                    corePath: '../tesseract-core.wasm.js',
-                                    langPath: '../', // Assuming traineddata is in root
-                                    logger: m => console.log('[Tesseract]', m)
-                                });
-
-                                let { data: { text } } = await worker.recognize(file);
-                                await worker.terminate();
-
-                                if (text) text = text.replace(/\s+/g, '').replace(/[|｜_]/g, '');
-                                resolve({ text, base64: b64 });
-                            } catch (err) { reject(err); }
-                        };
-                        reader.onerror = reject;
-                        reader.readAsDataURL(file);
-                    });
-                    extractedText = result.text;
-                    base64 = result.base64;
-                } else {
-                    this.addUserMessage(`[Attachment] ${fileName} - Analyzing...`, true);
-                    extractedText = await this.processFile(file);
-                }
-
-                // SAVE AS PERMANENT RECORD
-                await this.saveAttachmentAsRecord(file, extractedText, base64);
-
-                if (extractedText) {
-                    // 1. Show the extracted content clearly
-                    this.addAIMessage(`**${fileName}** 文本提取成功:\n\n${extractedText.substring(0, 500)}${extractedText.length > 500 ? '...' : ''}`, true);
-
-                    // 2. Perform automated analysis without RAG interference
-                    const prompt = `分析下文提取自 "${fileName}" 的内容，并给出核心摘要（3-5点）：\n\n${extractedText}`;
-                    const thinkingEl = this.showAIThinking();
-                    this.isGenerating = true;
-                    // Pass skipKnowledge option
-                    await this.getAIResponse(prompt, thinkingEl, { skipKnowledge: true });
-                    this.isGenerating = false;
-                } else {
-                    this.addAIMessage(`已收到文件 "${fileName}"，但未能提取到有效文字内容。`, false);
-                }
-            } catch (err) {
-                console.error('File Processing Error:', err);
-                this.addAIMessage(`Error processing "${fileName}": ` + err.message, false);
-            }
+        if (this.attachmentManager) {
+            await this.attachmentManager.handleAttachments(files);
         }
-    }
-
-    async processFile(file) {
-        const fileName = file.name.toLowerCase();
-
-        if (fileName.endsWith('.docx')) {
-            const mammoth = await this.loadLibrary('mammoth', '../lib/mammoth.browser.min.js');
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-            return result.value;
-        }
-
-        if (fileName.endsWith('.pdf')) {
-            const arrayBuffer = await file.arrayBuffer();
-            const typedarray = new Uint8Array(arrayBuffer);
-
-            // Lazy load PDF.js
-            if (!window.pdfjsLib) {
-                const pdfjs = await import('../lib/pdf.mjs');
-                window.pdfjsLib = pdfjs;
-                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../lib/pdf.worker.mjs';
-            }
-
-            const loadingTask = window.pdfjsLib.getDocument(typedarray);
-            const pdf = await loadingTask.promise;
-            let fullText = "";
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                const pageText = textContent.items.map(item => item.str).join(' ');
-                fullText += pageText + "\n";
-            }
-            return fullText;
-        }
-
-        if (fileName.endsWith('.pptx')) {
-            const JSZip = await this.loadLibrary('JSZip', '../lib/jszip.min.js');
-            const zip = await JSZip.loadAsync(file);
-            let fullText = "";
-            const slideFiles = Object.keys(zip.files).filter(f => f.match(/^ppt\/slides\/slide\d+\.xml$/));
-            slideFiles.sort((a, b) => {
-                const numA = parseInt(a.match(/slide(\d+)\.xml/)[1]);
-                const numB = parseInt(b.match(/slide(\d+)\.xml/)[1]);
-                return numA - numB;
-            });
-            for (const slidePath of slideFiles) {
-                const xmlText = await zip.file(slidePath).async("string");
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-                const textNodes = xmlDoc.getElementsByTagName("a:t");
-                for (let i = 0; i < textNodes.length; i++) fullText += textNodes[i].textContent + " ";
-                fullText += "\n";
-            }
-            return fullText;
-        }
-
-        if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-            const XLSX = await this.loadLibrary('XLSX', '../lib/xlsx.full.min.js');
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data, { type: 'array' });
-            let fullText = "";
-            workbook.SheetNames.forEach(sheetName => {
-                fullText += `\n[Sheet: ${sheetName}]\n`;
-                const sheet = workbook.Sheets[sheetName];
-                fullText += XLSX.utils.sheet_to_csv(sheet);
-            });
-            return fullText;
-        }
-
-        if (fileName.endsWith('.txt') || fileName.endsWith('.md') || fileName.endsWith('.js') || fileName.endsWith('.json')) {
-            return await file.text();
-        }
-
-        throw new Error("Unsupported file format for direct processing.");
     }
 
     async loadLibrary(globalName, path) {
@@ -328,30 +192,6 @@ class MobileChat {
             script.onerror = () => reject(new Error(`Failed to load library: ${globalName}`));
             document.head.appendChild(script);
         });
-    }
-
-    async saveAttachmentAsRecord(file, extractedText = '', base64 = null) {
-        if (!window.appStorage) return;
-
-        const timestamp = Date.now();
-        const id = 'attach_' + timestamp;
-        const record = {
-            id: id,
-            type: 'note', // Save as note so it appears in library
-            title: `[File] ${file.name}`,
-            content: extractedText ? `OCR Content:\n${extractedText}` : `File attached: ${file.name}`,
-            timestamp: timestamp,
-            updatedAt: timestamp,
-            fileType: file.type,
-            fileName: file.name,
-            fileSize: file.size,
-            isAttachment: true
-        };
-
-        if (base64) record.imagePreview = base64;
-
-        await window.appStorage.set({ [id]: record });
-        if (window.mobileCore) window.mobileCore.renderApp();
     }
 
     async loadSoulConfig() {
@@ -526,13 +366,16 @@ class MobileChat {
 
         this.chatHistory.forEach(msg => {
             if (msg.role === 'user') {
-                this.addUserMessage(msg.content, false, msg.image);
+                // Support both new 'attachment' object and legacy 'image' string
+                this.addUserMessage(msg.content, false, msg.attachment || msg.image);
             } else {
                 this.addAIMessage(msg.content, false);
             }
         });
         setTimeout(() => this.scrollToBottom(), 100);
     }
+
+
 
     renderSessions() {
         const container = document.getElementById('chat-sessions-container');
@@ -649,10 +492,21 @@ class MobileChat {
         }
     }
 
-    addUserMessage(text, pushToHistory = true, imageBase64 = null) {
+    addUserMessage(text, pushToHistory = true, attachment = null) {
+        // Normalize attachment structure
+        let safeAttachment = null;
+        if (attachment) {
+            if (typeof attachment === 'string') {
+                // Legacy: Base64 string is an image
+                safeAttachment = { type: 'image', url: attachment };
+            } else {
+                safeAttachment = attachment;
+            }
+        }
+
         if (pushToHistory) {
             const msg = { role: 'user', content: text };
-            if (imageBase64) msg.image = imageBase64;
+            if (safeAttachment) msg.attachment = safeAttachment;
             this.chatHistory.push(msg);
             this.saveHistory();
             if (this.chatHistory.length === 1 && this.messagesContainer.firstChild && !this.messagesContainer.firstChild.classList?.contains('message')) {
@@ -664,19 +518,46 @@ class MobileChat {
         el.className = 'message user';
         el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-end; margin:8px 0; width: 100%;';
 
-        let content = `<div class="message-bubble" style="background:var(--ios-blue); color:#fff; padding:10px 16px; border-radius:18px; border-bottom-right-radius:4px; max-width:90%; width: fit-content; word-break: break-word; line-height:1.5;">${this.formatMarkdown(text)}</div>`;
+        // Base bubble style
+        let bubbleStyle = "background:var(--ios-blue); color:#fff; padding:10px 16px; border-radius:18px; border-bottom-right-radius:4px; max-width:90%; width: fit-content; word-break: break-word; line-height:1.5;";
+        let innerHTML = this.formatMarkdown(text);
 
-        if (imageBase64) {
-            content = `
-                <div class="message-bubble" style="background:var(--ios-blue); color:#fff; padding:8px; border-radius:18px; border-bottom-right-radius:4px; max-width:90%; width: fit-content; overflow:hidden;">
-                    <img src="${imageBase64}" class="chat-img"
-                         style="max-width:100%; border-radius:12px; display:block; margin-bottom:8px; cursor:pointer;">
-                    <div style="padding:0 8px 4px; font-size:16px; opacity:0.9;">${this.escapeHtml(text)}</div>
-                </div>
-            `;
+        // --- Attachment Rendering ---
+        if (safeAttachment) {
+            if (safeAttachment.type === 'image') {
+                // Image Card
+                innerHTML = `
+                    <div style="margin: -4px -8px 8px -8px;">
+                        <img src="${safeAttachment.url}" class="chat-img" 
+                             style="max-width:100%; border-radius:12px; display:block; cursor:pointer;">
+                    </div>
+                    <div style="font-size:16px; opacity:0.95;">${this.escapeHtml(text)}</div>
+                `;
+            } else {
+                // File Card (PDF, EPUB, DOCX etc.)
+                const ext = safeAttachment.name.split('.').pop().toUpperCase().substring(0, 4);
+                // Dynamic colors for extensions
+                let iconColor = '#888';
+                if (['PDF'].includes(ext)) iconColor = '#ff3b30'; // IOS Red
+                if (['DOC', 'DOCX'].includes(ext)) iconColor = '#007aff'; // IOS Blue
+                if (['XLS', 'XLSX', 'CSV'].includes(ext)) iconColor = '#34c759'; // IOS Green
+                if (['PPT', 'PPTX'].includes(ext)) iconColor = '#ff9500'; // IOS Orange
+                if (['EPUB'].includes(ext)) iconColor = '#af52de'; // IOS Purple
+
+                innerHTML = `
+                    <div class="chat-file-card">
+                        <div class="chat-file-icon" style="color: ${iconColor}; background: white;">${ext}</div>
+                        <div class="chat-file-info">
+                            <div class="chat-file-name">${this.escapeHtml(safeAttachment.name)}</div>
+                            <div class="chat-file-meta">${safeAttachment.size}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:4px;">${this.escapeHtml(text)}</div>
+                `;
+            }
         }
 
-        el.innerHTML = content;
+        el.innerHTML = `<div class="message-bubble" style="${bubbleStyle}">${innerHTML}</div>`;
         this.messagesContainer.appendChild(el);
         this.scrollToBottom();
     }
@@ -729,37 +610,44 @@ class MobileChat {
             `- 【连接者】: 主动发现当前问题与历史笔记、阅读快照之间的联系。`,
             `- 【决策者】: 提供基于逻辑和事实的建议，而不仅仅是总结。`,
             `---`,
-            `[CAPABILITIES & GUIDELINES]`,
-            `- **Data Access**: You have access to real-time data through your attached TOOLS (Weather, Search, News).`,
-            `- **Handling Links**: If the user provides a link, try to analyze it if context is provided. If you cannot read it (e.g. secure browser limit), ask the user to "Paste the content" or provide a direct clickable link.`,
-            `- **Memory**: You have access to previous conversations.`,
-            `- **Style**: Be concise. Use bullet points. Match the user's language style.`,
+            `[CAPABILITIES & LIMITATIONS]`,
+            `- **NO LIVE BROWSING**: You are running in a secure, isolated mobile environment. You CANNOT visit websites or fetch URLs directly.`,
+            `- **How to Handle URLs**: If the user provides a link, ask them to copy-paste the content or use the "Reader Snapshot" feature (if available). Do NOT pretend to read it.`,
+            `- **Memory**: You have access to previous conversations and structured memory. Use it to maintain continuity.`,
+            `- **Style**: Be concise. Use bullet points. Avoid filler words like "I choose to...".`,
             `---`,
-            `IMPORTANT: Your CORE PERSONA (defined at the top) OVERRIDES these default guidelines. Act as your Persona first.`,
         ];
 
         if (context.hasMemory) {
             core.push(`[CONTEXT: PERSONAL KNOWLEDGE BASE]`);
-            core.push(`- The following is retrieved from the user's notes. Use it to answer.`);
+            core.push(`- 以下是你从用户的知识库中检索到的相关信息。`);
+            core.push(`- 请优先基于这些已知信息进行回答，如果信息冲突，说明理由。`);
         }
 
         if (context.hasLink) {
-            core.push(`[MODE: THE READER]`);
-            core.push(`- Analyze the provided link/content.`);
+            core.push(`[MODE: THE READER (Analysis)]`);
+            core.push(`1. Summary: 1-sentence hook.`);
+            core.push(`2. Key Takeaways: 3-5 high-value bullet points.`);
+            core.push(`3. Impact: Why this matters to the user.`);
         }
 
-        core.push(`[SKILL SYSTEM - ACTIVE]`);
-        core.push(`- If the user asks for data you don't have (e.g. Stock Price), PROPOSE A SKILL using the [PROPOSE_SKILL] format.`);
-        core.push(`- Never say "I cannot access the internet" if a relevant Skill (like Search or Weather) could potentially handle it. Instead, say "Let me check..." and assume the system will try to fetch it.`);
-
+        core.push(`[SKILL SYSTEM - MANDATORY]`);
+        core.push(`- You possess a growing library of SKILLS. Currently: Weather, Search, News, Movies.`);
+        core.push(`- CRITICAL: If a user asks for information you cannot access directly (e.g., Stock prices, Crypto, Flight status, Translation, or specific API data), YOU MUST PROPOSE A NEW SKILL.`);
+        core.push(`- To propose, append technical JSON at the end of your response:`);
+        core.push(`  [PROPOSE_SKILL: {"id": "crypto", "name": "Crypto Tracker", "patterns": ["btc", "crypto", "price"], "apiUrl": "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"}]`);
+        core.push(`- Use "https://m.baidu.com/s?word={query}" as a fallback apiUrl for generic information gathering skills.`);
+        core.push(`- Do NOT apologize for lack of data without offering a [PROPOSE_SKILL] solution.`);
+        core.push(``);
         core.push(`[STRICT OUTPUT RULES]`);
-        core.push(`- NO Markdown Code Blocks (\`\`\`) for plain text.`);
+        core.push(`- NO Markdown Code Blocks (\`\`\`) for text.`);
+        core.push(`- Use **Bold** for critical concepts.`);
         core.push(`- Keep it actionable.`);
-
         if (context.hasRealTime) {
-            core.push(`[SYSTEM UPDATE: LIVE DATA RECEIVED]`);
-            core.push(`- You have received live data from the web (see above).`);
-            core.push(`- Answer the user's question using this data directly.`);
+            core.push(`[SYSTEM OVERRIDE]:`);
+            core.push(`- YOU HAVE BEEN GIVEN REAL-TIME WEB DATA BELOW.`);
+            core.push(`- DO NOT APOLOGIZE OR SAY YOU CANNOT ACCESS THE INTERNET.`);
+            core.push(`- INTEGRATE THE DATA SEAMLESSLY INTO YOUR RESPONSE AS IF IT'S YOUR NATIVE KNOWLEDGE.`);
         }
 
         return core.join('\n');
@@ -812,57 +700,63 @@ class MobileChat {
             }
 
             // Enhanced URL detection for fetching
-            let urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5"'`]*)?)/i);
+            // SKIP if we are doing internal file analysis (skipKnowledge flag)
+            let urlMatch = null;
+            if (!options.skipKnowledge) {
+                urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5"'`]*)?)/i);
+            }
 
             if (urlMatch) {
                 let url = urlMatch[0];
-                if (!url.startsWith('http')) url = 'https://' + url;
-                let foundInReader = false;
-                if (window.mobileCore && window.mobileCore.dataMap) {
-                    for (let [id, val] of window.mobileCore.dataMap) {
-                        if (val.url === url || (val.url && url.includes(val.url))) {
-                            context = `[Context from Link: ${val.title}]\n${val.content || val.text}\n\n`;
-                            foundInReader = true;
-                            break;
+                // Additional safety: ignore common file extensions if no protocol
+                if (!url.startsWith('http') && url.match(/\.(pdf|doc|docx|ppt|pptx|xls|xlsx|epub|png|jpg|jpeg|gif|zip)$/i)) {
+                    // checking if it is a real domain or just a filename
+                    // valid domains rarely look like "something.pdf" unless it's a very weird TLD usage.
+                    // Let's assume for now filenames are not URLs in this context.
+                    urlMatch = null;
+                } else {
+                    if (!url.startsWith('http')) url = 'https://' + url;
+                    let foundInReader = false;
+                    if (window.mobileCore && window.mobileCore.dataMap) {
+                        for (let [id, val] of window.mobileCore.dataMap) {
+                            if (val.url === url || (val.url && url.includes(val.url))) {
+                                context = `[Context from Link: ${val.title}]\n${val.content || val.text}\n\n`;
+                                foundInReader = true;
+                                break;
+                            }
                         }
                     }
-                }
-                if (!foundInReader) {
-                    // 1. Attempt Extension Background Fetch (Best Quality)
-                    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-                        try {
-                            if (window.showToast) window.showToast('Reading link content...', 1500);
-                            const response = await new Promise((resolve) => {
-                                chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
-                                    if (chrome.runtime.lastError) resolve({ success: false });
-                                    else resolve(res);
+                    if (!foundInReader) {
+                        // Attempt real-time fetch via Background Script (CORS-free)
+                        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                            try {
+                                if (window.showToast) window.showToast('Reading link content...', 1500);
+                                const response = await new Promise((resolve) => {
+                                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
+                                        if (chrome.runtime.lastError) {
+                                            resolve({ success: false, error: chrome.runtime.lastError.message });
+                                        } else {
+                                            resolve(res);
+                                        }
+                                    });
                                 });
-                            });
 
-                            if (response && response.success) {
-                                context = `[Context retrieved from URL: ${url}]\n${response.text}\n\n`;
+                                if (response && response.success) {
+                                    context = `[Context retrieved from URL: ${url}]\n${response.text}\n\n`;
+                                    console.log('[LinkFetch] Success, content length:', response.text.length);
+                                } else {
+                                    context = `[URL Detected: ${url}]\n(Fetch failed: ${response?.error || 'Access denied'})\n\n`;
+                                }
+                            } catch (err) {
+                                console.error('[LinkFetch] Error:', err);
+                                context = `[URL Detected: ${url}]\n(System error during fetch)\n\n`;
                             }
-                        } catch (err) { console.error('[LinkFetch] Ext Error:', err); }
-                    }
-
-                    // 2. Fallback: Jina Reader (Cloud Browser for Web Mode)
-                    if (!context) {
-                        try {
-                            if (window.showToast) window.showToast('Activating Cloud Browser...', 1500);
-                            const jinaUrl = `https://r.jina.ai/${url}`;
-                            const res = await fetch(jinaUrl);
-                            if (res.ok) {
-                                const text = await res.text();
-                                context = `[Context retrieved via Cloud Browser: ${url}]\n${text.substring(0, 5000)}\n\n`;
-                            }
-                        } catch (e) {
-                            console.error('[LinkFetch] Cloud Browser Error:', e);
-                            context = `[URL Detected: ${url}]\n(Unable to read content. Please paste text.)\n\n`;
+                        } else {
+                            context = `[URL Detected: ${url}]\n(Note: Live web browsing is restricted in this environment. Please paste content if possible.)\n\n`;
                         }
                     }
                 }
             }
-
 
             // 1. Pre-build the system prompt based on available signals
             const systemPrompt = this.buildSystemPrompt({
@@ -932,49 +826,29 @@ class MobileChat {
     }
 
     async retrieveLocalKnowledge(query) {
-        if (!window.mobileCore) return "";
+        if (!window.mobileCore || !window.mobileCore.dataMap) return "";
 
         const keywords = query.toLowerCase().match(/[\u4e00-\u9fa5a-zA-Z0-9]+/g) || [];
         if (keywords.length === 0) return "";
 
-        let dataset = [];
-
-        // PERFORMANCE OPTIMIZATION: Use Sorted Lists if available (Top 40 Recent Only)
-        // prevents freezing on large datasets
-        if (window.mobileCore.sortedNotes && window.mobileCore.sortedReader) {
-            dataset = [
-                ...window.mobileCore.sortedNotes.slice(0, 40),
-                ...window.mobileCore.sortedReader.slice(0, 40)
-            ];
-        } else if (window.mobileCore.dataMap) {
-            // Fallback: Random map iteration (slower)
-            let count = 0;
-            for (let [id, item] of window.mobileCore.dataMap) {
-                if (count++ > 100) break;
-                dataset.push(item);
-            }
-        }
-
         let candidates = [];
 
-        for (let item of dataset) {
-            if (!item) continue;
+        // Search through the main dataMap (Notes & Reader)
+        for (let [id, item] of window.mobileCore.dataMap) {
             let score = 0;
             const title = (item.title || "").toLowerCase();
             const content = (item.content || item.text || "").toLowerCase();
 
             keywords.forEach(kw => {
                 if (kw.length < 2) return;
-                // High weight for title match
-                if (title.includes(kw)) score += 15;
-                // Moderate weight for content match
-                if (content.includes(kw)) score += 3;
+                if (title.includes(kw)) score += 10;
+                if (content.includes(kw)) score += 2;
             });
 
             if (score > 5) {
                 candidates.push({
                     title: item.title,
-                    content: (item.content || item.text || "").substring(0, 800), // Limit context size
+                    content: (item.content || item.text || "").substring(0, 1000),
                     score: score,
                     type: item.type
                 });
@@ -1034,39 +908,13 @@ class MobileChat {
         if (!url) return false;
 
         try {
-            let response = { success: false };
-
-            // 1. Try Extension Background Fetch (Best Quality - Full HTML)
-            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-                response = await new Promise((resolve) => {
-                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
-                        if (chrome.runtime.lastError) resolve({ success: false });
-                        else resolve(res);
-                    });
+            // 1. Fetch content via background (CORS-free)
+            const response = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
+                    if (chrome.runtime.lastError) resolve({ success: false, error: chrome.runtime.lastError.message });
+                    else resolve(res);
                 });
-            }
-
-            // 2. Fallback: Jina Reader (Cloud Browser for Web Mode)
-            // If extension failed or we are in pure web mode
-            if (!response || !response.success || (!response.html && !response.text)) {
-                console.log('[Reader] Extension fetch failed, trying Cloud Browser...');
-                try {
-                    const jinaRes = await fetch(`https://r.jina.ai/${url}`);
-                    if (jinaRes.ok) {
-                        const jinaText = await jinaRes.text();
-                        // Jina returns structured Markdown. We treat it as the "Text" content.
-                        response = {
-                            success: true,
-                            text: jinaText,
-                            // Wrap in basic HTML for the Reader view
-                            html: `<html><body><article>${this.formatMarkdown(jinaText)}</article></body></html>`,
-                            title: `Snapshot: ${url.split('//')[1].split('/')[0]}` // Fallback title
-                        };
-                    }
-                } catch (e) {
-                    console.error('[Reader] Cloud fetch failed:', e);
-                }
-            }
+            });
 
             if (!response || !response.success || (!response.html && !response.text)) {
                 return false; // Signal failure for fallback
@@ -1089,6 +937,14 @@ class MobileChat {
                         const base = doc.createElement('base');
                         base.href = url;
                         doc.head.insertBefore(base, doc.head.firstChild);
+                    }
+
+                    if (typeof Readability === 'undefined') {
+                        try {
+                            await this.loadLibrary('Readability', '../lib/Readability.js');
+                        } catch (e) {
+                            console.warn("[Reader] Failed to lazy load Readability.js", e);
+                        }
                     }
 
                     if (typeof Readability !== 'undefined') {
@@ -1141,6 +997,7 @@ class MobileChat {
                 await window.mobileCore.renderApp();
                 window.mobileCore.loadReader(readerData);
                 if (window.showToast) window.showToast('Content Captured Successfully!', 1500);
+
             }
             return true;
 
@@ -1149,6 +1006,8 @@ class MobileChat {
             return false;
         }
     }
+
+
 }
 
 document.addEventListener('DOMContentLoaded', () => {
