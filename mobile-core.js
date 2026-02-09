@@ -1132,8 +1132,28 @@ class MobileApp {
         }
 
         const all = this.dataCache;
+        if (!all || Object.keys(all).length === 0) {
+            console.log('[renderApp] No data found');
+            return;
+        }
+
         const noteMap = new Map(); // Use Map to deduplicate by ID
         const readerMap = {}; // For grouping
+
+        // Pre-filter: Skip heavy/system keys early for performance
+        const systemKeys = new Set([
+            'ai_api_key', 'ai_base_url', 'ai_model',
+            'gdrive_client_id', 'gdrive_api_key', 'gdrive_root_folder',
+            'settings', 'user_license_status', 'folder_structure'
+        ]);
+        const isSkippableKey = (key) => {
+            if (!key) return true;
+            if (systemKeys.has(key)) return true;
+            if (key.startsWith('snapshot_')) return true;
+            if (key.startsWith('gdrive_token')) return true;
+            if (key.startsWith('chat_session_') && !key.includes('note')) return true; // Skip chat sessions
+            return false;
+        };
 
         const processItem = (val, key, arrayIdx = -1) => {
             if (!val || typeof val !== 'object') return;
@@ -1235,13 +1255,8 @@ class MobileApp {
         };
 
         Object.entries(all).forEach(([key, val]) => {
-            // Skip config/system keys at root level
-            const systemKeys = [
-                'ai_api_key', 'ai_base_url', 'ai_model',
-                'gdrive_client_id', 'gdrive_api_key', 'gdrive_root_folder',
-                'settings', 'user_license_status', 'folder_structure'
-            ];
-            if (systemKeys.includes(key)) return;
+            // Skip config/system keys at root level using pre-filter
+            if (isSkippableKey(key)) return;
             processItem(val, key);
         });
 

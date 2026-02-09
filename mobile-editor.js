@@ -100,6 +100,54 @@ class MobileEditor {
             voiceBtn.addEventListener('mouseup', stopRecording);
             voiceBtn.addEventListener('mouseleave', stopRecording);
         }
+
+        // Editor Menu Button (三个点)
+        const menuBtn = document.getElementById('btn-editor-menu');
+        const menuOverlay = document.getElementById('editor-menu-overlay');
+        const actEditorSave = document.getElementById('act-editor-save');
+        const actEditorDelete = document.getElementById('act-editor-delete');
+        const actEditorCancel = document.getElementById('act-editor-cancel');
+
+        if (menuBtn && menuOverlay) {
+            menuBtn.onclick = () => {
+                menuOverlay.classList.remove('hidden');
+            };
+
+            // Close on background click
+            menuOverlay.onclick = (e) => {
+                if (e.target === menuOverlay) menuOverlay.classList.add('hidden');
+            };
+        }
+
+        if (actEditorSave) {
+            actEditorSave.onclick = () => {
+                menuOverlay.classList.add('hidden');
+                this.saveNote(); // Not silent, show toast
+            };
+        }
+
+        if (actEditorDelete) {
+            actEditorDelete.onclick = async () => {
+                if (this.currentNoteId && confirm('Delete this note permanently?')) {
+                    menuOverlay.classList.add('hidden');
+                    if (window.appStorage) {
+                        await window.appStorage.remove(this.currentNoteId);
+                        if (window.mobileCore) {
+                            window.mobileCore.cacheDirty = true;
+                            window.mobileCore.navigateTo('notes-all');
+                            window.mobileCore.renderApp();
+                        }
+                        if (window.showToast) window.showToast('Note deleted', 1500);
+                    }
+                }
+            };
+        }
+
+        if (actEditorCancel) {
+            actEditorCancel.onclick = () => {
+                menuOverlay.classList.add('hidden');
+            };
+        }
     }
 
     triggerAutoSave() {
