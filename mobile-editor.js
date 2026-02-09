@@ -288,14 +288,22 @@ class MobileEditor {
     }
 
     async saveNote(isSilent = false) {
-        if (!this.currentNoteId) return;
+        console.log('[Editor] saveNote() called, currentNoteId:', this.currentNoteId);
+
+        if (!this.currentNoteId) {
+            console.warn('[Editor] No currentNoteId, aborting save');
+            return;
+        }
 
         let title = this.headerTitle?.value?.trim();
         const content = this.editor.innerHTML;
         const text = this.editor.innerText.trim();
 
+        console.log('[Editor] Note data - title:', title, 'text length:', text.length);
+
         // If completely empty, don't save yet
         if (!title && !text) {
+            console.log('[Editor] Empty note, skipping save');
             return;
         }
 
@@ -305,17 +313,21 @@ class MobileEditor {
             if (firstLine) {
                 title = firstLine;
                 if (this.headerTitle) this.headerTitle.value = title;
+                console.log('[Editor] Auto-extracted title:', title);
             }
         }
 
         if (window.appStorage) {
             try {
+                console.log('[Editor] Fetching existing notes from storage...');
                 // Get existing notes array
                 const data = await window.appStorage.get('user_notes');
                 let notes = data.user_notes || [];
+                console.log('[Editor] Found', notes.length, 'existing notes');
 
                 // Find if this note already exists
                 const existingIndex = notes.findIndex(n => n.id === this.currentNoteId);
+                console.log('[Editor] Existing note index:', existingIndex);
 
                 const noteData = {
                     id: this.currentNoteId,
@@ -329,19 +341,28 @@ class MobileEditor {
                 // Update or add note
                 if (existingIndex >= 0) {
                     notes[existingIndex] = noteData;
+                    console.log('[Editor] Updated existing note at index', existingIndex);
                 } else {
                     notes.unshift(noteData); // Add to beginning
+                    console.log('[Editor] Added new note to beginning, total notes:', notes.length);
                 }
 
                 // Save updated array
+                console.log('[Editor] Saving to appStorage...');
                 await window.appStorage.set({ user_notes: notes });
+                console.log('[Editor] Save successful!');
+
                 this.isSaved = true;
                 if (!isSilent) this.showToast('Saved');
 
                 // Update MobileCore Cache
                 if (window.mobileCore) {
+                    console.log('[Editor] Updating MobileCore cache and rendering...');
                     window.mobileCore.cacheDirty = true; // Mark dirty
-                    window.mobileCore.renderApp(); // Refresh UI
+                    await window.mobileCore.renderApp(true); // Force refresh UI
+                    console.log('[Editor] MobileCore render complete');
+                } else {
+                    console.warn('[Editor] window.mobileCore not available');
                 }
             } catch (e) {
                 console.error('[Editor] Save failed:', e);
@@ -356,4 +377,5 @@ class MobileEditor {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.mobileEditor = new MobileEditor();
+    console.log('[Editor] MobileEditor initialized');
 });
