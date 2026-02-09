@@ -411,14 +411,40 @@ class MobileApp {
         // Important: Check for delete action first to prevent opening note
         const deleteAction = target.closest('.note-delete-action');
         if (deleteAction) {
-            const card = target.closest('.note-card');
-            if (card) {
-                const id = card.dataset.id;
+            const wrapper = target.closest('.note-item-wrapper');
+            if (wrapper) {
+                const id = wrapper.dataset.id;
+                const type = wrapper.dataset.type;
+
                 if (id && confirm('Delete this item permanently?')) {
-                    await window.appStorage.remove(id);
-                    this.cacheDirty = true; // Mark cache as dirty
-                    this.renderApp(); // Re-render to update UI
-                    if (window.showToast) window.showToast('Item deleted', 1500);
+                    console.log('[Delete] Removing item:', id, 'type:', type);
+
+                    try {
+                        if (type === 'note') {
+                            // For notes: Remove from user_notes array
+                            const data = await window.appStorage.get('user_notes');
+                            let notes = data.user_notes || [];
+                            const originalLength = notes.length;
+
+                            // Filter out the deleted note
+                            notes = notes.filter(n => n.id !== id);
+
+                            console.log('[Delete] Filtered notes:', originalLength, '->', notes.length);
+
+                            // Save updated array
+                            await window.appStorage.set({ user_notes: notes });
+                        } else {
+                            // For reader items: Remove individual key
+                            await window.appStorage.remove(id);
+                        }
+
+                        this.cacheDirty = true; // Mark cache as dirty
+                        this.renderApp(true); // Force re-render to update UI
+                        if (window.showToast) window.showToast('✓ Deleted', 1500);
+                    } catch (e) {
+                        console.error('[Delete] Error:', e);
+                        if (window.showToast) window.showToast('Delete failed', 1500);
+                    }
                 }
             }
             return; // Stop further processing if delete action was handled
