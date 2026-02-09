@@ -1,14 +1,16 @@
 /**
- * web-compat.js (v11.1 - Performance Optimized)
+ * web-compat.js (v11.4 - Fixed Infinite Loop)
  * Provides a mock for Chrome Extension APIs when running in a standard web/mobile browser.
- * This is crucial for testing the mobile UI without deploying as an extension.
+ * IMPORTANT: We DO NOT mock chrome.storage to avoid circular dependency with storage-bridge.js
  */
 (function () {
-    if (typeof chrome === 'undefined' || !chrome.runtime) {
+    // Only mock if chrome is completely undefined OR if chrome.runtime doesn't exist
+    // BUT we DO NOT mock chrome.storage - let storage-bridge.js handle storage!
+    if (typeof chrome === 'undefined') {
         window.chrome = {
             runtime: {
                 sendMessage: (msg, callback) => {
-                    console.warn('[WebCompat] chrome.runtime.sendMessage:', msg);
+                    console.warn('[WebCompat] chrome.runtime.sendMessage (mocked):', msg);
                     if (callback) {
                         setTimeout(() => {
                             callback({
@@ -18,81 +20,16 @@
                         }, 100);
                     }
                 },
-                lastError: null
-            },
-            storage: {
-                local: {
-                    get: async (keys, cb) => {
-                        console.log('[WebCompat] storage.local.get (non-blocking)');
-
-                        // OPTIMIZED: No waiting, immediate check only
-                        if (window.appStorage) {
-                            try {
-                                const result = await window.appStorage.get(keys);
-                                console.log('[WebCompat] ✓ Got', Object.keys(result).length, 'keys');
-                                if (cb) cb(result);
-                                return;
-                            } catch (e) {
-                                console.error('[WebCompat] Get error:', e);
-                            }
-                        }
-
-                        // If appStorage not ready, return empty immediately (non-blocking)
-                        console.warn('[WebCompat] appStorage not ready, returning empty (app will handle lazy loading)');
-                        if (cb) cb({});
-                    },
-                    set: async (items, cb) => {
-                        console.log('[WebCompat] storage.local.set:', Object.keys(items));
-
-                        // OPTIMIZED: No waiting, immediate check only
-                        if (window.appStorage) {
-                            try {
-                                await window.appStorage.set(items);
-                                console.log('[WebCompat] ✓ Saved successfully');
-                                if (cb) cb();
-                                return;
-                            } catch (e) {
-                                console.error('[WebCompat] Set error:', e);
-                            }
-                        }
-
-                        // Fallback: Try again after a short delay (non-blocking retry)
-                        console.warn('[WebCompat] appStorage not ready, retrying once...');
-                        setTimeout(async () => {
-                            if (window.appStorage) {
-                                try {
-                                    await window.appStorage.set(items);
-                                    console.log('[WebCompat] ✓ Saved on retry');
-                                } catch (e) {
-                                    console.error('[WebCompat] Retry failed:', e);
-                                }
-                            } else {
-                                console.error('[WebCompat] Set operation lost - appStorage never initialized');
-                            }
-                        }, 500);
-
-                        if (cb) cb(); // Don't block
-                    },
-                    remove: async (keys, cb) => {
-                        console.log('[WebCompat] storage.local.remove');
-
-                        if (window.appStorage) {
-                            try {
-                                await window.appStorage.remove(keys);
-                                console.log('[WebCompat] ✓ Removed successfully');
-                                if (cb) cb();
-                                return;
-                            } catch (e) {
-                                console.error('[WebCompat] Remove error:', e);
-                            }
-                        }
-
-                        console.warn('[WebCompat] appStorage not ready, remove may be lost');
-                        if (cb) cb();
-                    }
-                }
+                lastError: null,
+                id: null // Explicitly null to indicate non-extension
             }
+            // NOTE: We do NOT define chrome.storage!
+            // storage-bridge.js will see chrome.storage is undefined and use IndexedDB directly.
         };
-        console.log('[WebCompat] ⚡ Mocked chrome API (NON-BLOCKING, optimized for speed)');
+        console.log('[WebCompat] ⚡ Chrome runtime mocked (storage handled by storage-bridge.js)');
+    } else if (chrome.runtime && !chrome.runtime.id) {
+        // Chrome object exists but no runtime.id - we're in web/mobile context
+        // storage-bridge.js will correctly use IndexedDB
+        console.log('[WebCompat] Chrome detected without extension ID - storage-bridge will use IndexedDB');
     }
 })();
