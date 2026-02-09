@@ -1,6 +1,5 @@
 /**
- * mobile-core.js - Central Application Logic (V10.12)
- * Managed by PureJS Tech Lead
+ * mobile-core.js - The Brain of Mobile App (V10.7)
  */
 
 class MobileApp {
@@ -13,22 +12,20 @@ class MobileApp {
         this.searchQuery = '';
         this.activeView = 'home';
         this.dataMap = new Map();
+        this.dataCache = null; // Performance: Persistent cache for lists
+        this.cacheDirty = true; // Flag for re-fetch
 
-        // Setup Core
         this.setupKeyboardTracking();
         this.setupEvents();
         this.setupVoiceListeners();
 
-        // Initialize external modules
-        if (typeof window.initMobileBrowser === 'function') window.initMobileBrowser(this);
+        // Initialize external modules if available
+        if (window.initMobileBrowser) window.initMobileBrowser(this);
 
-        console.log('[MobileCore V10.12] Initialized');
-
-        // Auto-refresh periodically
-        setInterval(() => {
-            if (this.activeView === 'home') this.renderApp();
-        }, 30000);
+        console.log('MobileCore V10.7 (Modular) Initialized');
     }
+
+    // Robust date parser to prevent NaN display
     safeParseToNumber(val) {
         if (!val) return 0;
         if (typeof val === 'number') return val;
@@ -309,7 +306,7 @@ class MobileApp {
 
         // Action Button Logic
         if (dockActionBtn) {
-            // 1. Click Handler (Send for text, Hint for voice)
+            // 1. Click Handler (Send for text, Toggle for voice)
             dockActionBtn.onclick = (e) => {
                 if (this.isTypingMode) {
                     // Send Action
@@ -317,10 +314,15 @@ class MobileApp {
                     // Let's force clear UI update
                     setTimeout(() => updateDockState(), 50);
                 } else {
-                    // Mic Click (Short Tap) -> User expects something.
-                    // As per "Long Press to Talk" requirement, a short tap should hint.
-                    if (!this.isRecognitionActive) { // Only show hint if not already recording
-                        if (window.showToast) window.showToast('Hold to Talk (长按说话)');
+                    // Mic Click -> Toggle Continuous Mode
+                    if (this.isRecognitionActive) {
+                        this.stopVoiceRecognition();
+                        this.isContinuousChat = false; // User manually stopped
+                        if (window.showToast) window.showToast('Voice Chat Paused');
+                    } else {
+                        this.isContinuousChat = true; // Enable continuous loop
+                        this.startVoiceRecognition();
+                        if (window.showToast) window.showToast('Continuous Voice Chat Active');
                     }
                 }
             };
@@ -587,6 +589,9 @@ class MobileApp {
         if (!homeBtn || !holdToTalk || !globalInput) return;
 
         this.isVoiceMode = !this.isVoiceMode;
+        // Reset continuous state when toggling
+        this.isContinuousChat = false;
+
         if (window.navigator.vibrate) window.navigator.vibrate(50);
 
         if (this.isVoiceMode) {
@@ -599,6 +604,20 @@ class MobileApp {
             if (globalAddBtn) globalAddBtn.classList.remove('hidden');
             holdToTalk.classList.add('hidden');
             // State 1: Text Mode
+        }
+    }
+
+    /**
+     * Called by Chat Module after AI finishes speaking to resume listening.
+     */
+    continueConversation() {
+        if (this.isContinuousChat && this.activeView === 'chat') {
+            // Delay slightly to ensure smooth transition
+            setTimeout(() => {
+                if (this.isContinuousChat) {
+                    this.startVoiceRecognition();
+                }
+            }, 800);
         }
     }
 
@@ -961,7 +980,28 @@ class MobileApp {
 
         if (contentEl) {
             // Enhanced Readability: Preserve some formatting
-            contentEl.innerHTML = (data.content || data.text || '').replace(/\n/g, '<br>');
+            let content = (data.content || data.text || '').replace(/\n/g, '<br>');
+
+            // Auto-fallback: If content is empty, try snapshot immediately
+            if (!content.trim() && data.url) {
+                const key = 'snapshot_' + data.url;
+                // We use a non-blocking check to update UI if found
+                window.appStorage.get(key).then(res => {
+                    if (res[key] && res[key].content) {
+                        console.log('[Reader] Main content empty, using snapshot.');
+                        contentEl.innerHTML = `
+                            <div style="background:#f8f9fa; color:#666; padding:8px; font-size:12px; margin-bottom:16px; border-radius:4px;">
+                                ⚠️ Main content missing. Showing web snapshot.
+                            </div>
+                            ${res[key].content}
+                        `;
+                    } else {
+                        contentEl.innerHTML = '<div style="text-align:center; color:#999; margin-top:40px;">No content available for this article.</div>';
+                    }
+                });
+            } else {
+                contentEl.innerHTML = content;
+            }
         }
 
         this.currentReaderUrl = data.url;
@@ -1092,64 +1132,29 @@ class MobileApp {
         }
 
         const all = this.dataCache;
-        console.log(`[Render] Raw Data Keys: ${Object.keys(all).length}`);
-
         const noteMap = new Map(); // Use Map to deduplicate by ID
         const readerMap = {}; // For grouping
 
         const processItem = (val, key, arrayIdx = -1) => {
             if (!val || typeof val !== 'object') return;
 
-            // 0. Special Case: Array-based Articles (Key is URL)
-            // Fixes "Empty Reader" issue where arrays were recursed and swallowed as Notes
+            // 1. Recursive for Arrays (like user_notes)
             if (Array.isArray(val)) {
-                if (key && (key.startsWith('http') || key.startsWith('https'))) {
-                    // This is an Article defined as an array of highlights
-                    const rKey = key;
-                    if (!readerMap[rKey]) {
-                        // Inherit or derive metadata from the array (e.g. first item)
-                        const first = val[0] || {};
-                        const time = val.reduce((acc, curr) => Math.max(acc, curr.updatedAt || curr.timestamp || 0), 0);
-
-                        readerMap[rKey] = {
-                            id: rKey,
-                            _storageKey: key,
-                            title: first.title || first.pageTitle || key,
-                            updatedAt: time || Date.now(),
-                            timestamp: time || Date.now(),
-                            contents: []
-                        };
-                    }
-                    val.forEach(item => {
-                        const body = item.text || item.content || item.quote || '';
-                        if (body && !readerMap[rKey].contents.includes(body)) {
-                            readerMap[rKey].contents.push(body);
-                        }
-                    });
-                    return; // Done processing this article
-                }
-
-                // Normal recursion (e.g. user_notes)
                 val.forEach((sub, i) => processItem(sub, key, i));
                 return;
             }
 
             // 2. Detection Logic
-            // CRITICAL FIX: If key implies a URL, it is NEVER a Note.
-            const isUrlKey = key && (key.startsWith('http') || key.startsWith('https'));
+            const isNote = val.type === 'note' ||
+                ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url) ||
+                (key && (key.startsWith('note-') || key.startsWith('note_')));
 
-            const isNote = !isUrlKey && (
-                val.type === 'note' ||
-                ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url && !val.highlights) ||
-                (key && (key.startsWith('note-') || key.startsWith('note_')))
-            );
-
-            const isReading = isUrlKey ||
-                val.type === 'reading' || val.type === 'article' ||
+            const isReading = (val.type === 'reading' ||
                 val.url ||
-                (key && key.startsWith('meta_'));
+                (key && (key.startsWith('http') || key.startsWith('meta_')))) &&
+                !(key && key.startsWith('snapshot_')); // Exclude full snapshots
 
-            if (key && key.startsWith('snapshot_')) return;
+            if (key && key.startsWith('snapshot_')) return; // Explicitly skip snapshot keys
 
             if (isNote) {
                 // 1. Determine Identity (ID or ChatSession)
@@ -1170,6 +1175,12 @@ class MobileApp {
                     // If we are replacing an existing but different ID entry, remove the old one
                     if (existing && existing.id !== identity) {
                         noteMap.delete(existing.id);
+                        // [Auto-Clean Registry] Disabled for performance
+                        /* 
+                        if (existing._storageKey && existing._storageKey !== 'user_notes' && existing._storageKey !== key) {
+                             window.appStorage.remove(existing._storageKey);
+                        } 
+                        */
                     }
 
                     noteMap.set(identity, {
@@ -1180,6 +1191,15 @@ class MobileApp {
                         _storageKey: key,
                         _originalIdx: arrayIdx
                     });
+                } else {
+                    // The current item is the duplicate/older one. 
+                    // If it's stored as a redundant flat key, clean it up from IDB immediately.
+                    // Disabled for performance
+                    /*
+                    if (key !== 'user_notes' && key !== identity) {
+                         window.appStorage.remove(key);
+                    }
+                    */
                 }
             } else if (isReading) {
                 const rKey = val.url || val.title || key;
@@ -1194,23 +1214,10 @@ class MobileApp {
                         contents: []
                     };
                 }
-
-                // Extract Body
                 const body = val.content || val.text || val.body || '';
                 if (body && !readerMap[rKey].contents.includes(body)) {
                     readerMap[rKey].contents.push(body);
                 }
-
-                // Extract Highlights (CRITICAL for Reader)
-                if (Array.isArray(val.highlights)) {
-                    val.highlights.forEach(h => {
-                        const hText = h.text || h.content || h.quote || '';
-                        if (hText && !readerMap[rKey].contents.includes(hText)) {
-                            readerMap[rKey].contents.push(hText);
-                        }
-                    });
-                }
-
                 const currentTime = this.safeParseToNumber(val.updatedAt || val.timestamp);
                 if (currentTime > (readerMap[rKey].updatedAt || 0)) {
                     readerMap[rKey].updatedAt = currentTime;
@@ -1270,35 +1277,31 @@ class MobileApp {
             return timeB - timeA;
         });
 
-        // 3. Expose sorted lists for external modules (e.g. Chat RAG Performance)
-        this.sortedNotes = filteredNotes;
-        this.sortedReader = filteredReader;
-
         this.dataMap.clear();
         filteredNotes.forEach(n => this.dataMap.set(String(n.id), n));
         filteredReader.forEach(r => this.dataMap.set(String(r.id), r));
 
-        // Render Home Summary (Top 10)
+        // Render Home Summary (Top 10) - CRITICAL PATH (Immediate)
         this.renderNotes(filteredNotes.slice(0, 10), 'notes-list-container');
         this.renderReader(filteredReader.slice(0, 10), 'reader-list-container');
 
-        // Performance: Defer Full Lists rendering to unblock UI
-        setTimeout(() => {
-            this.renderNotes(filteredNotes, 'full-notes-container');
-            this.renderReader(filteredReader, 'full-reader-container');
-        }, 50);
+        // Defer Full Lists (Background) - Prevents UI Freeze on Startup
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(() => {
+                this.renderNotes(filteredNotes, 'full-notes-container');
+                this.renderReader(filteredReader, 'full-reader-container');
+            });
+        } else {
+            setTimeout(() => {
+                this.renderNotes(filteredNotes, 'full-notes-container');
+                this.renderReader(filteredReader, 'full-reader-container');
+            }, 100);
+        }
     }
 
     renderNotes(notes, containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
-
-        // Optimisation: If empty, clear and return
-        if (!notes || notes.length === 0) {
-            container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; font-size:13px;">No inputs yet</div>';
-            return;
-        }
-
         container.innerHTML = notes.map((n) => {
             const displayTitle = n.title || 'Untitled Note';
             const body = n.content || n.text || '';
@@ -1349,12 +1352,6 @@ class MobileApp {
     renderReader(items, containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
-
-        if (!items || items.length === 0) {
-            container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; font-size:13px;">No articles saved</div>';
-            return;
-        }
-
         container.innerHTML = items.map(i => {
             const date = i.date || new Date(i.timestamp || Date.now()).toLocaleDateString();
             const parentKey = i._storageKey || '';
@@ -1376,11 +1373,13 @@ class MobileApp {
     }
 
     stripHtml(html) {
-        return (html || '').replace(/<[^>]*>?/gm, '');
+        const doc = new Array();
+        return html.replace(/<[^>]*>?/gm, '');
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     window.mobileCore = new MobileApp();
-    setTimeout(() => window.mobileCore.renderApp(), 500);
+    // Optimization: Immediate render for perceived speed (was 500ms)
+    setTimeout(() => window.mobileCore.renderApp(), 10);
 });

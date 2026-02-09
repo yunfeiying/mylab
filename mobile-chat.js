@@ -27,20 +27,6 @@ class MobileChat {
         }, 100);
     }
 
-    handleExternalSend(text) {
-        if (!text) return;
-        // If a new session is needed, initialize it here
-        if (!this.currentSessionId) {
-            this.initNewSession();
-        }
-        this.addUserMessage(text);
-        const thinkingEl = this.showAIThinking();
-        this.isGenerating = true;
-        this.getAIResponse(text, thinkingEl).finally(() => {
-            this.isGenerating = false;
-        });
-    }
-
     setupEvents() {
         // Toggle Chat Menu (New Chat / History)
         const historyBtn = document.getElementById('btn-chat-history');
@@ -160,12 +146,28 @@ class MobileChat {
         if (!text) return;
         if (this.isGenerating) return;
 
+        // Auto-start session if needed
+        if (!this.currentSessionId) {
+            this.startNewChat();
+        }
+
         this.addUserMessage(text, true);
 
         const thinkingEl = this.showAIThinking();
         this.isGenerating = true;
-        await this.getAIResponse(text, thinkingEl);
-        this.isGenerating = false;
+
+        try {
+            await this.getAIResponse(text, thinkingEl);
+        } catch (e) {
+            console.error('AI Response Error:', e);
+        } finally {
+            this.isGenerating = false;
+
+            // Hook: Continuous Voice Conversation
+            if (window.mobileCore && typeof window.mobileCore.continueConversation === 'function') {
+                window.mobileCore.continueConversation();
+            }
+        }
     }
 
     /**

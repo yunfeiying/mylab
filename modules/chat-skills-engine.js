@@ -1,5 +1,5 @@
 /**
- * ChatSkillsEngine.js - Extensible skill system for AI Chat (V10.12 Web/Hybrid)
+ * ChatSkillsEngine.js - Extensible skill system for AI Chat
  * Managed by PureJS Tech Lead
  */
 
@@ -13,38 +13,18 @@ class ChatSkillsEngine {
         // 1. Weather Skill
         this.registerSkill({
             id: 'weather',
-            name: 'Weather',
-            execute: async (query) => {
-                // 1. Try wttr.in (Simple Text)
-                try {
-                    const res = await fetch('https://wttr.in?format=3');
-                    if (res.ok) return `[Weather]: ${await res.text()}`;
-                } catch (e) { console.log('wttr.in failed, switching to Geolocation strategy...'); }
-
-                // 2. "Figure it out": Geo-IP + Open-Meteo (CORS Friendly, No Key)
-                try {
-                    // Get Location
-                    const locRes = await fetch('https://ipwho.is/');
-                    if (!locRes.ok) throw new Error('Geo-IP failed');
-                    const loc = await locRes.json();
-
-                    if (loc.success) {
-                        // Get Weather
-                        const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
-                        const wRes = await fetch(wUrl);
-                        const wData = await wRes.json();
-
-                        if (wData.current_weather) {
-                            const c = wData.current_weather;
-                            return `[Real-time Weather (Auto-Located: ${loc.city}, ${loc.country})]:
-- Temp: ${c.temperature}°C
-- Wind: ${c.windspeed} km/h
-- Status: Code ${c.weathercode} (0=Clear, 1-3=Cloudy, >50=Rain/Snow)`;
+            name: 'Weather Forecast',
+            patterns: [/(天气|气温|下雨|weather|forecast|气象)/i],
+            async execute(query) {
+                return new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: `https://wttr.in?format=3&m` }, (response) => {
+                        if (response && response.success) {
+                            resolve(`[Real-time Weather]: ${response.text.trim()}`);
+                        } else {
+                            resolve(null);
                         }
-                    }
-                } catch (e) { console.error('Auto-Weather strategy failed:', e); }
-
-                return null; // Let AI fallback to general knowledge or apology if ALL fails
+                    });
+                });
             }
         });
 
@@ -53,19 +33,18 @@ class ChatSkillsEngine {
             id: 'movies',
             name: 'Douban Movies',
             patterns: [/(电影|上映|排片|movie|cinema|film)/i],
-            execute: async (query) => {
-                const url = 'https://m.douban.com/movie/';
-
-                if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
-                    const res = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url }, r));
-                    if (res && res.success) {
-                        const titles = res.text.match(/[《](.*?)[》]/g) || [];
-                        const uniqueTitles = [...new Set(titles)].slice(0, 8);
-                        return `[Real-time Movies (Douban)]: ${uniqueTitles.join(', ')}\n(Source: Douban Mobile)`;
-                    }
-                }
-
-                return `[Web Mode]: Cannot fetch Douban data directly due to CORS.\nClick to view: [Douban Movies](${url})`;
+            async execute(query) {
+                return new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: 'https://m.douban.com/movie/' }, (response) => {
+                        if (response && response.success) {
+                            const titles = response.text.match(/[《](.*?)[》]/g) || [];
+                            const uniqueTitles = [...new Set(titles)].slice(0, 8);
+                            resolve(`[Real-time Movies (Douban)]: ${uniqueTitles.join(', ')}\n(Source: Douban Mobile)`);
+                        } else {
+                            resolve(null);
+                        }
+                    });
+                });
             }
         });
 
@@ -74,19 +53,21 @@ class ChatSkillsEngine {
             id: 'baidu_search',
             name: 'Baidu Search',
             patterns: [/(搜索|查一下|查找|找一下|百度|search|who is|what is|find out)/i],
-            execute: async (query) => {
+            async execute(query) {
                 let searchQuery = query.replace(/(搜索|查一下|查找|找一下|百度|search|who is|what is|find out)/gi, '').trim();
                 if (searchQuery.length < 2) return null;
-                const searchUrl = `https://m.baidu.com/s?word=${encodeURIComponent(searchQuery)}`;
 
-                if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
-                    const res = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: searchUrl }, r));
-                    if (res && res.success) {
-                        return `[Baidu Search Results for "${searchQuery}"]: \n${res.text.substring(0, 2500)}\n---`;
-                    }
-                }
-
-                return `[Web Mode]: Search capabilities are limited in the browser.\nClick to search: [Baidu: ${searchQuery}](${searchUrl})`;
+                return new Promise((resolve) => {
+                    const searchUrl = `https://m.baidu.com/s?word=${encodeURIComponent(searchQuery)}`;
+                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: searchUrl }, (response) => {
+                        if (response && response.success) {
+                            let snippet = response.text.substring(0, 2500);
+                            resolve(`[Baidu Search Results for "${searchQuery}"]: \n${snippet}\n---`);
+                        } else {
+                            resolve(null);
+                        }
+                    });
+                });
             }
         });
 
@@ -95,29 +76,42 @@ class ChatSkillsEngine {
             id: 'baidu_news',
             name: 'Baidu News',
             patterns: [/(新闻|消息|头条|动态|news|headlines|hot topics)/i],
-            execute: async (query) => {
-                const url = 'https://news.baidu.com/';
+            async execute(query) {
+                return new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: 'https://news.baidu.com/' }, async (response) => {
+                        if (response && response.success && response.html) {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(response.html, 'text/html');
+                            const links = Array.from(doc.querySelectorAll('a'))
+                                .filter(a => a.textContent.trim().length > 6 && !a.href.includes('baidu.com/s?'))
+                                .slice(0, 10);
 
-                if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
-                    const res = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url }, r));
-                    if (res && res.success && res.html) {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(res.html, 'text/html');
-                        const links = Array.from(doc.querySelectorAll('a'))
-                            .filter(a => a.textContent.trim().length > 6 && !a.href.includes('baidu.com/s?'))
-                            .slice(0, 10);
-                        const newsList = links.map((a, i) => {
-                            let title = a.textContent.trim().replace(/\n/g, ' ');
-                            let href = a.getAttribute('href') || '';
-                            if (href.startsWith('//')) href = 'https:' + href;
-                            else if (href.startsWith('/')) href = 'https://news.baidu.com' + href;
-                            return `${i + 1}. [${title}](${href})`;
-                        }).join('\n');
-                        return `[Real-time News Headlines]: \n${newsList}`;
-                    }
-                }
+                            let newsList = links.map((a, i) => {
+                                let title = a.textContent.trim().replace(/\n/g, ' ');
+                                let href = a.getAttribute('href') || '';
+                                if (href.startsWith('//')) href = 'https:' + href;
+                                else if (href.startsWith('/')) href = 'https://news.baidu.com' + href;
+                                return `${i + 1}. [${title}](${href})`;
+                            }).join('\n');
 
-                return `[Web Mode]: Cannot background fetch news.\nView Top News: [Baidu News](${url})`;
+                            // Hot Searches
+                            let hotInfo = "";
+                            try {
+                                const hotRes = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: 'https://top.baidu.com/board?tab=realtime' }, r));
+                                if (hotRes && hotRes.success) {
+                                    const hotTitles = hotRes.text.match(/[^\s]{5,20}(?=\s\d{6,})/g) || [];
+                                    if (hotTitles.length > 0) {
+                                        hotInfo = `\n[Current Hot Searches]: \n${hotTitles.slice(0, 5).map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
+                                    }
+                                }
+                            } catch (e) { }
+
+                            resolve(`[Real-time News Headlines]: \n${newsList}${hotInfo}`);
+                        } else {
+                            resolve(null);
+                        }
+                    });
+                });
             }
         });
 
@@ -311,6 +305,12 @@ Unable to auto-scan market data. Please view this pre-configured strategy search
     async run(query) {
         let contexts = [];
         for (const [id, skill] of this.skills) {
+            // Safety Check: Ensure skill and patterns are valid
+            if (!skill || !Array.isArray(skill.patterns)) {
+                console.warn(`[SkillsEngine] Skipping invalid skill: ${id}`, skill);
+                continue;
+            }
+
             const matched = skill.patterns.some(p => query.match(p));
             if (matched) {
                 console.log(`[SkillsEngine] Triggered: ${skill.name}`);
@@ -327,12 +327,25 @@ Unable to auto-scan market data. Please view this pre-configured strategy search
      * This can be called when AI proposes a new skill.
      */
     async addDynamicSkill(config) {
+        // Validation: Ensure config matches expected structure
+        if (!config || !config.id || !Array.isArray(config.patterns)) {
+            console.warn('[SkillsEngine] Invalid skill config rejected:', config);
+            return;
+        }
+
         // config example: { id: 'crypto', name: 'Crypto Price', patterns: [...], apiUrl: '...' }
         // We'll implement a 'Generic Fetch Skill' template for dynamic skills
         const newSkill = {
             id: config.id,
-            name: config.name,
-            patterns: config.patterns.map(p => new RegExp(p, 'i')),
+            name: config.name || 'Unnamed Skill',
+            patterns: config.patterns.map(p => {
+                try {
+                    return new RegExp(p, 'i');
+                } catch (e) {
+                    console.warn(`[SkillsEngine] Invalid pattern in skill ${config.id}:`, p);
+                    return null;
+                }
+            }).filter(p => p !== null), // Filter out invalid regexes
             async execute(query) {
                 try {
                     // Logic for dynamic skills usually involves fetching a URL and extracting info
@@ -347,6 +360,13 @@ Unable to auto-scan market data. Please view this pre-configured strategy search
                 } catch (e) { return null; }
             }
         };
+
+        // Final check to ensure we have usable patterns
+        if (newSkill.patterns.length === 0) {
+            console.warn('[SkillsEngine] Skill rejected due to no valid patterns:', config.id);
+            return;
+        }
+
         this.registerSkill(newSkill);
         // Persist to IDB
         if (window.idb) {
