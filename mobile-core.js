@@ -462,11 +462,21 @@ class MobileApp {
         const inputBaseUrl = document.getElementById('input-base-url');
         const inputModel = document.getElementById('input-model');
 
+        // GDrive Settings elements
+        const gdDialog = document.getElementById('gdrive-settings-dialog');
+        const btnOpenGdSettings = document.getElementById('act-gd-settings');
+        const btnSaveGdSettings = document.getElementById('btn-save-gd-settings');
+        const btnCancelGdSettings = document.getElementById('btn-cancel-gd-settings');
+
+        const inputGdClientId = document.getElementById('input-gd-client-id');
+        const inputGdApiKey = document.getElementById('input-gd-api-key');
+        const inputGdRoot = document.getElementById('input-gd-root');
+
         // 1. Initial Hydration: Load settings immediately so inputs aren't empty after refresh
         const hydrateSettings = async () => {
             try {
                 // Try IndexedDB/Storage first
-                const res = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model']);
+                const res = await window.appStorage.get(['ai_api_key', 'ai_base_url', 'ai_model', 'settings']);
 
                 // Fallback to LocalStorage (The "Bulletproof" Header)
                 let apiKey = res.ai_api_key || localStorage.getItem('global_ai_api_key') || '';
@@ -476,6 +486,16 @@ class MobileApp {
                 if (inputApiKey) inputApiKey.value = apiKey;
                 if (inputBaseUrl) inputBaseUrl.value = baseUrl;
                 if (inputModel) inputModel.value = model;
+
+                // GDrive Hydration
+                const settings = res.settings || {};
+                const gdClientId = settings.gdrive_client_id || localStorage.getItem('gdrive_client_id') || '';
+                const gdApiKey = settings.gdrive_api_key || localStorage.getItem('gdrive_api_key') || '';
+                const gdRoot = settings.gdrive_root_folder || 'Highlighti_Data';
+
+                if (inputGdClientId) inputGdClientId.value = gdClientId;
+                if (inputGdApiKey) inputGdApiKey.value = gdApiKey;
+                if (inputGdRoot) inputGdRoot.value = gdRoot;
 
                 // CRITICAL: Synchronize AI Core with stored settings on every load
                 if (window.aiCore) {
@@ -503,6 +523,15 @@ class MobileApp {
             };
         }
 
+        if (btnOpenGdSettings) {
+            btnOpenGdSettings.onclick = async () => {
+                const sheet = document.getElementById('action-sheet-overlay');
+                if (sheet) sheet.classList.add('hidden');
+                await hydrateSettings();
+                if (gdDialog) gdDialog.classList.remove('hidden');
+            };
+        }
+
         // 3. Save Logic
         if (btnSaveApiSettings) {
             btnSaveApiSettings.onclick = async () => {
@@ -510,7 +539,7 @@ class MobileApp {
                 const baseUrl = inputBaseUrl ? inputBaseUrl.value.trim() : 'https://api.deepseek.com';
                 const model = inputModel ? inputModel.value.trim() : 'deepseek-chat';
 
-                console.log('[Settings] Saving...', apiKey.slice(0, 4) + '***');
+                console.log('[Settings] Saving AI...', apiKey.slice(0, 4) + '***');
 
                 try {
                     // 1. Save to Structured DB
@@ -541,7 +570,42 @@ class MobileApp {
             };
         }
 
+        if (btnSaveGdSettings) {
+            btnSaveGdSettings.onclick = async () => {
+                const clientId = inputGdClientId ? inputGdClientId.value.trim() : '';
+                const apiKey = inputGdApiKey ? inputGdApiKey.value.trim() : '';
+                const rootFolder = inputGdRoot ? inputGdRoot.value.trim() : 'Highlighti_Data';
+
+                console.log('[Settings] Saving GDrive...');
+
+                try {
+                    const res = await window.appStorage.get('settings');
+                    const s = res.settings || {};
+                    s.gdrive_client_id = clientId;
+                    s.gdrive_api_key = apiKey;
+                    s.gdrive_root_folder = rootFolder;
+                    await window.appStorage.set({ settings: s });
+
+                    localStorage.setItem('gdrive_client_id', clientId);
+                    localStorage.setItem('gdrive_api_key', apiKey);
+
+                    if (window.mobileGDrive) {
+                        window.mobileGDrive.CLIENT_ID = clientId;
+                        window.mobileGDrive.API_KEY = apiKey;
+                        window.mobileGDrive.ROOT_FOLDER_NAME = rootFolder;
+                    }
+
+                    if (window.showToast) window.showToast('✅ GDrive Settings Saved', 2000);
+                    if (gdDialog) gdDialog.classList.add('hidden');
+                } catch (e) {
+                    console.error('GDrive Save failed', e);
+                    alert('Save Failed: ' + e.message);
+                }
+            };
+        }
+
         if (btnCancelApiSettings) btnCancelApiSettings.onclick = () => apiDialog.classList.add('hidden');
+        if (btnCancelGdSettings) btnCancelGdSettings.onclick = () => gdDialog.classList.add('hidden');
 
         // 4. Reset Logic (Danger Zone)
         if (btnResetData) {

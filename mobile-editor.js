@@ -290,23 +290,16 @@ class MobileEditor {
     async saveNote(isSilent = false) {
         if (!this.currentNoteId) return;
 
-        // Force save even if isSaved is true, to ensure data integrity
-        // if (this.isSaved) return; 
-
         let title = this.headerTitle?.value?.trim();
         const content = this.editor.innerHTML;
         const text = this.editor.innerText.trim();
 
-        // If completely empty, don't save yet unless it's an old note being cleared? 
-        // No, we should save empty notes to avoid data loss illusion
-        // BUT, if it is a NEW note and empty, maybe skip?
-        // Let's save if there is ANY content or title.
+        // If completely empty, don't save yet
         if (!title && !text) {
-            // console.log('[Editor] Empty note, skipping auto-save');
             return;
         }
 
-        // Auto-extract title
+        // Auto-extract title from first line if empty
         if (!title && text) {
             const firstLine = text.split('\n')[0].substring(0, 25).trim();
             if (firstLine) {
@@ -315,21 +308,33 @@ class MobileEditor {
             }
         }
 
-        const noteData = {
-            id: this.currentNoteId,
-            title: title || 'Untitled Note',
-            content: content,
-            type: 'note',
-            timestamp: Date.now(), // Keep original creation time? Ideally yes, but here we simplify
-            updatedAt: Date.now()
-        };
-
-        // Preserve original timestamp if possible (requires fetching old data or storing it in memory)
-        // For now, simple update.
-
         if (window.appStorage) {
             try {
-                await window.appStorage.set({ [this.currentNoteId]: noteData });
+                // Get existing notes array
+                const data = await window.appStorage.get('user_notes');
+                let notes = data.user_notes || [];
+
+                // Find if this note already exists
+                const existingIndex = notes.findIndex(n => n.id === this.currentNoteId);
+
+                const noteData = {
+                    id: this.currentNoteId,
+                    title: title || 'Untitled Note',
+                    content: content,
+                    type: 'note',
+                    timestamp: existingIndex >= 0 ? notes[existingIndex].timestamp : Date.now(),
+                    updatedAt: Date.now()
+                };
+
+                // Update or add note
+                if (existingIndex >= 0) {
+                    notes[existingIndex] = noteData;
+                } else {
+                    notes.unshift(noteData); // Add to beginning
+                }
+
+                // Save updated array
+                await window.appStorage.set({ user_notes: notes });
                 this.isSaved = true;
                 if (!isSilent) this.showToast('Saved');
 

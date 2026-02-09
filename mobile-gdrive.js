@@ -18,53 +18,52 @@ class MobileGDrive {
         this.access_token = localStorage.getItem('gdrive_web_token') || '';
         this.tokenClient = null;
 
-        // Auto-load disabled for performance in China
-        // if (this.CLIENT_ID) {
-        //     setTimeout(() => this.loadScripts(), 5000); 
-        // }
+        // Auto-load if credentials exist - CHANGED: Removed to prevent blocking on load
+        // Scripts will be lazy-loaded on first Sync attempt
+        /*
+        if (this.CLIENT_ID) {
+            setTimeout(() => this.loadScripts(), 1000);
+        }
+        */
     }
 
     // ==========================================
     // Core Auth & API Wrappers (GIS Version)
     // ==========================================
 
-    loadScripts() {
-        if (window.google && window.google.accounts) {
-            this.initTokenClient();
-            return;
+    async loadGoogleSdk() {
+        if (window.google && window.google.accounts) return true;
+
+        console.log("[Sync] Lazy loading Google SDKs...");
+        const loadScript = (src) => {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.defer = true;
+                s.onload = resolve;
+                s.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.body.appendChild(s);
+            });
+        };
+
+        try {
+            await loadScript("https://apis.google.com/js/api.js");
+            await loadScript("https://accounts.google.com/gsi/client");
+            return true;
+        } catch (e) {
+            console.error("[Sync] Google SDK Load Failed:", e);
+            throw new Error("Unable to load Google scripts. if you are in China, please enable VPN.");
         }
+    }
 
-        if (document.getElementById('g-api-load')) return; // Already loading
-
-        console.log("[Sync] Injecting Google GIS Library...");
-
-        const s1 = document.createElement('script');
-        s1.src = "https://apis.google.com/js/api.js";
-        s1.id = "g-api-load";
-        s1.defer = true;
-        document.body.appendChild(s1);
-
-        const s2 = document.createElement('script');
-        s2.src = "https://accounts.google.com/gsi/client";
-        s2.defer = true;
-        s2.onload = () => {
-            console.log("[Sync] Google GIS Loaded. Initializing...");
-            setTimeout(() => this.initTokenClient(), 500);
-        };
-        s2.onerror = () => {
-            console.warn("[Sync] Google GIS blocked or failed to load.");
-        };
-        document.body.appendChild(s2);
+    loadScripts() {
+        // Deprecated wrapper kept for compatibility, now does nothing or warns
+        console.warn("[Sync] loadScripts is deprecated. Use loadGoogleSdk() instead.");
     }
 
     initTokenClient() {
-        if (!window.google || !window.google.accounts) {
-            // Retry once if called too early
-            setTimeout(() => {
-                if (window.google && window.google.accounts) this.initTokenClient();
-            }, 1000);
-            return;
-        }
+        if (!window.google || !window.google.accounts) return;
         try {
             this.tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: this.CLIENT_ID,
@@ -101,23 +100,39 @@ class MobileGDrive {
             window.appStorage.set({ settings: s });
         });
 
-        this.loadScripts();
-        if (window.google && window.google.accounts) this.initTokenClient();
+        this.loadGoogleSdk().then(() => {
+            if (window.google && window.google.accounts) this.initTokenClient();
+        }).catch(err => console.error(err));
         alert('Credentials Saved! Click Sync again to authenticate.');
     }
 
     async handleAuthClick() {
         // --- 1. Preferred: Chrome Identity (Extension Context) ---
-        if (typeof chrome !== 'undefined' && chrome.identity && chrome.identity.getAuthToken) {
-            return new Promise((resolve, reject) => {
-                chrome.identity.getAuthToken({ interactive: true }, (token) => {
-                    if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-                    else resolve(token);
+        // Enhanced detection for extension environment
+        const isExtension = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id;
+
+        if (isExtension) {
+            if (chrome.identity && chrome.identity.getAuthToken) {
+                console.log('[Sync] Using Chrome Identity API.');
+                return new Promise((resolve, reject) => {
+                    chrome.identity.getAuthToken({ interactive: true }, (token) => {
+                        if (chrome.runtime.lastError) {
+                            console.warn('[Sync] Chrome Identity failed:', chrome.runtime.lastError);
+                            reject(new Error(`Chrome Auth Error: ${chrome.runtime.lastError.message}`));
+                        } else {
+                            resolve(token);
+                        }
+                    });
                 });
-            });
+            } else {
+                console.warn('[Sync] Chrome Identity API missing despite being in extension environment. Check manifest permissions.');
+                // Fallthrough to Web GIS, but warn
+            }
         }
 
-        // --- 2. Web/PWA Context (GIS) ---
+        // --- 2. Web/PWA Context (GIS) OR Fallback ---
+        console.log('[Sync] Falling back to Google Identity Services (Web Flow).');
+
         if (!this.CLIENT_ID || !this.API_KEY) {
             const id = prompt("🔑 Step 1/2: Enter Google Client ID\n(From Google Cloud Console -> OAuth Client -> Web Application):", this.CLIENT_ID);
             if (!id) return null;
@@ -136,32 +151,38 @@ class MobileGDrive {
 
         // Need new token
         if (!this.tokenClient) {
-            this.initTokenClient();
-            if (!this.tokenClient) {
-                throw new Error("Google Identity Service is not ready. Please check if you are online.");
+            // Lazy load scripts first
+            try {
+                await this.loadGoogleSdk();
+                this.initTokenClient();
+                if (!this.tokenClient) {
+                    throw new Error("Google Identity Service failed to initialize (tokenClient is null).");
+                }
+            } catch (error) {
+                alert("Google Sync Unavailable: " + error.message);
+                return null;
             }
         }
 
-        return new Promise((resolve) => {
-            // Because tokenClient is async (popup), we have to handle the flow differently
-            // but for a simple "wait and get", we'll use a listener or check periodically
-            this.tokenClient.requestAccessToken({ prompt: 'consent' });
+        return new Promise((resolve, reject) => {
+            try {
+                // Ensure callback is bound to this instance context if needed (handled in initTokenClient)
+                // We need to override the callback or handle it via the existing one
+                this.tokenClient.callback = (resp) => {
+                    if (resp.error) {
+                        reject(new Error(`GIS Auth Error: ${resp.error}`));
+                        return;
+                    }
+                    this.access_token = resp.access_token;
+                    localStorage.setItem('gdrive_web_token', resp.access_token);
+                    localStorage.setItem('gdrive_web_token_expiry', Date.now() + (resp.expires_in * 1000));
+                    resolve(resp.access_token);
+                };
 
-            // For the sake of the monolith sync(), we might need to block or wait
-            // Let's use an interval to "wait" for the token to appear in this.access_token
-            let checks = 0;
-            const interval = setInterval(() => {
-                const now = Date.now();
-                const exp = localStorage.getItem('gdrive_web_token_expiry');
-                if (this.access_token && exp && now < (parseInt(exp) - 5000)) {
-                    clearInterval(interval);
-                    resolve(this.access_token);
-                }
-                if (checks++ > 60) { // 1 min timeout
-                    clearInterval(interval);
-                    resolve(null);
-                }
-            }, 1000);
+                this.tokenClient.requestAccessToken({ prompt: 'consent' });
+            } catch (e) {
+                reject(new Error("Google Identity Service is not ready or failed to request token: " + e.message));
+            }
         });
     }
 
