@@ -131,11 +131,23 @@ class MobileEditor {
                 if (this.currentNoteId && confirm('Delete this note permanently?')) {
                     menuOverlay.classList.add('hidden');
                     if (window.appStorage) {
+                        // Remove from user_notes array
+                        const data = await window.appStorage.get('user_notes');
+                        let notes = data.user_notes || [];
+                        const filtered = notes.filter(n => n.id !== this.currentNoteId);
+                        if (filtered.length !== notes.length) {
+                            await window.appStorage.set({ user_notes: filtered });
+                            console.log('[Editor Delete] Removed from user_notes array');
+                        }
+
+                        // Remove standalone IDB key
                         await window.appStorage.remove(this.currentNoteId);
+                        console.log('[Editor Delete] Removed standalone key:', this.currentNoteId);
+
                         if (window.mobileCore) {
                             window.mobileCore.cacheDirty = true;
                             window.mobileCore.navigateTo('notes-all');
-                            window.mobileCore.renderApp();
+                            window.mobileCore.renderApp(true);
                         }
                         if (window.showToast) window.showToast('Note deleted', 1500);
                     }

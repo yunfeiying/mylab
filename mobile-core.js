@@ -1,5 +1,5 @@
 /**
- * mobile-core.js - The Brain of Mobile App (V10.7)
+ * mobile-core.js - The Brain of Mobile App (V10.8)
  */
 
 class MobileApp {
@@ -23,7 +23,7 @@ class MobileApp {
         // Initialize external modules if available
         if (window.initMobileBrowser) window.initMobileBrowser(this);
 
-        console.log('MobileCore V10.7 (Modular) Initialized');
+        console.log('MobileCore V10.8 (Modular) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -421,18 +421,30 @@ class MobileApp {
 
                     try {
                         if (type === 'note') {
-                            // For notes: Remove from user_notes array
+                            const parentKey = wrapper.dataset.parentKey || '';
+
+                            // Strategy 1: Remove from user_notes array
                             const data = await window.appStorage.get('user_notes');
                             let notes = data.user_notes || [];
                             const originalLength = notes.length;
-
-                            // Filter out the deleted note
                             notes = notes.filter(n => n.id !== id);
+                            if (notes.length !== originalLength) {
+                                await window.appStorage.set({ user_notes: notes });
+                                console.log('[Delete] Removed from user_notes array:', originalLength, '->', notes.length);
+                            }
 
-                            console.log('[Delete] Filtered notes:', originalLength, '->', notes.length);
+                            // Strategy 2: Remove standalone IDB key (legacy/individual storage)
+                            // The note might exist as its own key in IDB (e.g., "note-1234567890")
+                            if (parentKey && parentKey !== 'user_notes') {
+                                await window.appStorage.remove(parentKey);
+                                console.log('[Delete] Removed standalone key:', parentKey);
+                            }
 
-                            // Save updated array
-                            await window.appStorage.set({ user_notes: notes });
+                            // Strategy 3: Also try removing by ID directly (covers all edge cases)
+                            if (id !== parentKey) {
+                                await window.appStorage.remove(id);
+                                console.log('[Delete] Removed by ID key:', id);
+                            }
                         } else {
                             // For reader items: Remove individual key
                             await window.appStorage.remove(id);
