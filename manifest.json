@@ -1,83 +1,21 @@
 {
-  "manifest_version": 3,
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0jkE8VjNNWzSfQ9KYV9dxQu9Dohvunt6VOpF/DKAJMXN6yKpJa0zv7MCEtqVEoYwU6aeTka6njPnxQNzUEgzHYIuCFZes1dMwKiqQfBl9nzfZNtFpK5hhnm42VhWMT+pXUCHujqnCaq4Zm5mtI4ip4Mm3MG4/1475wZfNdcny9PrGLfaKiGsas4bnAByLpc7vniAqa+MYYuECI+6+Xgfmg7y3afy1X5xgh5IoCzOAJKf3JlUkkSSL1TfvE+feAIEn1mSqortEZvM4ezUfSrTqpGluCS0rhe/qi0M0MkfOauoqVieEIKubc03tyh5XSoxAMvtMj1wg3yHwMMIQaCQiwIDAQAB",
-  "default_locale": "en",
-  "name": "__MSG_appName__",
-  "description": "__MSG_appDesc__",
-  "version": "3.2.0",
-  "permissions": [
-    "storage",
-    "unlimitedStorage",
-    "activeTab",
-    "scripting",
-    "identity"
-  ],
-  "host_permissions": [
-    "https://dav.jianguoyun.com/*",
-    "https://*.googleapis.com/*",
-    "<all_urls>",
-    "https://api.lemonsqueezy.com/*"
-  ],
-  "background": {
-    "service_worker": "background.js",
-    "type": "module"
-  },
-  "action": {
-    "default_popup": "popup/popup.html"
-  },
-  "options_page": "options/options.html",
-  "content_scripts": [
+  "name": "AI Note",
+  "short_name": "AI Note",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#ffffff",
+  "description": "A minimalist, AI-powered note-taking app.",
+  "icons": [
     {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "tesseract.min.js",
-        "lib/Readability.js",
-        "content.js"
-      ],
-      "css": [
-        "content.css"
-      ],
-      "run_at": "document_end",
-      "all_frames": true,
-      "match_origin_as_fallback": true
-    }
-  ],
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon-48.png",
-    "128": "icon-128.png"
-  },
-  "oauth2": {
-    "client_id": "377476964353-tomif4h5t501p0pc3m9aukfo9ccca0pb.apps.googleusercontent.com",
-    "scopes": [
-      "https://www.googleapis.com/auth/drive.file"
-    ]
-  },
-  "web_accessible_resources": [
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
     {
-      "resources": [
-        "pdf_viewer.html",
-        "tesseract.min.js",
-        "worker.min.js",
-        "tesseract-core.wasm.js",
-        "tesseract-core.wasm",
-        "ocr.html",
-        "*.gz"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
-  ],
-  "sandbox": {
-    "pages": [
-      "ocr.html"
-    ]
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self';",
-    "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; child-src 'self' blob:; worker-src 'self' blob:;"
-  }
+  ]
 }

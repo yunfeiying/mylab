@@ -22,19 +22,22 @@ html {
     margin: 0;
     padding: 0;
     width: 100%;
-    height: 100%;
+    /* Removed fixed height and overflow hidden to allow Body Scroll */
+    min-height: 100%;
     font-family: var(--font-stack);
     background: var(--ios-bg);
     color: var(--ios-text-primary);
-    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
 }
 
 /* === Views === */
 .app-view {
     display: none;
     flex-direction: column;
-    height: 100vh;
+    min-height: 100vh;
+    /* Allow it to grow */
     position: relative;
+    /* overflow: hidden; REMOVED */
 }
 
 .app-view.active {
@@ -42,11 +45,8 @@ html {
 }
 
 .full-screen-view {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    /* position: absolute; REMOVED to be in flow */
+    min-height: 100vh;
     z-index: 2000;
     background: #fff;
 }
@@ -59,9 +59,18 @@ html {
     justify-content: space-between;
     background: #fff;
     position: sticky;
+    /* Make sure it sticks */
     top: 0;
-    z-index: 100;
+    z-index: 1000;
+    /* Higher z-index */
     border-bottom: 0.5px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Chat content should also not scroll internally */
+.chat-content {
+    flex: 1;
+    padding: 16px;
+    padding-bottom: 120px;
 }
 
 .brand-title {
@@ -128,29 +137,35 @@ html {
 }
 
 /* === Main Content Area === */
+/* === Main Content Area === */
 .home-scroll-area {
     flex: 1;
-    overflow-y: auto;
+    /* overflow-y: auto; REMOVED inner scroll */
     padding: 0 16px;
-    -webkit-overflow-scrolling: touch;
+    padding-bottom: 120px;
 }
 
 /* === Editor View styles === */
 .editor-content {
     flex: 1;
-    overflow-y: auto;
+    /* overflow-y: auto; REMOVED inner scroll */
     background: #fff;
+    min-height: calc(100vh - 60px);
 }
 
 .editor-body {
     flex: 1;
     padding: 20px;
-    padding-bottom: 160px;
-    /* Space for the floating capsule */
+    padding-bottom: 80px;
     font-size: 18px;
     line-height: 1.6;
     outline: none;
-    min-height: 300px;
+    min-height: 500px;
+}
+
+.keyboard-visible .editor-body {
+    padding-bottom: 80px !important;
+    /* Keep consistent to avoid jumping */
 }
 
 .editor-body p {
@@ -583,8 +598,13 @@ html {
     opacity: 0.7;
 }
 
+/* Removed problematic layout shifts on keyboard open */
+/* .keyboard-visible .core-hub { display: none !important; } */
+/* .keyboard-visible .bottom-spacer { height: 0 !important; } */
+
 .bottom-spacer {
-    height: 80px;
+    height: 60px;
+    /* Reduced from 80px */
 }
 
 /* === Editor & Chat Headers === */
@@ -626,6 +646,13 @@ html {
     text-align: center;
     width: 100%;
     color: var(--ios-text-primary);
+    min-height: 24px;
+}
+
+.editor-header-title[placeholder]:empty:before {
+    content: attr(placeholder);
+    color: #ccc;
+    font-weight: 600;
 }
 
 .header-title-container {
@@ -699,7 +726,10 @@ html {
     left: 0;
     right: 0;
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
+    /* Move to right */
+    padding-right: 16px;
+    /* Margin from right edge */
     z-index: 1000;
     pointer-events: none;
     transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -727,10 +757,10 @@ html {
     overflow: hidden;
 }
 
-/* Collapsed state: iOS AssistiveTouch style */
+/* Collapsed state: iOS AssistiveTouch style - Resized to ~50% (32px) */
 .editor-toolbar-capsule.collapsed {
-    width: 52px;
-    height: 52px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     padding: 0;
     gap: 0;
@@ -745,8 +775,8 @@ html {
             rgba(120, 120, 128, 0) 100%);
     border: none;
     box-shadow:
-        0 2px 12px rgba(0, 0, 0, 0.2),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+        0 2px 8px rgba(0, 0, 0, 0.2),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.2);
     justify-content: center;
     cursor: pointer;
     opacity: 0.85;

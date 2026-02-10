@@ -1,48 +1,64 @@
-const CACHE_NAME = 'highlighti-mobile-v22';
-const ASSETS = [
-    './mobile.html',
+const CACHE_NAME = 'ai-note-v11';
+const ASSETS_TO_CACHE = [
+    './',
+    './index.html',
     './mobile.css',
     './mobile-core.js',
-    './mobile-chat.js',
     './mobile-editor.js',
-    './ai-core-mobile.js',
-    './mobile-gdrive.js',
-    './modules/idb-utils.js',
-    './modules/storage-bridge.js',
-    './modules/memory-agent.js'
+    './manifest.json'
 ];
 
-// Install: Cache all assets
-self.addEventListener('install', (e) => {
+// Install Event: Cache assets
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            console.log('[SW] Caching app shell');
+            return cache.addAll(ASSETS_TO_CACHE);
+        })
+    );
     self.skipWaiting();
-    e.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-    );
 });
 
-// Activate: Clean up old caches and take control
-self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        Promise.all([
-            caches.keys().then((keys) => {
-                return Promise.all(keys.map((key) => {
-                    if (key !== CACHE_NAME) return caches.delete(key);
-                }));
-            }),
-            self.clients.claim()
-        ])
+// Activate Event: Cleanup old caches
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((keyList) => {
+            return Promise.all(keyList.map((key) => {
+                if (key !== CACHE_NAME) {
+                    console.log('[SW] Removing old cache', key);
+                    return caches.delete(key);
+                }
+            }));
+        })
     );
+    self.clients.claim();
 });
 
-// Fetch: Network First, fallback to cache
-self.addEventListener('fetch', (e) => {
-    e.respondWith(
-        fetch(e.request)
-            .then((res) => {
-                const clone = res.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-                return res;
-            })
-            .catch(() => caches.match(e.request))
+// Fetch Event: Stale-While-Revalidate Strategy
+// If network is available, fetch and update cache. If not, fallback to cache.
+self.addEventListener('fetch', (event) => {
+    // Only handle GET requests
+    if (event.request.method !== 'GET') return;
+
+    // Ignore chrome-extension schemes or non-http
+    if (!event.request.url.startsWith('http')) return;
+
+    event.respondWith(
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.match(event.request).then((cachedResponse) => {
+                const fetchPromise = fetch(event.request).then((networkResponse) => {
+                    // Update cache with new version if successful
+                    if (networkResponse && networkResponse.status === 200) {
+                        cache.put(event.request, networkResponse.clone());
+                    }
+                    return networkResponse;
+                }).catch(() => {
+                    // Network failed, nothing to do (we rely on cache)
+                });
+
+                // Return cached response immediately if available, otherwise wait for network
+                return cachedResponse || fetchPromise;
+            });
+        })
     );
 });

@@ -1,5 +1,5 @@
 /**
- * mobile-core.js - The Brain of Mobile App (V10.8)
+ * mobile-core.js - The Brain of Mobile App (V11.0)
  */
 
 class MobileApp {
@@ -23,7 +23,7 @@ class MobileApp {
         // Initialize external modules if available
         if (window.initMobileBrowser) window.initMobileBrowser(this);
 
-        console.log('MobileCore V10.8 (Modular) Initialized');
+        console.log('MobileCore V10.9 (Modular) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -36,10 +36,12 @@ class MobileApp {
     }
 
     setupKeyboardTracking() {
+        // Disabled manually tracking keyboard to prevent layout jumps.
+        // Let the native browser behavior handle scrolling.
+        /*
         if (window.visualViewport) {
             const updateOffset = () => {
                 const offset = window.innerHeight - window.visualViewport.height;
-                // Only apply if offset is significant
                 const finalOffset = offset > 50 ? offset : 0;
                 document.documentElement.style.setProperty('--keyboard-offset', `${finalOffset}px`);
 
@@ -48,16 +50,11 @@ class MobileApp {
                 } else {
                     document.body.classList.remove('keyboard-visible');
                 }
-
-                if (finalOffset > 0 && document.activeElement) {
-                    setTimeout(() => {
-                        document.activeElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                    }, 300);
-                }
             };
             window.visualViewport.addEventListener('resize', updateOffset);
             window.visualViewport.addEventListener('scroll', updateOffset);
         }
+        */
     }
 
     triggerUniversalSend(inputEl) {

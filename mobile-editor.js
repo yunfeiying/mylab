@@ -1,5 +1,5 @@
 /**
- * mobile-editor.js - Plain Text Optimized & Auto-Save (V7.0)
+ * mobile-editor.js - Plain Text Optimized & Auto-Save (V11.0)
  */
 
 class MobileEditor {
@@ -14,21 +14,25 @@ class MobileEditor {
 
     loadNote(noteId, noteData) {
         this.currentNoteId = noteId;
-        if (this.headerTitle) this.headerTitle.value = noteData.title || '';
+        if (this.headerTitle) this.headerTitle.innerText = noteData.title || '';
         if (this.editor) this.editor.innerHTML = noteData.content || '';
         this.isSaved = true;
         if (window.mobileCore) window.mobileCore.navigateTo('editor');
+
+        // Auto-scroll to bottom on load
+        setTimeout(() => this.scrollToBottom(), 100);
     }
 
     initNewNote() {
         this.currentNoteId = 'note-' + Date.now();
-        if (this.headerTitle) this.headerTitle.value = '';
+        if (this.headerTitle) this.headerTitle.innerText = '';
         if (this.editor) {
             this.editor.innerHTML = '';
             this.editor.focus();
         }
         this.isSaved = false;
         if (window.mobileCore) window.mobileCore.navigateTo('editor');
+        this.scrollToBottom();
     }
 
     setupEditorEvents() {
@@ -65,7 +69,6 @@ class MobileEditor {
             slashBtn.onclick = () => {
                 if (this.editor) {
                     this.editor.focus();
-                    // Insert @ai at the end or current position
                     const selection = window.getSelection();
                     if (selection.rangeCount > 0) {
                         const range = selection.getRangeAt(0);
@@ -101,28 +104,103 @@ class MobileEditor {
             voiceBtn.addEventListener('mouseleave', stopRecording);
         }
 
-        // Editor Menu Button (三个点)
+        // Attachment Button Handler
+        const attachBtn = document.getElementById('btn-editor-attach');
+        if (attachBtn) {
+            let fileInput = document.getElementById('editor-file-input');
+            if (!fileInput) {
+                fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.id = 'editor-file-input';
+                fileInput.style.display = 'none';
+                document.body.appendChild(fileInput);
+
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                            const result = evt.target.result;
+                            if (file.type.startsWith('image/')) {
+                                document.execCommand('insertHTML', false, `<br><img src="${result}" style="max-width:100%; border-radius:8px; margin:10px 0;"><br>`);
+                            } else {
+                                document.execCommand('insertHTML', false, `<br><a href="${result}" download="${file.name}">📎 ${file.name}</a><br>`);
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                    fileInput.value = ''; // Reset
+                });
+            }
+
+            attachBtn.onclick = (e) => {
+                e.stopPropagation();
+                fileInput.click();
+            };
+        }
+
+        // Editor Menu Button
         const menuBtn = document.getElementById('btn-editor-menu');
         const menuOverlay = document.getElementById('editor-menu-overlay');
         const actEditorSave = document.getElementById('act-editor-save');
         const actEditorDelete = document.getElementById('act-editor-delete');
         const actEditorCancel = document.getElementById('act-editor-cancel');
+        const actEditorShare = document.getElementById('act-editor-share');
+        const actEditorRead = document.getElementById('act-editor-read');
 
         if (menuBtn && menuOverlay) {
             menuBtn.onclick = () => {
                 menuOverlay.classList.remove('hidden');
             };
-
-            // Close on background click
             menuOverlay.onclick = (e) => {
                 if (e.target === menuOverlay) menuOverlay.classList.add('hidden');
+            };
+        }
+
+        if (actEditorShare) {
+            actEditorShare.onclick = async () => {
+                menuOverlay.classList.add('hidden');
+                const title = this.headerTitle?.innerText || 'Note';
+                const text = this.editor?.innerText || '';
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: title,
+                            text: text,
+                        });
+                    } catch (err) {
+                        console.log('Share failed:', err);
+                    }
+                } else {
+                    // Fallback to copy
+                    navigator.clipboard.writeText(title + '\n\n' + text);
+                    this.showToast('Copied to clipboard');
+                }
+            };
+        }
+
+        if (actEditorRead) {
+            actEditorRead.onclick = () => {
+                menuOverlay.classList.add('hidden');
+                const text = this.editor?.innerText || '';
+                if (!text) return;
+
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                    this.showToast('Stopped reading');
+                } else {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 1.0;
+                    window.speechSynthesis.speak(utterance);
+                    this.showToast('Reading aloud...');
+                }
             };
         }
 
         if (actEditorSave) {
             actEditorSave.onclick = () => {
                 menuOverlay.classList.add('hidden');
-                this.saveNote(); // Not silent, show toast
+                this.saveNote();
             };
         }
 
@@ -131,19 +209,13 @@ class MobileEditor {
                 if (this.currentNoteId && confirm('Delete this note permanently?')) {
                     menuOverlay.classList.add('hidden');
                     if (window.appStorage) {
-                        // Remove from user_notes array
                         const data = await window.appStorage.get('user_notes');
                         let notes = data.user_notes || [];
                         const filtered = notes.filter(n => n.id !== this.currentNoteId);
                         if (filtered.length !== notes.length) {
                             await window.appStorage.set({ user_notes: filtered });
-                            console.log('[Editor Delete] Removed from user_notes array');
                         }
-
-                        // Remove standalone IDB key
                         await window.appStorage.remove(this.currentNoteId);
-                        console.log('[Editor Delete] Removed standalone key:', this.currentNoteId);
-
                         if (window.mobileCore) {
                             window.mobileCore.cacheDirty = true;
                             window.mobileCore.navigateTo('notes-all');
@@ -161,23 +233,22 @@ class MobileEditor {
             };
         }
 
-        // Floating toolbar: dot ↔ capsule toggle
         this.setupFloatingToolbar();
     }
 
     /**
-     * Floating Toolbar Gesture Controller.
-     * Default: collapsed dot. Click → expand capsule.
-     * Swipe right on capsule → collapse back to dot.
-     * Auto-collapse after inactivity.
+     * Floating Toolbar Interaction Controller (V8.0)
      */
     setupFloatingToolbar() {
         const capsule = document.querySelector('.editor-toolbar-capsule');
         if (!capsule) return;
 
         let autoCollapseTimer = null;
-        let swipeStartX = 0;
-        let isCapsuleSwiping = false;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let longPressTimer = null;
+        let isLongPress = false;
+        let isSwiping = false;
 
         const expand = () => {
             capsule.classList.remove('collapsed');
@@ -191,45 +262,86 @@ class MobileEditor {
 
         const resetAutoCollapse = () => {
             if (autoCollapseTimer) clearTimeout(autoCollapseTimer);
-            autoCollapseTimer = setTimeout(collapse, 6000);
+            autoCollapseTimer = setTimeout(collapse, 8000); // 8s inactivity
         };
 
-        // Click on collapsed dot → expand
-        capsule.addEventListener('click', (e) => {
-            if (capsule.classList.contains('collapsed')) {
-                e.stopPropagation();
-                expand();
-            }
-        });
+        const startVoice = () => {
+            if (!capsule.classList.contains('collapsed')) return;
+            isLongPress = true;
+            if (window.navigator.vibrate) window.navigator.vibrate(60);
+            if (window.mobileCore) window.mobileCore.startVoiceRecognition();
+        };
 
-        // Swipe right on expanded capsule → collapse
+        const stopVoice = () => {
+            if (isLongPress) {
+                if (window.mobileCore) window.mobileCore.stopVoiceRecognition();
+                isLongPress = false;
+            }
+        };
+
+        // Touch Listeners
         capsule.addEventListener('touchstart', (e) => {
-            if (capsule.classList.contains('collapsed')) return;
-            swipeStartX = e.touches[0].clientX;
-            isCapsuleSwiping = false;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isSwiping = false;
+            isLongPress = false;
+
+            if (capsule.classList.contains('collapsed')) {
+                longPressTimer = setTimeout(startVoice, 600);
+            }
         }, { passive: true });
 
         capsule.addEventListener('touchmove', (e) => {
-            if (capsule.classList.contains('collapsed')) return;
-            const deltaX = e.touches[0].clientX - swipeStartX;
-            if (deltaX > 20) isCapsuleSwiping = true;
+            const deltaX = e.touches[0].clientX - touchStartX;
+            const deltaY = e.touches[0].clientY - touchStartY;
+            if (Math.abs(deltaX) > 15 || Math.abs(deltaY) > 15) {
+                if (longPressTimer) clearTimeout(longPressTimer);
+                isSwiping = true;
+            }
         }, { passive: true });
 
         capsule.addEventListener('touchend', (e) => {
-            if (capsule.classList.contains('collapsed')) return;
-            const deltaX = (e.changedTouches[0]?.clientX || 0) - swipeStartX;
-            if (isCapsuleSwiping && deltaX > 50) {
-                collapse();
-            } else {
-                // Any interaction resets auto-collapse
-                resetAutoCollapse();
+            if (longPressTimer) clearTimeout(longPressTimer);
+            if (isLongPress) {
+                stopVoice();
+                return;
             }
-            isCapsuleSwiping = false;
-        }, { passive: true });
 
-        // Any toolbar button click resets auto-collapse timer
+            const deltaX = (e.changedTouches[0]?.clientX || 0) - touchStartX;
+
+            if (capsule.classList.contains('collapsed')) {
+                // === BALL STATE ===
+                if (isSwiping && deltaX < -40) {
+                    expand();
+                } else if (!isSwiping) {
+                    // Quick Click on BALL → Insert @ai
+                    // PREVENT KEYBOARD HIDE
+                    if (e.cancelable) e.preventDefault();
+                    this.insertTextAtCursor('@ai ');
+                    if (this.editor) this.editor.focus();
+                }
+            } else {
+                // === EXPANDED STATE ===
+                if (isSwiping && deltaX > 40) {
+                    collapse();
+                } else {
+                    // Check if clicked exactly on a button (like Attach)
+                    const targetBtn = e.target.closest('button');
+                    if (targetBtn) {
+                        resetAutoCollapse();
+                        return; // Allow default click
+                    }
+                    resetAutoCollapse();
+                }
+            }
+            isSwiping = false;
+        }, { passive: false });
+
         capsule.querySelectorAll('.toolbar-btn-mini').forEach(btn => {
-            btn.addEventListener('click', () => resetAutoCollapse());
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resetAutoCollapse();
+            });
         });
     }
 
@@ -237,7 +349,7 @@ class MobileEditor {
         if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
         this.autoSaveTimer = setTimeout(() => {
             this.saveNote(true);
-        }, 1500); // Auto-save after 1.5s of no typing
+        }, 1500);
     }
 
     handleAutoList(e) {
@@ -257,12 +369,10 @@ class MobileEditor {
 
     checkSlashCommand(e) {
         const text = this.editor.innerText;
-        // Match @ai or /ai to be backwards compatible, but prioritize @
         const match = text.match(/[@/]ai(?:\s+(.*))?\s*$/);
         if (match) {
             e.preventDefault();
             const prompt = (match[1] || "").trim();
-            // Remove the command text
             this.editor.innerHTML = this.editor.innerHTML.replace(/[@/]ai(?:\s+.*)?\s*$/, '');
             this.streamAIContent(prompt || "整理内容并排版");
             return true;
@@ -274,39 +384,32 @@ class MobileEditor {
         if (!text) return;
         if (this.editor) {
             this.editor.focus();
-            // Use execCommand for simple insertion at cursor (works in contenteditable)
-            // Or use Range manipulation if needed.
-            // But verify if document.execCommand is supported (it is deprecated but widely used).
-            // Better: use Range.
             const selection = window.getSelection();
             if (selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 range.deleteContents();
                 const node = document.createTextNode(text);
                 range.insertNode(node);
-                // Move cursor after
                 range.setStartAfter(node);
                 range.setEndAfter(node);
                 selection.removeAllRanges();
                 selection.addRange(range);
             } else {
-                // Append if no selection
                 this.editor.innerText += text;
             }
-            // Trigger auto-save
             this.triggerAutoSave();
         }
     }
 
-    // 纯黑白 Markdown 转换
     formatMarkdown(text) {
         return text
-            .replace(/### (.*)/g, '<div style="margin:8px 0; font-weight:bold; font-size:17px;">$1</div>')
-            .replace(/## (.*)/g, '<div style="margin:10px 0; font-weight:bold; font-size:18px;">$1</div>')
-            .replace(/# (.*)/g, '<div style="margin:12px 0; font-weight:bold; font-size:20px;">$1</div>')
+            .replace(/### (.*)/g, '<div style="display:inline-block; width:100%; font-weight:bold; font-size:17px;">$1</div>')
+            .replace(/## (.*)/g, '<div style="display:inline-block; width:100%; font-weight:bold; font-size:18px;">$1</div>')
+            .replace(/# (.*)/g, '<div style="display:inline-block; width:100%; font-weight:bold; font-size:20px;">$1</div>')
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/^- (.*)/gm, '<div style="margin-left:4px;">• $1</div>')
             .replace(/^\d+\. (.*)/gm, '<div style="margin-left:4px;">$1</div>')
+            .replace(/\n{2,}/g, '\n')
             .replace(/\n/g, '<br>');
     }
 
@@ -326,7 +429,7 @@ class MobileEditor {
         try {
             const context = this.editor.innerText.slice(-800);
             const messages = [
-                { role: 'system', content: '你是一个擅长逻辑架构与创意激发的笔记助手。请为用户构建结构清晰、有深度的内容框架。直接输出纯文字，不带任何 Markdown 源码符号。' },
+                { role: 'system', content: '你是一个擅长逻辑架构与创意激发的笔记助手。能够根据上下文生成结构清晰、有深度的内容。请务必使用 Markdown 格式（如 # 标题、- 列表）来组织内容结构，确保段落分明，重点突出。' },
                 { role: 'user', content: `上下文：${context}\n指令：${prompt}` }
             ];
 
@@ -345,7 +448,6 @@ class MobileEditor {
                     this.editor.scrollTop = this.editor.scrollHeight;
                 }
             }
-            // Trigger auto-save after AI finishes
             this.isSaved = false;
             this.saveNote(true);
         } catch (err) {
@@ -378,39 +480,28 @@ class MobileEditor {
             return;
         }
 
-        let title = this.headerTitle?.value?.trim();
+        let title = this.headerTitle?.innerText?.trim();
         const content = this.editor.innerHTML;
         const text = this.editor.innerText.trim();
 
-        console.log('[Editor] Note data - title:', title, 'text length:', text.length);
-
-        // If completely empty, don't save yet
         if (!title && !text) {
-            console.log('[Editor] Empty note, skipping save');
             return;
         }
 
-        // Auto-extract title from first line if empty
         if (!title && text) {
             const firstLine = text.split('\n')[0].substring(0, 25).trim();
             if (firstLine) {
                 title = firstLine;
-                if (this.headerTitle) this.headerTitle.value = title;
-                console.log('[Editor] Auto-extracted title:', title);
+                if (this.headerTitle) this.headerTitle.innerText = title;
             }
         }
 
         if (window.appStorage) {
             try {
-                console.log('[Editor] Fetching existing notes from storage...');
-                // Get existing notes array
                 const data = await window.appStorage.get('user_notes');
                 let notes = data.user_notes || [];
-                console.log('[Editor] Found', notes.length, 'existing notes');
 
-                // Find if this note already exists
                 const existingIndex = notes.findIndex(n => n.id === this.currentNoteId);
-                console.log('[Editor] Existing note index:', existingIndex);
 
                 const noteData = {
                     id: this.currentNoteId,
@@ -421,39 +512,56 @@ class MobileEditor {
                     updatedAt: Date.now()
                 };
 
-                // Update or add note
                 if (existingIndex >= 0) {
                     notes[existingIndex] = noteData;
-                    console.log('[Editor] Updated existing note at index', existingIndex);
                 } else {
-                    notes.unshift(noteData); // Add to beginning
-                    console.log('[Editor] Added new note to beginning, total notes:', notes.length);
+                    notes.unshift(noteData);
                 }
 
-                // Save updated array
-                console.log('[Editor] Saving to appStorage...');
                 await window.appStorage.set({ user_notes: notes });
-                console.log('[Editor] Save successful!');
 
                 this.isSaved = true;
                 if (!isSilent) this.showToast('Saved');
 
-                // Update MobileCore Cache
                 if (window.mobileCore) {
-                    console.log('[Editor] Updating MobileCore cache and rendering...');
-                    window.mobileCore.cacheDirty = true; // Mark dirty
-                    await window.mobileCore.renderApp(true); // Force refresh UI
-                    console.log('[Editor] MobileCore render complete');
-                } else {
-                    console.warn('[Editor] window.mobileCore not available');
+                    window.mobileCore.cacheDirty = true;
+                    await window.mobileCore.renderApp(true);
                 }
             } catch (e) {
                 console.error('[Editor] Save failed:', e);
                 this.showToast('Save Error: ' + e.message);
             }
-        } else {
-            console.error('[Editor] appStorage missing');
-            if (!isSilent) alert('Error: Storage not available!');
+        }
+    }
+
+    formatMarkdown(text) {
+        return text
+            // Markdown Headers
+            .replace(/^### (.*)(\n|$)/gm, '<div style="display:block; width:100%; font-weight:bold; font-size:18px; margin:8px 0 2px; line-height:1.3;">$1</div>')
+            .replace(/^## (.*)(\n|$)/gm, '<div style="display:block; width:100%; font-weight:bold; font-size:20px; margin:10px 0 4px; line-height:1.3;">$1</div>')
+            .replace(/^# (.*)(\n|$)/gm, '<div style="display:block; width:100%; font-weight:bold; font-size:22px; margin:12px 0 6px; line-height:1.3;">$1</div>')
+
+            // Auto-detect Chinese/Numeric Headers (e.g., "一、...", "1. ...") if not already marked
+            // Regex matches start of line, number/char + dot/comma, and content. 
+            // We assume short lines (< 30 chars) with this pattern are likely headers.
+            .replace(/^([一二三四五六七八九十]+[、\.]\s*.*?)(\n|$)/gm, '<div style="display:block; width:100%; font-weight:bold; font-size:19px; margin:10px 0 4px; line-height:1.3;">$1</div>')
+
+            // Bold
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+
+            // Lists
+            .replace(/^- (.*)/gm, '<div style="margin-left:4px; line-height:1.4;">• $1</div>')
+            .replace(/^\d+\. (.*)/gm, '<div style="margin-left:4px; line-height:1.4;">$1</div>')
+
+            // Clean up newlines
+            .replace(/\n{2,}/g, '\n') // Collapse multiple newlines
+            .replace(/\n/g, '<br>'); // Convert remaining newlines
+    }
+
+    scrollToBottom() {
+        const container = document.querySelector('.editor-content');
+        if (container) {
+            container.scrollTop = container.scrollHeight;
         }
     }
 }
