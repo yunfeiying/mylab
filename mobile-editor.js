@@ -160,6 +160,77 @@ class MobileEditor {
                 menuOverlay.classList.add('hidden');
             };
         }
+
+        // Floating toolbar: dot ↔ capsule toggle
+        this.setupFloatingToolbar();
+    }
+
+    /**
+     * Floating Toolbar Gesture Controller.
+     * Default: collapsed dot. Click → expand capsule.
+     * Swipe right on capsule → collapse back to dot.
+     * Auto-collapse after inactivity.
+     */
+    setupFloatingToolbar() {
+        const capsule = document.querySelector('.editor-toolbar-capsule');
+        if (!capsule) return;
+
+        let autoCollapseTimer = null;
+        let swipeStartX = 0;
+        let isCapsuleSwiping = false;
+
+        const expand = () => {
+            capsule.classList.remove('collapsed');
+            resetAutoCollapse();
+        };
+
+        const collapse = () => {
+            capsule.classList.add('collapsed');
+            if (autoCollapseTimer) clearTimeout(autoCollapseTimer);
+        };
+
+        const resetAutoCollapse = () => {
+            if (autoCollapseTimer) clearTimeout(autoCollapseTimer);
+            autoCollapseTimer = setTimeout(collapse, 6000);
+        };
+
+        // Click on collapsed dot → expand
+        capsule.addEventListener('click', (e) => {
+            if (capsule.classList.contains('collapsed')) {
+                e.stopPropagation();
+                expand();
+            }
+        });
+
+        // Swipe right on expanded capsule → collapse
+        capsule.addEventListener('touchstart', (e) => {
+            if (capsule.classList.contains('collapsed')) return;
+            swipeStartX = e.touches[0].clientX;
+            isCapsuleSwiping = false;
+        }, { passive: true });
+
+        capsule.addEventListener('touchmove', (e) => {
+            if (capsule.classList.contains('collapsed')) return;
+            const deltaX = e.touches[0].clientX - swipeStartX;
+            if (deltaX > 20) isCapsuleSwiping = true;
+        }, { passive: true });
+
+        capsule.addEventListener('touchend', (e) => {
+            if (capsule.classList.contains('collapsed')) return;
+            const deltaX = (e.changedTouches[0]?.clientX || 0) - swipeStartX;
+            if (isCapsuleSwiping && deltaX > 50) {
+                collapse();
+            } else {
+                // Any interaction resets auto-collapse
+                resetAutoCollapse();
+            }
+            isCapsuleSwiping = false;
+        }, { passive: true });
+
+        // Any toolbar button click resets auto-collapse timer
+        capsule.querySelectorAll('.toolbar-btn-mini').forEach(btn => {
+            btn.addEventListener('click', () => resetAutoCollapse());
+        });
     }
 
     triggerAutoSave() {

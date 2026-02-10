@@ -713,7 +713,7 @@ html {
     pointer-events: auto;
     display: flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 0.5px solid rgba(0, 0, 0, 0.1);
@@ -721,12 +721,71 @@ html {
     padding: 6px 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
     gap: 8px;
+    transition: all 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    transform-origin: right center;
+    max-width: 420px;
+    overflow: hidden;
+}
+
+/* Collapsed state: iOS AssistiveTouch style */
+.editor-toolbar-capsule.collapsed {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    padding: 0;
+    gap: 0;
+    background: radial-gradient(circle at center,
+            #ffffff 0%,
+            #ffffff 52%,
+            #e8e8ed 54%,
+            #c4c4c8 58%,
+            #a8a8ad 62%,
+            rgba(120, 120, 128, 0.6) 72%,
+            rgba(120, 120, 128, 0.3) 85%,
+            rgba(120, 120, 128, 0) 100%);
+    border: none;
+    box-shadow:
+        0 2px 12px rgba(0, 0, 0, 0.2),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.85;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.editor-toolbar-capsule.collapsed:active {
+    opacity: 1;
+    transform: scale(0.92);
+}
+
+.editor-toolbar-capsule.collapsed .toolbar-section,
+.editor-toolbar-capsule.collapsed .toolbar-divider {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+/* Dot indicator - hidden in AssistiveTouch style (gradient is the cue) */
+.editor-toolbar-dot-icon {
+    display: none;
+}
+
+.editor-toolbar-capsule:not(.collapsed) .editor-toolbar-dot-icon {
+    display: none;
+    width: 0;
+    overflow: hidden;
 }
 
 .toolbar-section {
     display: flex;
     align-items: center;
     gap: 4px;
+    transition: opacity 0.2s ease 0.1s, width 0.3s ease;
 }
 
 .toolbar-divider {
@@ -734,6 +793,7 @@ html {
     height: 24px;
     background: rgba(0, 0, 0, 0.1);
     margin: 0 4px;
+    transition: opacity 0.2s ease, width 0.3s ease, margin 0.3s ease;
 }
 
 .toolbar-btn-mini {
@@ -750,6 +810,7 @@ html {
     justify-content: center;
     transition: all 0.2s;
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .toolbar-btn-mini:active {

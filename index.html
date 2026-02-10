@@ -179,7 +179,13 @@
                     style="position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); background: rgba(255, 59, 48, 0.9); color: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15); pointer-events: none;">
                     Recording...
                 </div>
-                <div class="editor-toolbar-capsule">
+                <div class="editor-toolbar-capsule collapsed">
+                    <!-- Dot icon: visible only when collapsed -->
+                    <svg class="editor-toolbar-dot-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
                     <div class="toolbar-section">
                         <button id="btn-editor-ai-slash" class="toolbar-btn-mini"
                             style="font-family:monospace; font-weight:700; color:var(--ios-blue); font-size: 18px;">@</button>
