@@ -17,6 +17,7 @@ class MobileApp {
 
         this.setupKeyboardTracking();
         this.setupEvents();
+        this.setupSwipeToDelete();
         this.setupVoiceListeners();
 
         // Initialize external modules if available
@@ -226,23 +227,22 @@ class MobileApp {
 
         // Back logic for specific views
         document.querySelectorAll('.btn-go-home').forEach(btn => {
-            if (btn.id !== 'nav-btn-home') btn.onclick = () => {
-                // Ensure voice mode is off when leaving deep views?
+            if (btn.id !== 'nav-btn-home') btn.addEventListener('click', () => {
                 if (this.isVoiceMode) this.toggleVoiceMode();
                 this.navigateTo('home');
-            };
+            });
         });
         document.querySelectorAll('.btn-back-to-notes').forEach(btn => {
-            btn.onclick = async () => {
+            btn.addEventListener('click', async () => {
+                console.log('[Back] btn-back-to-notes clicked');
                 if (window.mobileEditor) {
-                    // Wait for save before navigating
                     await window.mobileEditor.saveNote(true);
                 }
                 this.navigateTo('notes-all');
-            };
+            });
         });
         document.querySelectorAll('.btn-back-to-reader').forEach(btn => {
-            btn.onclick = () => this.navigateTo('reading-all');
+            btn.addEventListener('click', () => this.navigateTo('reading-all'));
         });
 
         // --- Global Core Hub: Input & Dynamic Action Button ---
@@ -842,6 +842,100 @@ class MobileApp {
                 this.startVoiceRecognition();
             };
         }
+    }
+
+    /**
+     * Swipe-to-Delete Gesture Handler.
+     * Uses event delegation on document.body for efficient handling.
+     * Why: The CSS for .note-card.swiped and .note-delete-action already exists,
+     * but the touch gesture JS was missing entirely.
+     */
+    setupSwipeToDelete() {
+        let startX = 0;
+        let startY = 0;
+        let lastDeltaX = 0;
+        let activeWrapper = null;
+        let isSwiping = false;
+        const SWIPE_THRESHOLD = 60;
+        const VERTICAL_LOCK = 15;
+
+        const closeAllSwiped = (except = null) => {
+            document.querySelectorAll('.note-card.swiped').forEach(card => {
+                if (card !== except) card.classList.remove('swiped');
+            });
+        };
+
+        document.body.addEventListener('touchstart', (e) => {
+            const wrapper = e.target.closest('.note-item-wrapper');
+            if (!wrapper) {
+                closeAllSwiped();
+                return;
+            }
+            if (e.target.closest('.note-delete-action')) return;
+
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            lastDeltaX = 0;
+            activeWrapper = wrapper;
+            isSwiping = false;
+        }, { passive: true });
+
+        document.body.addEventListener('touchmove', (e) => {
+            if (!activeWrapper) return;
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - startX;
+            const deltaY = Math.abs(touch.clientY - startY);
+
+            if (deltaY > VERTICAL_LOCK && !isSwiping) {
+                activeWrapper = null;
+                return;
+            }
+
+            if (deltaX < -10) {
+                isSwiping = true;
+                lastDeltaX = deltaX;
+                const card = activeWrapper.querySelector('.note-card');
+                if (card) {
+                    const offset = Math.max(-80, Math.min(0, deltaX));
+                    card.style.transition = 'none';
+                    card.style.transform = `translateX(${offset}px)`;
+                }
+            } else if (deltaX > 0 && isSwiping) {
+                // Swiping back right — allow closing
+                lastDeltaX = deltaX;
+                const card = activeWrapper.querySelector('.note-card');
+                if (card) {
+                    card.style.transition = 'none';
+                    card.style.transform = `translateX(0)`;
+                }
+            }
+        }, { passive: true });
+
+        document.body.addEventListener('touchend', () => {
+            if (!activeWrapper) return;
+            const card = activeWrapper.querySelector('.note-card');
+
+            if (card) {
+                card.style.transition = '';
+                card.style.transform = '';
+
+                if (isSwiping) {
+                    if (lastDeltaX < -SWIPE_THRESHOLD) {
+                        // Swipe past threshold — reveal delete action
+                        closeAllSwiped(card);
+                        card.classList.add('swiped');
+                    } else {
+                        // Didn't swipe far enough — snap back
+                        card.classList.remove('swiped');
+                    }
+                }
+            }
+
+            activeWrapper = null;
+            isSwiping = false;
+            lastDeltaX = 0;
+        }, { passive: true });
     }
 
     startVoiceRecognition(onFinished = null) {

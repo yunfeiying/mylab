@@ -27,7 +27,12 @@ class AICoreMobile {
             this.config.baseUrl = res.ai_base_url || nested.ai_base_url || 'https://api.deepseek.com';
             this.config.model = res.ai_model || nested.ai_model || 'deepseek-chat';
 
-            console.log('[AICore] Config loaded successfully.');
+            console.log('[AICore] Config loaded:', {
+                hasKey: !!this.config.apiKey,
+                keyPreview: this.config.apiKey ? this.config.apiKey.substring(0, 8) + '...' : '(empty)',
+                baseUrl: this.config.baseUrl,
+                model: this.config.model
+            });
         } catch (e) {
             console.error('[AICore] Init failed:', e);
         }
