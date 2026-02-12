@@ -1,5 +1,5 @@
 /**
- * mobile-core.js - The Brain of Mobile App (V11.0)
+ * mobile-core.js - The Brain of Mobile App (V11.5)
  */
 
 class MobileApp {
