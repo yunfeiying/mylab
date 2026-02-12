@@ -16,14 +16,40 @@ class ChatSkillsEngine {
             name: 'Weather Forecast',
             patterns: [/(天气|气温|下雨|weather|forecast|气象)/i],
             async execute(query) {
-                return new Promise((resolve) => {
-                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: `https://wttr.in?format=3&m` }, (response) => {
-                        if (response && response.success) {
-                            resolve(`[Real-time Weather]: ${response.text.trim()}`);
-                        } else {
+                return new Promise(async (resolve) => {
+                    const url = `https://wttr.in?format=3&m`;
+
+                    // 1. Try Extension Background (Best for CORS-restricted APIs, though wttr.in is open)
+                    if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
+                        chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (response) => {
+                            if (response && response.success) {
+                                resolve(`[Real-time Weather]: ${response.text.trim()}`);
+                            } else {
+                                // Fallback to fetch if extension fails
+                                doFetch();
+                            }
+                        });
+                        return;
+                    }
+
+                    // 2. Web Mode Fallback (Direct Fetch)
+                    // wttr.in supports CORS, so this works in pure web!
+                    doFetch();
+
+                    async function doFetch() {
+                        try {
+                            const res = await fetch(url);
+                            if (res.ok) {
+                                const text = await res.text();
+                                resolve(`[Real-time Weather]: ${text.trim()}`);
+                            } else {
+                                resolve(null);
+                            }
+                        } catch (e) {
+                            console.warn('[Weather] Fetch failed:', e);
                             resolve(null);
                         }
-                    });
+                    }
                 });
             }
         });
@@ -35,15 +61,21 @@ class ChatSkillsEngine {
             patterns: [/(电影|上映|排片|movie|cinema|film)/i],
             async execute(query) {
                 return new Promise((resolve) => {
-                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: 'https://m.douban.com/movie/' }, (response) => {
-                        if (response && response.success) {
-                            const titles = response.text.match(/[《](.*?)[》]/g) || [];
-                            const uniqueTitles = [...new Set(titles)].slice(0, 8);
-                            resolve(`[Real-time Movies (Douban)]: ${uniqueTitles.join(', ')}\n(Source: Douban Mobile)`);
-                        } else {
-                            resolve(null);
-                        }
-                    });
+                    const url = 'https://m.douban.com/movie/';
+                    if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
+                        chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (response) => {
+                            if (response && response.success) {
+                                const titles = response.text.match(/[《](.*?)[》]/g) || [];
+                                const uniqueTitles = [...new Set(titles)].slice(0, 8);
+                                resolve(`[Real-time Movies (Douban)]: ${uniqueTitles.join(', ')}\n(Source: Douban Mobile)`);
+                            } else {
+                                resolve(null);
+                            }
+                        });
+                    } else {
+                        // Web Mode Fallback
+                        resolve(`[Douban Movies Link]: [View Movies on Douban](${url})`);
+                    }
                 });
             }
         });
@@ -59,14 +91,20 @@ class ChatSkillsEngine {
 
                 return new Promise((resolve) => {
                     const searchUrl = `https://m.baidu.com/s?word=${encodeURIComponent(searchQuery)}`;
-                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: searchUrl }, (response) => {
-                        if (response && response.success) {
-                            let snippet = response.text.substring(0, 2500);
-                            resolve(`[Baidu Search Results for "${searchQuery}"]: \n${snippet}\n---`);
-                        } else {
-                            resolve(null);
-                        }
-                    });
+
+                    if (window.chrome && window.chrome.runtime && window.chrome.runtime.sendMessage) {
+                        chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: searchUrl }, (response) => {
+                            if (response && response.success) {
+                                let snippet = response.text.substring(0, 2500);
+                                resolve(`[Baidu Search Results for "${searchQuery}"]: \n${snippet}\n---`);
+                            } else {
+                                resolve(null);
+                            }
+                        });
+                    } else {
+                        // Web Mode Fallback
+                        resolve(`[Search Link]: [Search "${searchQuery}" on Baidu](${searchUrl})`);
+                    }
                 });
             }
         });

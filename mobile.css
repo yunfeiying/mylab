@@ -1598,3 +1598,81 @@ html {
 .message.user .chat-file-meta {
     color: rgba(255, 255, 255, 0.8);
 }
+
+/* RSS Category & Folder Styles */
+.rss-folder {
+    margin-bottom: 4px;
+}
+
+.rss-folder-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.rss-folder-header:hover {
+    background: #f1f5f9;
+}
+
+.rss-folder-header .chevron {
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    transition: transform 0.2s;
+    color: #94a3b8;
+}
+
+.rss-folder-header.collapsed .chevron {
+    transform: rotate(-90deg);
+}
+
+.rss-folder-header .folder-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex: 1;
+}
+
+.rss-folder-items {
+    margin-left: 12px;
+    border-left: 1px solid #f1f5f9;
+    padding-left: 4px;
+}
+
+.rss-folder-items.hidden {
+    display: none;
+}
+
+.rss-delete-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    border-radius: 4px;
+    opacity: 0;
+    transition: all 0.2s;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.nav-item:hover .rss-delete-btn,
+.rss-folder-header:hover .rss-delete-btn {
+    opacity: 1;
+}
+
+.rss-delete-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}

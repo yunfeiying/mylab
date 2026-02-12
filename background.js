@@ -1,280 +1,160 @@
-// background.js - Cleaned, Modularized & Optimized
-import { driveSyncService } from './js/services/DriveSyncService.js';
-import { webDavSyncService } from './js/services/WebDavSyncService.js';
-import { notionSyncService } from './js/services/NotionSyncService.js';
-// [引入] 迁移服务和 NotebookLM 同步服务
-import { checkAndMigrateData, setupNotebookLMSync } from './src/services/DataMigrationService.js';
+/**
+ * background.js - 后台 Service Worker 核心 (集成工业级 Google News 解密引擎)
+ */
 
-// ==========================================
-// 1. 初始化与生命周期
-// ==========================================
-
-// 安装/更新时触发
-chrome.runtime.onInstalled.addListener((details) => {
-    chrome.action.setBadgeText({ text: '' });
-
-    // [Action 1] 触发数据结构迁移 (大JSON -> 文件夹)
-    checkAndMigrateData().catch(e => console.error("Migration failed:", e));
-
-    // [Action 2] 初始化 NotebookLM 同步监听
-    setupNotebookLMSync();
-
-    // 如果是全新安装，初始化试用期
-    if (details.reason === 'install') {
-        chrome.storage.local.set({
-            'trial_start_date': Date.now(),
-            'user_license_status': 'none'
-        });
-    }
-});
-
-// 浏览器启动时触发
-chrome.runtime.onStartup.addListener(() => {
-    chrome.action.setBadgeText({ text: '' });
-
-    // 每次启动都检查一下迁移状态（为了确保断点续传）
-    checkAndMigrateData().catch(e => console.error("Migration check failed:", e));
-
-    // 重新挂载 NotebookLM 监听
-    setupNotebookLMSync();
-});
-
-
-// ==========================================
-// 2. 消息路由中心 (Message Router)
-// ==========================================
+// I. 消息监听器
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-
-    // A. 界面更新：角标
-    if (request.type === 'UPDATE_TAB_BADGE' && sender.tab) {
-        const count = request.count;
-        const text = count > 0 ? count.toString() : '';
-        chrome.action.setBadgeText({ text: text, tabId: sender.tab.id });
-        chrome.action.setBadgeBackgroundColor({ color: '#8ac9ed', tabId: sender.tab.id });
-        return; // 同步返回
+    // 1. Badge Update
+    if (request.type === 'UPDATE_TAB_BADGE') {
+        const count = request.count || 0;
+        const tabId = sender.tab ? sender.tab.id : null;
+        if (tabId) {
+            chrome.action.setBadgeText({
+                text: count > 0 ? count.toString() : '',
+                tabId: tabId
+            });
+            chrome.action.setBadgeBackgroundColor({
+                color: '#6366f1',
+                tabId: tabId
+            });
+        }
     }
 
-    // B. 功能：激活码验证
-    if (request.action === 'VERIFY_LICENSE') {
-        verifyLicense(request.key).then(sendResponse);
-        return true; // 异步返回
-    }
-
-    // C. 功能：屏幕截图
-    if (request.action === 'CAPTURE_VISIBLE_TAB') {
-        chrome.tabs.captureVisibleTab(sender.tab.windowId, { format: 'jpeg', quality: 60 }, (dataUrl) => {
-            if (chrome.runtime.lastError) {
-                console.error("Screenshot failed:", chrome.runtime.lastError.message);
-                sendResponse(null);
-            } else {
-                sendResponse(dataUrl);
-            }
+    if (request.action === 'FETCH_ARTICLE_SNAPSHOT') {
+        processGoogleNewsUrl(request.url).then(finalUrl => {
+            console.log('[Snapshot] Deep probing final URL:', finalUrl);
+            return fetchWithCharset(finalUrl);
+        }).then(html => {
+            sendResponse({ success: true, html: html });
+        }).catch(err => {
+            console.error('[Snapshot] Pipeline failed:', err.message);
+            sendResponse({ success: false, error: err.message });
         });
         return true;
     }
 
-    // D. 功能：AI 智能预读
-    if (request.action === 'START_AI_READING') {
-        handleAIReading(request.tabId).then(sendResponse);
-        return true;
-    }
-
-    // E. 同步：WebDAV
-    if (request.action === 'START_WEBDAV_SYNC') {
-        webDavSyncService.sync().then(sendResponse);
-        return true; // 异步返回
-    }
-
-    // F. 同步：Google Drive
-    if (request.action === 'START_GDRIVE_SYNC') {
-        driveSyncService.sync().then(sendResponse);
-        return true; // 异步返回
-    }
-
-    // G. 同步：Notion
-    if (request.action === 'START_NOTION_SYNC') {
-        notionSyncService.syncMemory().then(sendResponse).catch(e => sendResponse({ success: false, error: e.message }));
-        return true; // 异步返回
-    }
-
-    // G. 功能：跨域获取图片并转换为 Base64 (绕过 CORS/Referer)
-    if (request.action === 'FETCH_IMAGE_BASE64') {
-        fetch(request.url, { referrerPolicy: 'no-referrer' })
-            .then(resp => {
-                if (!resp.ok) throw new Error('Fetch failed');
-                return resp.blob();
-            })
-            .then(blob => {
-                const reader = new FileReader();
-                reader.onloadend = () => sendResponse({ success: true, data: reader.result });
-                reader.readAsDataURL(blob);
-            })
-            .catch(err => {
-                console.error("Background fetch failed:", err);
-                sendResponse({ success: false, error: err.message });
-            });
-        return true;
-    }
-
-    // H. 功能：跨域获取网页内容并提取文本
-    if (request.action === 'FETCH_URL_CONTENT') {
-        fetch(request.url, {
-            referrerPolicy: 'no-referrer',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-        })
-            .then(resp => {
-                if (!resp.ok) throw new Error(`HTTP Error ${resp.status}`);
-                return resp.text();
-            })
-            .then(html => {
-                // Extract title
-                const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/i);
-                const title = titleMatch ? titleMatch[1].trim() : '';
-
-                // 简单的 HTML 文本提取 (去掉 script, style, tags)
-                let text = html
-                    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, '')
-                    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gmi, '')
-                    .replace(/<[^>]+>/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim()
-                    .substring(0, 50000); // 截断防止内存溢出
-
-                sendResponse({
-                    success: true,
-                    text: text,
-                    html: html, // Provide full HTML for snapshot
-                    title: title
-                });
-            })
-            .catch(err => {
-                sendResponse({ success: false, error: err.message });
-            });
+    if (request.action === 'BACKGROUND_FETCH') {
+        fetchWithCharset(request.url)
+            .then(html => sendResponse({ success: true, text: html }))
+            .catch(err => sendResponse({ success: false, error: err.message }));
         return true;
     }
 });
 
+/**
+ * 核心：解析 Google News 加密链接
+ * 参考开源方案：直接解密 Base64 嵌套路径，跳过 500KB 的中转页
+ */
+async function processGoogleNewsUrl(url) {
+    if (!url.includes('news.google.com/rss/articles/')) return url;
 
-// ==========================================
-// 3. 辅助功能模块
-// ==========================================
+    try {
+        const parts = url.split('/');
+        const encoded = parts[parts.length - 1].split('?')[0];
 
-// PDF 自动打开逻辑
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.url) {
-        if (tab.url.toLowerCase().endsWith('.pdf') || tab.url.includes('.pdf?')) {
-            chrome.storage.local.get('autoOpenPDF', (res) => {
-                if (res.autoOpenPDF) {
-                    const viewerUrl = chrome.runtime.getURL(`pdf_viewer.html?file=${encodeURIComponent(tab.url)}`);
-                    chrome.tabs.update(tabId, { url: viewerUrl });
+        // 1. 尝试本地 Base64 快速解码
+        // Google NEWS 的 CBMi... 格式通常在第 4 个字节后存有原始 URL
+        const decoded = atob(encoded.replace(/-/g, '+').replace(/_/g, '/'));
+        const urlMatch = decoded.match(/https?:\/\/[^\s\x00-\x1f\x7f-\xff]+/);
+
+        if (urlMatch) {
+            console.log('[Snapshot] Fast decoded URL:', urlMatch[0]);
+            return urlMatch[0];
+        }
+
+        // 2. 如果本地解码失败，采用“工业级”方案：调用 Google 内部 batchexecute 网关
+        // 这是目前 RSSHub 等开源工具解决 2024 新版加密的终极手段
+        console.log('[Snapshot] Fast decode failed, calling Google Gateway...');
+        const rpcid = 'Fbv4je';
+        const payload = `f.req=[[["${rpcid}","[\\"${encoded}\\",1]",null,"generic"]]]`;
+
+        const gatewayResp = await fetch('https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=' + rpcid, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: payload
+        });
+
+        const text = await gatewayResp.text();
+        const jsonMatch = text.match(/\["https?:\/\/[^"]+"/); // 暴力匹配返回包里的第一个 URL
+        if (jsonMatch) {
+            const cleanUrl = jsonMatch[0].replace('["', '').replace('"', '');
+            console.log('[Snapshot] Gateway resolved URL:', cleanUrl);
+            return cleanUrl;
+        }
+    } catch (e) {
+        console.warn('[Snapshot] Advanced decode error, falling back to original URL:', e.message);
+    }
+    return url;
+}
+
+/**
+ * 核心：支持多编码的 HTML 抓取
+ * 自动识别 UTF-8 / GBK (处理国内报刊乱码)
+ */
+// 核心：支持多编码的 HTML 抓取
+// 自动识别 UTF-8 / GBK (处理国内报刊乱码)
+async function fetchWithCharset(url) {
+    const resp = await fetch(url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const buffer = await resp.arrayBuffer();
+    let decoder = new TextDecoder('utf-8');
+    let charset = 'utf-8';
+
+    // 1. 优先尝试 HTTP Header
+    const contentType = resp.headers.get('content-type');
+    if (contentType && contentType.includes('charset=')) {
+        const match = contentType.match(/charset=([^;]+)/i);
+        if (match && match[1]) {
+            charset = match[1].trim().toLowerCase();
+        }
+    }
+
+    // 2. 如果 Header 没指定，或指定为 UTF-8，再尝试从 Meta 标签探测 (以防 Header 撒谎或 Meta 更准)
+    // 但通常 Header 权重大。这里我们仅在 Header 缺失或 default 时 double-check meta。
+    // 策略：先按推测的 charset 尝试解码
+    try {
+        if (charset === 'gb2312' || charset === 'gbk') charset = 'gbk';
+        decoder = new TextDecoder(charset);
+    } catch (e) {
+        console.warn('Invalid charset from header:', charset, 'Falling back to UTF-8');
+        decoder = new TextDecoder('utf-8');
+    }
+
+    let html = decoder.decode(buffer);
+
+    // 3. 再次效验 Meta (针对 Header 缺省的情况，或者 Header 说是 ISO-8859-1 但其实是 UTF-8/GBK 的情况)
+    if (!contentType || !contentType.includes('charset=')) {
+        const metaMatch = html.match(/<meta[^>]+charset=["']?([^"'>\s/]+)["']?/i);
+        if (metaMatch && metaMatch[1]) {
+            const metaCharset = metaMatch[1].toLowerCase();
+            if (metaCharset !== charset && metaCharset !== 'utf-8' && metaCharset !== 'utf8') {
+                try {
+                    console.log(`[Charset] Switching from ${charset} to ${metaCharset} based on meta tag`);
+                    html = new TextDecoder(metaCharset).decode(buffer);
+                } catch (e) {
+                    // ignore invalid charsets
                 }
-            });
+            }
         }
-        // 稍微延迟更新一下 Badge
-        setTimeout(() => {
-            chrome.tabs.sendMessage(tabId, { action: 'FORCE_UPDATE_BADGE' }).catch(() => { });
-        }, 500);
     }
+
+    return html;
+}
+
+// II. 生命周期与标签页监听
+chrome.tabs.onActivated.addListener(activeInfo => {
+    chrome.tabs.sendMessage(activeInfo.tabId, { action: 'FORCE_UPDATE_BADGE' }).catch(() => { });
 });
 
-// License 验证逻辑
-async function verifyLicense(licenseKey) {
-    try {
-        const response = await fetch('https://api.lemonsqueezy.com/v1/licenses/activate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `license_key=${licenseKey}&instance_name=Highlighti_User`
-        });
-        const data = await response.json();
-
-        if (data.activated) {
-            let expiryTimestamp = 9999999999999;
-            if (data.license_key && data.license_key.expires_at) {
-                expiryTimestamp = new Date(data.license_key.expires_at).getTime();
-            }
-
-            await chrome.storage.local.set({
-                user_license_status: 'valid',
-                user_license_key: licenseKey,
-                user_license_expiry: expiryTimestamp
-            });
-            return { success: true };
-        } else {
-            return { success: false, error: data.error || 'Invalid License Key' };
-        }
-    } catch (error) {
-        return { success: false, error: 'Network Error' };
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete') {
+        chrome.tabs.sendMessage(tabId, { action: 'FORCE_UPDATE_BADGE' }).catch(() => { });
     }
-}
-
-// AI 智能预读逻辑
-async function handleAIReading(tabId) {
-    try {
-        const settings = await chrome.storage.local.get(['ai_api_key', 'ai_base_url', 'ai_model', 'user_license_status']);
-
-        // 简单鉴权
-        if (settings.user_license_status !== 'valid') {
-            return { success: false, error: 'Pro feature only' };
-        }
-
-        const apiKey = settings.ai_api_key;
-        let baseUrl = settings.ai_base_url || 'https://api.deepseek.com';
-        let model = settings.ai_model || 'deepseek-chat';
-
-        if (!apiKey) return { success: false, error: 'Please configure AI settings in Smart Page first' };
-
-        if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-        const endpoint = `${baseUrl}/chat/completions`;
-
-        const pageData = await chrome.tabs.sendMessage(tabId, { action: 'GET_PAGE_TEXT' });
-        if (!pageData || !pageData.text) return { success: false, error: 'Cannot extract page content' };
-
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({
-                model: model,
-                messages: [{
-                    role: "user",
-                    content: `Please summarize the core ideas (summary) and extract 3-5 quotes (quotes) from the following text. Return in JSON format: {"summary":"...","quotes":["..."]}.\n\nText: ${pageData.text.substring(0, 8000)}`
-                }],
-                response_format: { type: "json_object" }
-            })
-        });
-
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-
-        const result = await response.json();
-        let content = result.choices[0].message.content;
-        try {
-            return { success: true, data: JSON.parse(content) };
-        } catch (e) {
-            return { success: true, data: { summary: content, quotes: [] } };
-        }
-
-    } catch (err) {
-        console.error(err);
-        return { success: false, error: err.message || 'AI Request Failed' };
-    }
-}
-
-
-
-// 数据合并辅助函数
-function mergeCloudData(local, cloud) {
-    const merged = { ...local };
-    for (const [key, val] of Object.entries(cloud)) {
-        if (Array.isArray(val) && Array.isArray(merged[key])) {
-            const localIds = new Set(merged[key].map(i => i.id));
-            const newItems = val.filter(i => !localIds.has(i.id));
-            if (newItems.length > 0) {
-                merged[key] = [...merged[key], ...newItems].sort((a, b) => b.timestamp - a.timestamp);
-            }
-        } else if (!merged[key]) {
-            merged[key] = val;
-        }
-    }
-    return merged;
-}
+});
