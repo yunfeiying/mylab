@@ -22,8 +22,9 @@ class MobileApp {
 
         // Initialize external modules if available
         if (window.initMobileBrowser) window.initMobileBrowser(this);
+        if (window.initRSSService) window.initRSSService();
 
-        console.log('MobileCore V10.9 (Modular) Initialized');
+        console.log('MobileCore V11.5 (Modular) Initialized');
     }
 
     // Robust date parser to prevent NaN display
@@ -180,6 +181,9 @@ class MobileApp {
 
         const readingHeader = document.getElementById('header-reading-all');
         if (readingHeader) readingHeader.onclick = () => this.navigateTo('reading-all');
+
+        const rssHeader = document.getElementById('header-rss-all');
+        if (rssHeader) rssHeader.onclick = () => this.navigateTo('rss-all');
 
         // New Note Buttons
         const notesAllNew = document.getElementById('btn-notes-all-new');
@@ -767,7 +771,7 @@ class MobileApp {
             }
 
             // Snappy Page Render - for Home and List views
-            if (viewId === 'home' || viewId === 'notes-all' || viewId === 'reading-all') {
+            if (viewId === 'home' || viewId === 'notes-all' || viewId === 'reading-all' || viewId === 'rss-all') {
                 if (this.renderTimeout) clearTimeout(this.renderTimeout);
                 this.renderTimeout = setTimeout(() => this.renderApp(), 10);
             }
@@ -1498,11 +1502,13 @@ class MobileApp {
             window.requestIdleCallback(() => {
                 this.renderNotes(filteredNotes, 'full-notes-container');
                 this.renderReader(filteredReader, 'full-reader-container');
+                if (window.renderRSSFeeds) window.renderRSSFeeds();
             });
         } else {
             setTimeout(() => {
                 this.renderNotes(filteredNotes, 'full-notes-container');
                 this.renderReader(filteredReader, 'full-reader-container');
+                if (window.renderRSSFeeds) window.renderRSSFeeds();
             }, 100);
         }
     }

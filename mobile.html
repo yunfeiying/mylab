@@ -90,6 +90,22 @@
                     </div>
                     <div id="reader-list-container"></div>
                 </section>
+
+                <!-- RSS Section -->
+                <section class="home-section">
+                    <div id="header-rss-all" class="section-header-row">
+                        <h2 class="section-title">RSS Feeds</h2>
+                        <svg class="chevron-right" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </div>
+                    <div id="rss-home-summary" class="rss-summary-list">
+                        <!-- RSS Folders will be rendered here -->
+                        <div id="rss-feed-list" class="mobile-rss-grid"></div>
+                    </div>
+                </section>
+
                 <div class="bottom-spacer"></div>
             </main>
 
@@ -120,6 +136,42 @@
             </main>
             <!-- Dedicated Chat Input Area -->
 
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW: RSS SUBSCRIPTIONS        -->
+        <!-- ============================== -->
+        <div id="view-rss-all" class="app-view full-screen-view">
+            <header class="notes-header">
+                <button class="header-btn back-btn btn-go-home">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <div class="header-title">RSS Subscriptions</div>
+            </header>
+            <main class="home-scroll-area">
+                <div id="rss-feed-list-full" style="padding:16px;"></div>
+                <div class="bottom-spacer"></div>
+            </main>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW: RSS FEED ARTICLES        -->
+        <!-- ============================== -->
+        <div id="view-rss-feed" class="app-view full-screen-view">
+            <header class="notes-header">
+                <button class="header-btn back-btn" onclick="window.mobileCore.navigateTo('rss-all')">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <div class="header-title" id="rss-feed-title">Feed Title</div>
+            </header>
+            <main class="home-scroll-area">
+                <div id="rss-news-list" style="padding-top:8px;"></div>
+                <div class="bottom-spacer"></div>
+            </main>
         </div>
 
         <!-- ============================== -->

@@ -52,7 +52,7 @@ window.RSS_EXPANDED_CATS = new Set(['百度焦点', '百度最新', '财经专�
 
 
 window.initRSSService = async function () {
-    const data = await chrome.storage.local.get(['custom_rss_feeds', 'unread_only_rss']);
+    const data = await window.appStorage.get(['custom_rss_feeds', 'unread_only_rss']);
     const customFeeds = data.custom_rss_feeds || [];
     window.RSS_FEEDS = [...DEFAULT_RSS_FEEDS, ...customFeeds];
     window.unreadOnlyRSS = !!data.unread_only_rss;
@@ -77,7 +77,7 @@ function bindRSSUI() {
         btnUnread.onclick = (e) => {
             e.stopPropagation();
             window.unreadOnlyRSS = !window.unreadOnlyRSS;
-            chrome.storage.local.set({ unread_only_rss: window.unreadOnlyRSS });
+            window.appStorage.set({ unread_only_rss: window.unreadOnlyRSS });
             updateRSSUnreadToggleUI();
             if (window.currentRSSFeed) window.selectRSSFeed(window.currentRSSFeed);
         };
@@ -158,11 +158,11 @@ async function importOPML(xmlText) {
         };
         const importedFeeds = processNode(xmlDoc.querySelector("body"));
         if (importedFeeds.length === 0) return alert('未找到有效的订阅源');
-        const data = await chrome.storage.local.get('custom_rss_feeds');
+        const data = await window.appStorage.get('custom_rss_feeds');
         const customFeeds = data.custom_rss_feeds || [];
         importedFeeds.forEach(f => { if (!customFeeds.find(existing => existing.url === f.url)) { customFeeds.push(f); } });
-        await chrome.storage.local.set({ custom_rss_feeds: customFeeds });
-        const finalData = await chrome.storage.local.get('custom_rss_feeds');
+        await window.appStorage.set({ custom_rss_feeds: customFeeds });
+        const finalData = await window.appStorage.get('custom_rss_feeds');
         window.RSS_FEEDS = [...DEFAULT_RSS_FEEDS, ...(finalData.custom_rss_feeds || [])];
         window.renderRSSFeeds();
     } catch (e) { console.error(e); }
@@ -170,12 +170,12 @@ async function importOPML(xmlText) {
 
 async function addCustomFeed(name, url, category) {
     const newFeed = { id: 'custom-' + Date.now(), name, url, category, timestamp: Date.now() };
-    const data = await chrome.storage.local.get('custom_rss_feeds');
+    const data = await window.appStorage.get('custom_rss_feeds');
     const feeds = data.custom_rss_feeds || [];
     if (feeds.find(f => f.url === url)) return alert('该频道已存在');
 
     feeds.push(newFeed);
-    await chrome.storage.local.set({ custom_rss_feeds: feeds });
+    await window.appStorage.set({ custom_rss_feeds: feeds });
 
     // Always expand the category that was just added to
     if (window.RSS_EXPANDED_CATS) {
@@ -183,7 +183,7 @@ async function addCustomFeed(name, url, category) {
     }
 
     // Refresh global list from storage to ensure everything is in sync
-    const updatedData = await chrome.storage.local.get('custom_rss_feeds');
+    const updatedData = await window.appStorage.get('custom_rss_feeds');
     window.RSS_FEEDS = [...DEFAULT_RSS_FEEDS, ...(updatedData.custom_rss_feeds || [])];
 
     window.renderRSSFeeds();
@@ -198,7 +198,7 @@ window.removeRSSFeed = async function (feedId) {
         alert('系统默认订阅源不可删除');
         return;
     }
-    const data = await chrome.storage.local.get(['custom_rss_feeds', 'trash_bin']);
+    const data = await window.appStorage.get(['custom_rss_feeds', 'trash_bin']);
     let feeds = data.custom_rss_feeds || [];
     const feedToRemove = feeds.find(f => f.id === feedId);
     feeds = feeds.filter(f => f.id !== feedId);
@@ -212,13 +212,13 @@ window.removeRSSFeed = async function (feedId) {
         data: feedToRemove
     });
 
-    await chrome.storage.local.set({
+    await window.appStorage.set({
         custom_rss_feeds: feeds,
         trash_bin: trash
     });
 
     // Refresh global list
-    const updatedData = await chrome.storage.local.get('custom_rss_feeds');
+    const updatedData = await window.appStorage.get('custom_rss_feeds');
     window.RSS_FEEDS = [...DEFAULT_RSS_FEEDS, ...(updatedData.custom_rss_feeds || [])];
     window.renderRSSFeeds();
 };
@@ -229,7 +229,7 @@ window.removeRSSCategory = async function (categoryName) {
         alert('系统分类不可删除');
         return;
     }
-    const data = await chrome.storage.local.get(['custom_rss_feeds', 'trash_bin']);
+    const data = await window.appStorage.get(['custom_rss_feeds', 'trash_bin']);
     let feeds = data.custom_rss_feeds || [];
     let trash = data.trash_bin || [];
     const toRemove = feeds.filter(f => f.category === categoryName);
@@ -237,95 +237,53 @@ window.removeRSSCategory = async function (categoryName) {
     toRemove.forEach(f => {
         trash.push({ originalKey: f.id, type: 'rss_feed', deletedAt: Date.now(), data: f });
     });
-    await chrome.storage.local.set({ custom_rss_feeds: remaining, trash_bin: trash });
-    const updatedData = await chrome.storage.local.get('custom_rss_feeds');
+    await window.appStorage.set({ custom_rss_feeds: remaining, trash_bin: trash });
+    const updatedData = await window.appStorage.get('custom_rss_feeds');
     window.RSS_FEEDS = [...DEFAULT_RSS_FEEDS, ...(updatedData.custom_rss_feeds || [])];
     window.renderRSSFeeds();
 };
 
 window.renderRSSFeeds = function () {
-    const listEl = document.getElementById('rss-feed-list');
-    if (!listEl) return;
-    listEl.innerHTML = '';
-    const groups = {};
-    window.RSS_FEEDS.forEach(f => {
-        const cat = f.category || 'Uncategorized';
-        if (!groups[cat]) groups[cat] = [];
-        groups[cat].push(f);
-    });
+    const listContainers = [
+        document.getElementById('rss-feed-list'),
+        document.getElementById('rss-feed-list-full')
+    ].filter(el => el !== null);
 
-    const priority = { '百度焦点': 1, '百度最新': 2, '新浪': 3, '财新': 4, 'Google': 5 };
-    const sortedCategories = Object.keys(groups).sort((a, b) => {
-        const pA = priority[a] || 999;
-        const pB = priority[b] || 999;
-        if (pA !== pB) return pA - pB;
-        return a.localeCompare(b);
-    });
+    if (listContainers.length === 0) return;
 
-    sortedCategories.forEach(cat => {
-        const folder = document.createElement('div');
-        folder.className = 'rss-folder';
-        const header = document.createElement('div');
-        // Use persistent expansion state
-        const isExpanded = window.RSS_EXPANDED_CATS.has(cat);
-        header.className = `rss-folder-header ${isExpanded ? '' : 'collapsed'}`;
+    listContainers.forEach(listEl => {
+        listEl.innerHTML = '';
+        const groups = {};
+        window.RSS_FEEDS.forEach(f => {
+            const cat = f.category || 'Uncategorized';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(f);
+        });
 
-        header.style.position = 'relative';
-        header.style.paddingRight = '32px';
+        const priority = { '百度焦点': 1, '百度最新': 2, '新浪': 3, '财新': 4, 'Google': 5 };
+        const sortedCategories = Object.keys(groups).sort((a, b) => {
+            const pA = priority[a] || 999;
+            const pB = priority[b] || 999;
+            if (pA !== pB) return pA - pB;
+            return a.localeCompare(b);
+        });
 
-        let delBtnHtml = '';
-        const systemCats = ['百度焦点', '百度最新', '财经专业'];
-        if (!systemCats.includes(cat)) {
-            delBtnHtml = `
-                <div class="rss-delete-btn" title="删除全部分类">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M18 6L6 18M6 6l12 12"/>
-                    </svg>
-                </div>
-            `;
-        }
+        sortedCategories.forEach(cat => {
+            const folder = document.createElement('div');
+            folder.className = 'rss-folder';
+            const header = document.createElement('div');
+            // Use persistent expansion state
+            const isExpanded = window.RSS_EXPANDED_CATS.has(cat);
+            header.className = `rss-folder-header ${isExpanded ? '' : 'collapsed'}`;
 
-        header.innerHTML = `<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg><span class="folder-name">${cat}</span><span style="font-size:10px; color:#94a3b8; margin-left:8px;">${groups[cat].length}</span>${delBtnHtml}`;
-
-        const folderDelBtn = header.querySelector('.rss-delete-btn');
-        if (folderDelBtn) {
-            folderDelBtn.onclick = (e) => {
-                e.stopPropagation();
-                window.removeRSSCategory(cat);
-            };
-        }
-
-        const itemsContainer = document.createElement('div');
-        itemsContainer.className = `rss-folder-items ${isExpanded ? '' : 'hidden'}`;
-
-        header.onclick = () => {
-            const isCollapsedNow = header.classList.toggle('collapsed');
-            itemsContainer.classList.toggle('hidden', isCollapsedNow);
-            if (isCollapsedNow) {
-                window.RSS_EXPANDED_CATS.delete(cat);
-            } else {
-                window.RSS_EXPANDED_CATS.add(cat);
-            }
-        };
-        groups[cat].forEach(feed => {
-            const item = document.createElement('div');
-            item.className = 'nav-item';
-            item.style.position = 'relative'; // Ensure button positioning works
-            item.style.paddingRight = '32px'; // Room for delete button
-            item.dataset.id = feed.id;
-            let hostname = "";
-            try { hostname = new URL(feed.url).hostname; } catch (e) { hostname = "news.baidu.com"; }
-
-            let iconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
-            // Special Case: Baidu official favicon
-            if (hostname.includes('baidu.com')) {
-                iconUrl = "https://www.baidu.com/favicon.ico";
-            }
+            header.style.position = 'relative';
+            header.style.paddingRight = '32px';
 
             let delBtnHtml = '';
-            if (feed.id.startsWith('custom-')) {
+            const systemCats = ['百度焦点', '百度最新', '财经专业'];
+            if (!systemCats.includes(cat)) {
                 delBtnHtml = `
-                    <div class="rss-delete-btn" title="删除订阅源">
+                    <div class="rss-delete-btn" title="删除全部分类">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 6L6 18M6 6l12 12"/>
                         </svg>
@@ -333,50 +291,119 @@ window.renderRSSFeeds = function () {
                 `;
             }
 
-            item.innerHTML = `<img src="${iconUrl}" class="nav-icon-rss" style="width:14px; height:14px; margin-right:8px; border-radius:2px; object-fit:contain; flex-shrink:0;"><span class="label" style="font-size:13px; color:#334155;">${feed.name}</span>${delBtnHtml}`;
+            header.innerHTML = `<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg><span class="folder-name">${cat}</span><span style="font-size:10px; color:#94a3b8; margin-left:8px;">${groups[cat].length}</span>${delBtnHtml}`;
 
-            const delBtn = item.querySelector('.rss-delete-btn');
-            if (delBtn) {
-                delBtn.onclick = (e) => {
+            const folderDelBtn = header.querySelector('.rss-delete-btn');
+            if (folderDelBtn) {
+                folderDelBtn.onclick = (e) => {
                     e.stopPropagation();
-                    window.removeRSSFeed(feed.id);
+                    window.removeRSSCategory(cat);
                 };
             }
 
-            item.onclick = (e) => { e.stopPropagation(); window.selectRSSFeed(feed); };
-            itemsContainer.appendChild(item);
+            const itemsContainer = document.createElement('div');
+            itemsContainer.className = `rss-folder-items ${isExpanded ? '' : 'hidden'}`;
+
+            header.onclick = () => {
+                const isCollapsedNow = header.classList.toggle('collapsed');
+                itemsContainer.classList.toggle('hidden', isCollapsedNow);
+                if (isCollapsedNow) {
+                    window.RSS_EXPANDED_CATS.delete(cat);
+                } else {
+                    window.RSS_EXPANDED_CATS.add(cat);
+                }
+            };
+            groups[cat].forEach(feed => {
+                const item = document.createElement('div');
+                item.className = 'nav-item';
+                item.style.position = 'relative'; // Ensure button positioning works
+                item.style.paddingRight = '32px'; // Room for delete button
+                item.dataset.id = feed.id;
+                let hostname = "";
+                try { hostname = new URL(feed.url).hostname; } catch (e) { hostname = "news.baidu.com"; }
+
+                let iconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+                // Special Case: Baidu official favicon
+                if (hostname.includes('baidu.com')) {
+                    iconUrl = "https://www.baidu.com/favicon.ico";
+                }
+
+                let delBtnHtml = '';
+                if (feed.id.startsWith('custom-')) {
+                    delBtnHtml = `
+                        <div class="rss-delete-btn" title="删除订阅源">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </div>
+                    `;
+                }
+
+                item.innerHTML = `<img src="${iconUrl}" class="nav-icon-rss" style="width:14px; height:14px; margin-right:8px; border-radius:2px; object-fit:contain; flex-shrink:0;"><span class="label" style="font-size:13px; color:#334155;">${feed.name}</span>${delBtnHtml}`;
+
+                const delBtn = item.querySelector('.rss-delete-btn');
+                if (delBtn) {
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        window.removeRSSFeed(feed.id);
+                    };
+                }
+
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    if (window.mobileCore) window.mobileCore.navigateTo('rss-feed');
+                    window.selectRSSFeed(feed);
+                };
+                itemsContainer.appendChild(item);
+            });
+            folder.appendChild(header); folder.appendChild(itemsContainer);
+            listEl.appendChild(folder);
         });
-        folder.appendChild(header); folder.appendChild(itemsContainer);
-        listEl.appendChild(folder);
     });
 };
 
 window.fetchRSS = async function (url) {
     return new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: 'BACKGROUND_FETCH', url: url }, (response) => {
-            if (!response || !response.success) return resolve([]);
-            try {
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(response.text, "text/xml");
-                let items = xmlDoc.querySelectorAll("item");
-                let isAtom = false;
-                if (items.length === 0) { items = xmlDoc.querySelectorAll("entry"); isAtom = true; }
-                const results = [];
-                items.forEach(item => {
-                    const title = item.querySelector("title")?.textContent || 'No Title';
-                    let link = '#';
-                    if (isAtom) { const linkEl = item.querySelector("link[rel='alternate']") || item.querySelector("link:not([rel])") || item.querySelector("link"); link = linkEl?.getAttribute('href') || '#'; }
-                    else { link = item.querySelector("link")?.textContent || '#'; }
-                    const pubDate = item.querySelector("pubDate")?.textContent || item.querySelector("updated")?.textContent || item.querySelector("published")?.textContent || '';
-                    const description = item.querySelector("description")?.textContent || item.querySelector("summary")?.textContent || '';
-                    const content = item.querySelector("encoded")?.textContent || item.querySelector("content")?.textContent || description;
-                    results.push({ title, link, date: pubDate, description, content });
-                });
-                resolve(results);
-            } catch (error) { resolve([]); }
-        });
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+            chrome.runtime.sendMessage({ action: 'BACKGROUND_FETCH', url: url }, (response) => {
+                if (!response || !response.success) return resolve([]);
+                resolve(parseRSSResponse(response.text));
+            });
+        } else {
+            // Mobile PWA / Browser mode: Direct fetch
+            fetch(url)
+                .then(r => r.text())
+                .then(text => resolve(parseRSSResponse(text)))
+                .catch(() => resolve([]));
+        }
     });
 };
+
+function parseRSSResponse(text) {
+    try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, "text/xml");
+        let items = xmlDoc.querySelectorAll("item");
+        let isAtom = false;
+        if (items.length === 0) { items = xmlDoc.querySelectorAll("entry"); isAtom = true; }
+        const results = [];
+        items.forEach(item => {
+            const title = item.querySelector("title")?.textContent || 'No Title';
+            let link = '#';
+            if (isAtom) {
+                const linkEl = item.querySelector("link[rel='alternate']") || item.querySelector("link:not([rel])") || item.querySelector("link");
+                link = linkEl?.getAttribute('href') || '#';
+            } else {
+                link = item.querySelector("link")?.textContent || '#';
+            }
+            const pubDate = item.querySelector("pubDate")?.textContent || item.querySelector("updated")?.textContent || item.querySelector("published")?.textContent || '';
+            const description = item.querySelector("description")?.textContent || item.querySelector("summary")?.textContent || '';
+            const content = item.querySelector("encoded")?.textContent || item.querySelector("content")?.textContent || description;
+            results.push({ title, link, date: pubDate, description, content });
+        });
+        return results;
+    } catch (e) { return []; }
+}
 
 window.selectRSSFeed = async function (feed) {
     window.currentRSSFeed = feed;
@@ -405,7 +432,7 @@ window.selectRSSFeed = async function (feed) {
     let items = await window.fetchRSS(feed.url);
 
     // Filter by Read Status if active
-    const readRes = await chrome.storage.local.get('rss_read_links');
+    const readRes = await window.appStorage.get('rss_read_links');
     const readLinks = readRes.rss_read_links || [];
 
     if (window.unreadOnlyRSS) {
@@ -432,10 +459,17 @@ window.selectRSSFeed = async function (feed) {
                     ${isRead ? '<span class="rss-read-indicator" style="display:inline-block; width:8px; height:8px; background-color:#a5d6a7; border-radius:50%; margin-left:8px;"></span>' : ''}
                 </div>
             `;
-            row.onclick = () => window.renderRSSDetail(item);
+            row.onclick = () => {
+                if (window.mobileCore) {
+                    window.mobileCore.navigateTo('rss-feed');
+                    window.renderRSSDetail(item);
+                } else {
+                    window.renderRSSDetail(item);
+                }
+            };
             listContainer.appendChild(row);
         });
-        if (items.length > 0) window.renderRSSDetail(items[0]);
+        if (items.length > 0 && !window.mobileCore) window.renderRSSDetail(items[0]);
     }
 };
 
@@ -444,12 +478,12 @@ window.renderRSSDetail = async function (item) {
 
     // Mark as read
     if (item.link && item.link !== '#') {
-        const res = await chrome.storage.local.get('rss_read_links');
+        const res = await window.appStorage.get('rss_read_links');
         const readLinks = res.rss_read_links || [];
         if (!readLinks.includes(item.link)) {
             readLinks.push(item.link);
             if (readLinks.length > 2000) readLinks.shift();
-            await chrome.storage.local.set({ rss_read_links: readLinks });
+            await window.appStorage.set({ rss_read_links: readLinks });
 
             // Visually mark in list instantly
             const row = document.querySelector(`.rss-item-row[data-link="${item.link.replace(/"/g, '\\"')}"]`);
@@ -474,6 +508,18 @@ window.renderRSSDetail = async function (item) {
     const dateEl = document.getElementById('rss-article-date');
     const linkEl = document.getElementById('rss-article-link');
     const displayTitle = item.title || 'Untitled Article';
+
+    if (window.mobileCore) {
+        window.mobileCore.navigateTo('reader-detail');
+        window.mobileCore.loadReader({
+            title: item.title,
+            url: item.link,
+            content: item.content || item.description,
+            timestamp: new Date(item.date).getTime()
+        });
+        return;
+    }
+
     if (rssTitleEl) rssTitleEl.innerText = displayTitle;
     if (globalTitle) globalTitle.innerText = displayTitle;
     if (toolbarTitle) toolbarTitle.innerText = displayTitle.length > 25 ? displayTitle.substring(0, 25) + '...' : displayTitle;
@@ -594,7 +640,7 @@ window.renderRSSDetail = async function (item) {
                     html = html.replace(/<p>[ \t\n]*(举报\/反馈|收藏|分享|点赞|0)[ \t\n]*<\/p>/gi, '');
                     html = html.replace(/<div[^>]*>[ \t\n]*(举报\/反馈|收藏|分享|点赞|0)[ \t\n]*<\/div>/gi, '');
 
-                    const saved = await chrome.storage.local.get(item.link);
+                    const saved = await window.appStorage.get(item.link);
                     const highlights = saved[item.link] || [];
                     highlights.forEach(h => { if (h.text) { const escaped = h.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); html = html.replace(new RegExp(escaped, 'g'), `<mark class="rss-mark" style="background:${h.color || '#fff176'}">${h.text}</mark>`); } });
                     bodyWrapper.innerHTML = html;
@@ -650,10 +696,10 @@ async function saveRSSHighlight(text) {
     if (!currentRSSItem || !text) return;
     const url = currentRSSItem.link;
     const highlight = { id: 'rss-' + Date.now(), text, color: '#fff176', timestamp: Date.now(), url, title: currentRSSItem.title || 'RSS Article', type: 'text' };
-    const data = await chrome.storage.local.get(url);
+    const data = await window.appStorage.get(url);
     const highlights = data[url] || [];
     highlights.push(highlight);
-    await chrome.storage.local.set({ [url]: highlights });
+    await window.appStorage.set({ [url]: highlights });
     const wrapper = document.getElementById('rss-body-wrapper');
     if (wrapper) { const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); wrapper.innerHTML = wrapper.innerHTML.replace(new RegExp(escaped, 'g'), `<mark class="rss-mark">${text}</mark>`); }
     if (window.showToast) window.showToast('标亮已同步');
