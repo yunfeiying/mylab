@@ -1,10 +1,8 @@
-/**
- * mobile-chat.js - Refined Layout Chat Controller (V7.0)
- * Implemented: Chat History & Session Management, Global Dock Compatibility
- */
+console.log('[MobileChat] Script loaded');
 
 class MobileChat {
     constructor() {
+        console.log('[MobileChat] Initializing constructor...');
         // We now use the global input (#global-input) managed by mobile-core.js
         this.messagesContainer = document.getElementById('messages-container');
         this.titleEl = document.getElementById('chat-title');
@@ -16,10 +14,16 @@ class MobileChat {
         this.pendingFiles = []; // For the global dock preview
 
         // Initialize Attachment Manager
-        this.attachmentManager = new MobileAttachmentManager(this);
+        if (typeof MobileAttachmentManager !== 'undefined') {
+            this.attachmentManager = new MobileAttachmentManager(this);
+        } else {
+            console.warn('[MobileChat] MobileAttachmentManager not found');
+        }
 
         this.setupEvents();
         window.mobileChat = this;
+        console.log('[MobileChat] Constructor finished, window.mobileChat set');
+
         this.soulConfig = ""; // Loaded from storage
         setTimeout(() => {
             this.loadHistory();
@@ -28,55 +32,31 @@ class MobileChat {
     }
 
     setupEvents() {
-        // Toggle Chat Menu (New Chat / History)
-        const historyBtn = document.getElementById('btn-chat-history');
-        const chatMenuOverlay = document.getElementById('chat-menu-overlay');
-        const actNewChat = document.getElementById('act-menu-new-chat');
-        const actHistory = document.getElementById('act-menu-history');
-        const actMenuCancel = document.getElementById('act-menu-chat-cancel');
+        // Assistant Header Actions
+        const historyBtn = document.getElementById('btn-home-history');
+        const newChatBtn = document.getElementById('btn-home-new-chat');
 
-        if (historyBtn && chatMenuOverlay) {
+        if (historyBtn) {
             historyBtn.onclick = () => {
-                chatMenuOverlay.classList.remove('hidden');
+                this.renderSessions();
+                if (window.mobileCore) window.mobileCore.navigateTo('chat-history');
                 if (window.navigator.vibrate) window.navigator.vibrate(20);
             };
+        }
 
-            // Close on outside click
-            chatMenuOverlay.onclick = (e) => {
-                if (e.target === chatMenuOverlay) chatMenuOverlay.classList.add('hidden');
+        if (newChatBtn) {
+            newChatBtn.onclick = () => {
+                this.startNewChat();
+                if (window.showToast) window.showToast('New Chat Started');
+                if (window.navigator.vibrate) window.navigator.vibrate(20);
             };
-
-            // New Chat Action
-            if (actNewChat) {
-                actNewChat.onclick = () => {
-                    chatMenuOverlay.classList.add('hidden');
-                    this.startNewChat();
-                    if (window.showToast) window.showToast('New Chat Started');
-                };
-            }
-
-            // History Action
-            if (actHistory) {
-                actHistory.onclick = () => {
-                    chatMenuOverlay.classList.add('hidden');
-                    this.renderSessions();
-                    if (window.mobileCore) window.mobileCore.navigateTo('chat-history');
-                };
-            }
-
-            // Cancel Action
-            if (actMenuCancel) {
-                actMenuCancel.onclick = () => {
-                    chatMenuOverlay.classList.add('hidden');
-                };
-            }
         }
 
         // Back from History
         const backBtn = document.getElementById('btn-history-back');
         if (backBtn) {
             backBtn.onclick = () => {
-                if (window.mobileCore) window.mobileCore.navigateTo('chat');
+                if (window.mobileCore) window.mobileCore.navigateTo('home');
             };
         }
 
@@ -114,7 +94,7 @@ class MobileChat {
                     await window.idb.delete('chat_history_persistent');
                     await window.idb.delete('chat_current_session_id');
                     this.startNewChat();
-                    if (window.mobileCore) window.mobileCore.navigateTo('chat');
+                    if (window.mobileCore) window.mobileCore.navigateTo('home');
                 }
             };
         }
@@ -364,28 +344,27 @@ class MobileChat {
             } else {
                 this.addAIMessage(msg.content, false);
             }
-        }
         });
-    // Force scroll to bottom after rendering
-    setTimeout(() => this.scrollToBottom(), 100);
-setTimeout(() => this.scrollToBottom(), 300); // Double check for layout shifts
+        // Force scroll to bottom after rendering
+        setTimeout(() => this.scrollToBottom(), 100);
+        setTimeout(() => this.scrollToBottom(), 300); // Double check for layout shifts
     }
 
 
 
-renderSessions() {
-    const container = document.getElementById('chat-sessions-container');
-    if (!container) return;
+    renderSessions() {
+        const container = document.getElementById('chat-sessions-container');
+        if (!container) return;
 
-    if (this.chatSessions.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color:#999; margin-top:40px;">No history yet.</div>';
-        return;
-    }
+        if (this.chatSessions.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#999; margin-top:40px;">No history yet.</div>';
+            return;
+        }
 
-    container.innerHTML = this.chatSessions.map(s => {
-        const date = new Date(s.timestamp).toLocaleDateString();
-        const isActive = s.id === this.currentSessionId;
-        return `
+        container.innerHTML = this.chatSessions.map(s => {
+            const date = new Date(s.timestamp).toLocaleDateString();
+            const isActive = s.id === this.currentSessionId;
+            return `
                 <div class="note-item-wrapper session-item" data-session-id="${s.id}">
                     <div class="note-card ${isActive ? 'active-session' : ''}" style="${isActive ? 'border-left: 4px solid var(--ios-blue);' : ''}">
                         <div class="note-title">${this.escapeHtml(s.title || 'Untitled Chat')}</div>
@@ -393,58 +372,58 @@ renderSessions() {
                     </div>
                 </div>
             `;
-    }).join('');
-}
+        }).join('');
+    }
 
-escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-handleSessionClick(id) {
-    this.switchToSession(id);
-    if (window.mobileCore) window.mobileCore.navigateTo('chat');
-}
+    handleSessionClick(id) {
+        this.switchToSession(id);
+        if (window.mobileCore) window.mobileCore.navigateTo('home');
+    }
 
-formatMarkdown(text) {
-    if (!text) return '';
+    formatMarkdown(text) {
+        if (!text) return '';
 
-    // First escape HTML to prevent XSS, but keep it as a string for regex
-    let escaped = this.escapeHtml(text);
+        // First escape HTML to prevent XSS, but keep it as a string for regex
+        let escaped = this.escapeHtml(text);
 
-    let html = escaped
-        // Handle bold **text**
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        // Handle headers ###
-        .replace(/^### (.*$)/gm, '<h3 style="margin:8px 0; font-size:17px; font-weight:700;">$1</h3>')
-        .replace(/^## (.*$)/gm, '<h2 style="margin:10px 0; font-size:18px; font-weight:700;">$1</h2>')
-        .replace(/^# (.*$)/gm, '<h1 style="margin:12px 0; font-size:20px; font-weight:700;">$1</h1>')
-        // Handle standard markdown links [text](url) - DO THIS BEFORE PURE URLS
-        // Handle standard markdown links [text](url) - DO THIS BEFORE PURE URLS
-        .replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, text, url) => {
-            const finalUrl = url.startsWith('http') ? url : `https://${url}`;
-            return `<a href="javascript:void(0)" data-url="${finalUrl}" class="chat-link" style="cursor:pointer; text-decoration:underline; color:var(--ios-blue); font-weight:500;">${text}</a>`;
-        })
-        // Handle bullet points
-        .replace(/^[\-\*]\s+(.*)/gm, '<div style="margin-left:4px; margin-bottom:4px;">• $1</div>')
-        // Handle numbered lists
-        .replace(/^\d+\.\s+(.*)/gm, '<div style="margin-left:4px; margin-bottom:4px;">$1</div>')
-        // Handle URLs - Linkify and make them clickable (Delegated)
-        // Enhanced Regex: Support both http(s):// and pure domains like news.baidu.com
-        .replace(/(https?:\/\/[^\s\u4e00-\u9fa5<]+|(?<!\/)(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5<]*)?)/g, (match) => {
-            const url = match.startsWith('http') ? match : `https://${match}`;
-            return `<a href="javascript:void(0)" data-url="${url}" class="chat-link" style="cursor:pointer; text-decoration:underline;">${match}</a>`;
-        })
-        // Preserve newlines
-        .replace(/\n/g, '<br>')
-        // Handle Skill Proposals
-        .replace(/\[PROPOSE_SKILL:\s*(\{.*?\})\]/g, (match, p1) => {
-            try {
-                const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-                const skill = JSON.parse(p1Unescaped);
-                return `<div class="skill-proposal-card" style="margin-top:12px; padding:12px; border:1px solid var(--ios-blue); border-radius:12px; background:rgba(0,122,255,0.05);">
+        let html = escaped
+            // Handle bold **text**
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            // Handle headers ###
+            .replace(/^### (.*$)/gm, '<h3 style="margin:8px 0; font-size:17px; font-weight:700;">$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2 style="margin:10px 0; font-size:18px; font-weight:700;">$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1 style="margin:12px 0; font-size:20px; font-weight:700;">$1</h1>')
+            // Handle standard markdown links [text](url) - DO THIS BEFORE PURE URLS
+            // Handle standard markdown links [text](url) - DO THIS BEFORE PURE URLS
+            .replace(/\[([^\]]+)\]\(([^\)]+)\)/g, (match, text, url) => {
+                const finalUrl = url.startsWith('http') ? url : `https://${url}`;
+                return `<a href="javascript:void(0)" data-url="${finalUrl}" class="chat-link" style="cursor:pointer; text-decoration:underline; color:var(--ios-blue); font-weight:500;">${text}</a>`;
+            })
+            // Handle bullet points
+            .replace(/^[\-\*]\s+(.*)/gm, '<div style="margin-left:4px; margin-bottom:4px;">• $1</div>')
+            // Handle numbered lists
+            .replace(/^\d+\.\s+(.*)/gm, '<div style="margin-left:4px; margin-bottom:4px;">$1</div>')
+            // Handle URLs - Linkify and make them clickable (Delegated)
+            // Enhanced Regex: Support both http(s):// and pure domains like news.baidu.com
+            .replace(/(https?:\/\/[^\s\u4e00-\u9fa5<]+|(?<!\/)(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5<]*)?)/g, (match) => {
+                const url = match.startsWith('http') ? match : `https://${match}`;
+                return `<a href="javascript:void(0)" data-url="${url}" class="chat-link" style="cursor:pointer; text-decoration:underline;">${match}</a>`;
+            })
+            // Preserve newlines
+            .replace(/\n/g, '<br>')
+            // Handle Skill Proposals
+            .replace(/\[PROPOSE_SKILL:\s*(\{.*?\})\]/g, (match, p1) => {
+                try {
+                    const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                    const skill = JSON.parse(p1Unescaped);
+                    return `<div class="skill-proposal-card" style="margin-top:12px; padding:12px; border:1px solid var(--ios-blue); border-radius:12px; background:rgba(0,122,255,0.05);">
                         <div style="font-weight:600; color:var(--ios-blue); margin-bottom:4px;">✨ 技能提案: ${skill.name}</div>
                         <div style="font-size:12px; color:#666; margin-bottom:8px;">检测到相关需求，是否为 AI 开启此项新技能？</div>
                         <button class="btn-install-skill" data-skill='${JSON.stringify(skill)}' 
@@ -452,15 +431,15 @@ formatMarkdown(text) {
                             立即启用
                         </button>
                     </div>`;
-            } catch (e) { console.warn('Skill parse error:', e); return match; }
-        })
-        // Handle RSS Subscription Proposals
-        .replace(/\[SUBSCRIBE_RSS:\s*(\{.*?\})\]/g, (match, p1) => {
-            try {
-                const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-                const feed = JSON.parse(p1Unescaped);
-                console.log('[Markdown] Rendering RSS Subscription Card for:', feed.name);
-                return `<div class="rss-subscription-card" style="margin-top:12px; padding:12px; border:1px solid #34c759; border-radius:12px; background:rgba(52,199,89,0.05);">
+                } catch (e) { console.warn('Skill parse error:', e); return match; }
+            })
+            // Handle RSS Subscription Proposals
+            .replace(/\[SUBSCRIBE_RSS:\s*(\{.*?\})\]/g, (match, p1) => {
+                try {
+                    const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                    const feed = JSON.parse(p1Unescaped);
+                    console.log('[Markdown] Rendering RSS Subscription Card for:', feed.name);
+                    return `<div class="rss-subscription-card" style="margin-top:12px; padding:12px; border:1px solid #34c759; border-radius:12px; background:rgba(52,199,89,0.05);">
                         <div style="font-weight:600; color:#34c759; margin-bottom:4px;">📰 订阅建议: ${feed.name}</div>
                         <div style="font-size:12px; color:#666; margin-bottom:8px;">将此作者添加到你的阅读清单，自动追踪后续更新。</div>
                         <button class="btn-subscribe-rss" data-feed='${JSON.stringify(feed)}' 
@@ -468,126 +447,132 @@ formatMarkdown(text) {
                             立即订阅
                         </button>
                     </div>`;
-            } catch (e) { console.warn('RSS parse error:', e); return match; }
-        })
-        // Handle Auto-Subscription Hidden Action
-        .replace(/\[AUTO_SUBSCRIBE_RSS:\s*(\{.*?\})\]/g, (match, p1) => {
-            try {
-                const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-                const feed = JSON.parse(p1Unescaped);
-                // Trigger immediate subscription
-                this.subscribeRSS(JSON.stringify(feed));
-                return `<div style="margin:10px 0; padding:10px; border-left:4px solid #34c759; background:#f0fdf4; font-size:13px; color:#166534;">
+                } catch (e) { console.warn('RSS parse error:', e); return match; }
+            })
+            // Handle Auto-Subscription Hidden Action
+            .replace(/\[AUTO_SUBSCRIBE_RSS:\s*(\{.*?\})\]/g, (match, p1) => {
+                try {
+                    const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                    const feed = JSON.parse(p1Unescaped);
+                    // Trigger immediate subscription
+                    this.subscribeRSS(JSON.stringify(feed));
+                    return `<div style="margin:10px 0; padding:10px; border-left:4px solid #34c759; background:#f0fdf4; font-size:13px; color:#166534;">
                         ✅ <b>已自动为你订阅</b>: ${feed.name}
                     </div>`;
-            } catch (e) { return ''; }
-        });
+                } catch (e) { return ''; }
+            });
 
-    return html;
-}
+        return html;
+    }
 
     async installSkill(skillJson) {
-    try {
-        const config = JSON.parse(skillJson);
-        if (window.chatSkillsEngine) {
-            await window.chatSkillsEngine.addDynamicSkill(config);
-            if (window.showToast) window.showToast(`技能 "${config.name}" 已启用！`, 2000);
-            this.addAIMessage(`✅ 技能 **${config.name}** 已成功安装并激活。你现在可以尝试询问相关问题了。`, true);
+        try {
+            const config = JSON.parse(skillJson);
+            if (window.chatSkillsEngine) {
+                await window.chatSkillsEngine.addDynamicSkill(config);
+                if (window.showToast) window.showToast(`技能 "${config.name}" 已启用！`, 2000);
+                this.addAIMessage(`✅ 技能 **${config.name}** 已成功安装并激活。你现在可以尝试询问相关问题了。`, true);
+            }
+        } catch (e) {
+            console.error('Skill Install Error:', e);
         }
-    } catch (e) {
-        console.error('Skill Install Error:', e);
     }
-}
 
     async subscribeRSS(feedJson) {
-    try {
-        const feed = JSON.parse(feedJson);
-        if (window.addCustomFeed) {
-            await window.addCustomFeed(feed.name, feed.url, feed.category || 'AI Subscriptions');
-            if (window.showToast) window.showToast(`已成功关注: ${feed.name}`, 2000);
-            this.addAIMessage(`✅ 已为你持续关注 **${feed.name}**。后续该作者发布的文章将自动出现在你的 **Reader (RSS News)** 列表中。`, true);
+        try {
+            const feed = JSON.parse(feedJson);
+            if (window.addCustomFeed) {
+                await window.addCustomFeed(feed.name, feed.url, feed.category || 'AI Subscriptions');
+                if (window.showToast) window.showToast(`已成功关注: ${feed.name}`, 2000);
+                this.addAIMessage(`✅ 已为你持续关注 **${feed.name}**。后续该作者发布的文章将自动出现在你的 **Reader (RSS News)** 列表中。`, true);
+            }
+        } catch (e) {
+            console.error('RSS Subscribe Error:', e);
         }
-    } catch (e) {
-        console.error('RSS Subscribe Error:', e);
     }
-}
 
-handleSkillProposal(text) {
-    // This is handled via the formatMarkdown/installSkill flow now
-    // but we could add logic here for auto-triggers if needed.
-}
+    handleSkillProposal(text) {
+        // This is handled via the formatMarkdown/installSkill flow now
+        // but we could add logic here for auto-triggers if needed.
+    }
 
-scrollToBottom() {
-    // Target the parent view scroller since #messages-container itself might not be the scroller
-    // V12.0: Force scroll last element into view for reliability
-    setTimeout(() => {
+    scrollToBottom() {
         const scroller = document.getElementById('chat-content');
-        if (scroller) {
-            scroller.scrollTop = scroller.scrollHeight;
-            requestAnimationFrame(() => {
-                scroller.scrollTop = scroller.scrollHeight;
-            });
-        }
-        // Fallback: scroll last message
-        if (this.messagesContainer && this.messagesContainer.lastElementChild) {
-            this.messagesContainer.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-    }, 50);
-}
+        const messages = this.messagesContainer;
+        if (!scroller || !messages) return;
 
-addUserMessage(text, pushToHistory = true, attachment = null) {
-    // Normalize attachment structure
-    let safeAttachment = null;
-    if (attachment) {
-        if (typeof attachment === 'string') {
-            // Legacy: Base64 string is an image
-            safeAttachment = { type: 'image', url: attachment };
-        } else {
-            safeAttachment = attachment;
-        }
+        const forceScroll = () => {
+            // Priority 1: Instant numeric scroll
+            scroller.scrollTop = scroller.scrollHeight + 1000;
+
+            // Priority 2: Element-based alignment
+            if (messages.lastElementChild) {
+                messages.lastElementChild.scrollIntoView({
+                    behavior: 'auto',
+                    block: 'end'
+                });
+            }
+        };
+
+        // Execute immediately and follow up
+        requestAnimationFrame(forceScroll);
+        setTimeout(forceScroll, 100);
+        setTimeout(forceScroll, 400);
     }
 
-    if (pushToHistory) {
-        const msg = { role: 'user', content: text };
-        if (safeAttachment) msg.attachment = safeAttachment;
-        this.chatHistory.push(msg);
-        this.saveHistory();
-        if (this.chatHistory.length === 1 && this.messagesContainer.firstChild && !this.messagesContainer.firstChild.classList?.contains('message')) {
-            this.messagesContainer.innerHTML = '';
+    addUserMessage(text, pushToHistory = true, attachment = null) {
+        // Normalize attachment structure
+        let safeAttachment = null;
+        if (attachment) {
+            if (typeof attachment === 'string') {
+                // Legacy: Base64 string is an image
+                safeAttachment = { type: 'image', url: attachment };
+            } else {
+                safeAttachment = attachment;
+            }
         }
-    }
 
-    const el = document.createElement('div');
-    el.className = 'message user';
-    el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-end; margin:8px 0; width: 100%;';
+        if (pushToHistory) {
+            const msg = { role: 'user', content: text };
+            if (safeAttachment) msg.attachment = safeAttachment;
+            this.chatHistory.push(msg);
+            this.saveHistory();
+            if (this.chatHistory.length === 1 && this.messagesContainer.firstChild && !this.messagesContainer.firstChild.classList?.contains('message')) {
+                this.messagesContainer.innerHTML = '';
+            }
+        }
 
-    // Base bubble style
-    let bubbleStyle = "background:var(--ios-blue); color:#fff; padding:10px 16px; border-radius:18px; border-bottom-right-radius:4px; max-width:90%; width: fit-content; word-break: break-word; line-height:1.5;";
-    let innerHTML = this.formatMarkdown(text);
+        const el = document.createElement('div');
+        el.className = 'message user';
+        el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-end; margin:8px 0; width: 100%;';
 
-    // --- Attachment Rendering ---
-    if (safeAttachment) {
-        if (safeAttachment.type === 'image') {
-            // Image Card
-            innerHTML = `
+        // Base bubble style
+        let bubbleStyle = "background:var(--ios-blue); color:#fff; padding:10px 16px; border-radius:18px; border-bottom-right-radius:4px; max-width:90%; width: fit-content; word-break: break-word; line-height:1.5;";
+        let innerHTML = this.formatMarkdown(text);
+
+        // --- Attachment Rendering ---
+        if (safeAttachment) {
+            if (safeAttachment.type === 'image') {
+                // Image Card
+                innerHTML = `
                     <div style="margin: -4px -8px 8px -8px;">
                         <img src="${safeAttachment.url}" class="chat-img" 
                              style="max-width:100%; border-radius:12px; display:block; cursor:pointer;">
                     </div>
                     <div style="font-size:16px; opacity:0.95;">${this.escapeHtml(text)}</div>
                 `;
-        } else {
-            // File Card (PDF, EPUB, DOCX etc.)
-            const ext = safeAttachment.name.split('.').pop().toUpperCase().substring(0, 4);
-            // Dynamic colors for extensions
-            let iconColor = '#888';
-            if (['PDF'].includes(ext)) iconColor = '#ff3b30'; // IOS Red
-            if (['DOC', 'DOCX'].includes(ext)) iconColor = '#007aff'; // IOS Blue
-            if (['XLS', 'XLSX', 'CSV'].includes(ext)) iconColor = '#34c759'; // IOS Green
-            if (['PPT', 'PPTX'].includes(ext)) iconColor = '#ff9500'; // IOS Orange
-            if (['EPUB'].includes(ext)) iconColor = '#af52de'; // IOS Purple
+            } else {
+                // File Card (PDF, EPUB, DOCX etc.)
+                const ext = safeAttachment.name.split('.').pop().toUpperCase().substring(0, 4);
+                // Dynamic colors for extensions
+                let iconColor = '#888';
+                if (['PDF'].includes(ext)) iconColor = '#ff3b30'; // IOS Red
+                if (['DOC', 'DOCX'].includes(ext)) iconColor = '#007aff'; // IOS Blue
+                if (['XLS', 'XLSX', 'CSV'].includes(ext)) iconColor = '#34c759'; // IOS Green
+                if (['PPT', 'PPTX'].includes(ext)) iconColor = '#ff9500'; // IOS Orange
+                if (['EPUB'].includes(ext)) iconColor = '#af52de'; // IOS Purple
 
-            innerHTML = `
+                innerHTML = `
                     <div class="chat-file-card">
                         <div class="chat-file-icon" style="color: ${iconColor}; background: white;">${ext}</div>
                         <div class="chat-file-info">
@@ -597,117 +582,117 @@ addUserMessage(text, pushToHistory = true, attachment = null) {
                     </div>
                     <div style="margin-top:4px;">${this.escapeHtml(text)}</div>
                 `;
+            }
         }
+
+        el.innerHTML = `<div class="message-bubble" style="${bubbleStyle}">${innerHTML}</div>`;
+        this.messagesContainer.appendChild(el);
+        this.scrollToBottom();
     }
 
-    el.innerHTML = `<div class="message-bubble" style="${bubbleStyle}">${innerHTML}</div>`;
-    this.messagesContainer.appendChild(el);
-    this.scrollToBottom();
-}
+    addAIMessage(text, pushToHistory = false) {
+        if (pushToHistory) {
+            this.chatHistory.push({ role: 'assistant', content: text });
+            this.saveHistory();
+        }
 
-addAIMessage(text, pushToHistory = false) {
-    if (pushToHistory) {
-        this.chatHistory.push({ role: 'assistant', content: text });
-        this.saveHistory();
-    }
-
-    const el = document.createElement('div');
-    el.className = 'message assistant';
-    el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-start; margin:8px 0; width: 100%;';
-    el.innerHTML = `
+        const el = document.createElement('div');
+        el.className = 'message assistant';
+        el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-start; margin:8px 0; width: 100%;';
+        el.innerHTML = `
             <div class="ai-response-content message-bubble" style="background:#fff; color:#1c1c1e; padding:10px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:90%; width: fit-content; border:1px solid #eee; line-height:1.5; word-break: break-word;">${this.formatMarkdown(text)}</div>
         `;
-    this.messagesContainer.appendChild(el);
-    this.scrollToBottom();
-}
+        this.messagesContainer.appendChild(el);
+        this.scrollToBottom();
+    }
 
-showAIThinking() {
-    const el = document.createElement('div');
-    el.className = 'message assistant thinking';
-    el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-start; margin:8px 0; width: 100%;';
-    el.innerHTML = `
+    showAIThinking() {
+        const el = document.createElement('div');
+        el.className = 'message assistant thinking';
+        el.style.cssText = 'display:flex; flex-direction:column; align-items:flex-start; margin:8px 0; width: 100%;';
+        el.innerHTML = `
             <div class="ai-response-content message-bubble" style="background:#fff; color:#444; padding:10px 16px; border-radius:18px; border-bottom-left-radius:4px; max-width:90%; width: fit-content; border:1px solid #eee;">
                 <span class="typing-indicator">●●●</span>
             </div>
         `;
-    this.messagesContainer.appendChild(el);
-    this.scrollToBottom();
-    return el;
-}
-
-buildSystemPrompt(context = {}) {
-    const timestamp = new Date().toLocaleString();
-
-    // Use Dynamic Soul if available, fallback to basic Persona
-    const soulBaseline = this.soulConfig || `Role: Highlighti Intelligence (Knowledge Architect & Decision Strategist)\nCore Persona: 你是用户的“第二大脑”和知识策士。`;
-
-    const core = [
-        soulBaseline,
-        `\nCurrent Time: ${timestamp}`,
-        `\nCommunication Style: 专业、凝练、高信息密度。避免废话，直击本质。`,
-        `User Profile:`,
-        `- **Core Focus**: Technology (AI, Compute) & Finance (Macro, Markets).`,
-        `- **Thinking Mode**: Systemic Thinking (Value Chain Analysis).`,
-        ``,
-        `Knowledge Operations:`,
-        `- 【连接者】: 主动发现当前问题与历史笔记、阅读快照之间的联系。`,
-        `- 【决策者】: 提供基于逻辑和事实的建议，而不仅仅是总结。`,
-        `---`,
-        `[CAPABILITIES & LIMITATIONS]`,
-        `- **NO LIVE BROWSING**: You are running in a secure, isolated mobile environment. You CANNOT visit websites or fetch URLs directly.`,
-        `- **How to Handle URLs**: If the user provides a link, ask them to copy-paste the content or use the "Reader Snapshot" feature (if available). Do NOT pretend to read it.`,
-        `- **Memory**: You have access to previous conversations and structured memory. Use it to maintain continuity.`,
-        `- **Style**: Be concise. Use bullet points. Avoid filler words like "I choose to...".`,
-        `---`,
-    ];
-
-    if (context.hasMemory) {
-        core.push(`[CONTEXT: PERSONAL KNOWLEDGE BASE]`);
-        core.push(`- 以下是你从用户的知识库中检索到的相关信息。`);
-        core.push(`- 请优先基于这些已知信息进行回答，如果信息冲突，说明理由。`);
+        this.messagesContainer.appendChild(el);
+        this.scrollToBottom();
+        return el;
     }
 
-    if (context.hasLink) {
-        core.push(`[MODE: THE READER (Analysis)]`);
-        core.push(`1. Summary: 1-sentence hook.`);
-        core.push(`2. Key Takeaways: 3-5 high-value bullet points.`);
-        core.push(`3. Impact: Why this matters to the user.`);
-    }
+    buildSystemPrompt(context = {}) {
+        const timestamp = new Date().toLocaleString();
 
-    core.push(`[SKILL SYSTEM - MANDATORY]`);
-    core.push(`- You possess a growing library of SKILLS. Currently: Weather, Search, News, Movies, WeChat Optimizer, Stock Sniper.`);
-    core.push(`- CRITICAL: If a user provides a WeChat link (mp.weixin.qq.com), YOU MUST offer to subscribe them to the author.`);
-    core.push(`- To offer subscription (User needs to click), append: [SUBSCRIBE_RSS: {"name": "AuthorName", "url": "RSSHubUrl"}]`);
-    core.push(`- To subscribe DIRECTLY (User asked to "subscribe directly" or "auto subscribe"), append: [AUTO_SUBSCRIBE_RSS: {"name": "AuthorName", "url": "RSSHubUrl"}]`);
-    core.push(`- If a user asks for information you cannot access directly, YOU MUST PROPOSE A NEW SKILL using [PROPOSE_SKILL: {...}].`);
-    core.push(`- Use "https://m.baidu.com/s?word={query}" as a fallback apiUrl for generic information gathering skills.`);
-    core.push(`- Do NOT apologize for lack of data without offering a [PROPOSE_SKILL], [SUBSCRIBE_RSS], or [AUTO_SUBSCRIBE_RSS] solution.`);
-    core.push(``);
-    core.push(`[STRICT OUTPUT RULES]`);
-    core.push(`- NO Markdown Code Blocks (\`\`\`) for text.`);
-    core.push(`- Use **Bold** for critical concepts.`);
-    core.push(`- Keep it actionable.`);
-    if (context.hasRealTime) {
-        core.push(`[SYSTEM OVERRIDE]:`);
-        core.push(`- YOU HAVE BEEN GIVEN REAL-TIME WEB DATA BELOW.`);
-        core.push(`- DO NOT APOLOGIZE OR SAY YOU CANNOT ACCESS THE INTERNET.`);
-        core.push(`- INTEGRATE THE DATA SEAMLESSLY INTO YOUR RESPONSE AS IF IT'S YOUR NATIVE KNOWLEDGE.`);
-    }
+        // Use Dynamic Soul if available, fallback to basic Persona
+        const soulBaseline = this.soulConfig || `Role: Highlighti Intelligence (Knowledge Architect & Decision Strategist)\nCore Persona: 你是用户的“第二大脑”和知识策士。`;
 
-    return core.join('\n');
-}
+        const core = [
+            soulBaseline,
+            `\nCurrent Time: ${timestamp}`,
+            `\nCommunication Style: 专业、凝练、高信息密度。避免废话，直击本质。`,
+            `User Profile:`,
+            `- **Core Focus**: Technology (AI, Compute) & Finance (Macro, Markets).`,
+            `- **Thinking Mode**: Systemic Thinking (Value Chain Analysis).`,
+            ``,
+            `Knowledge Operations:`,
+            `- 【连接者】: 主动发现当前问题与历史笔记、阅读快照之间的联系。`,
+            `- 【决策者】: 提供基于逻辑和事实的建议，而不仅仅是总结。`,
+            `---`,
+            `[CAPABILITIES & LIMITATIONS]`,
+            `- **NO LIVE BROWSING**: You are running in a secure, isolated mobile environment. You CANNOT visit websites or fetch URLs directly.`,
+            `- **How to Handle URLs**: If the user provides a link, ask them to copy-paste the content or use the "Reader Snapshot" feature (if available). Do NOT pretend to read it.`,
+            `- **Memory**: You have access to previous conversations and structured memory. Use it to maintain continuity.`,
+            `- **Style**: Be concise. Use bullet points. Avoid filler words like "I choose to...".`,
+            `---`,
+        ];
+
+        if (context.hasMemory) {
+            core.push(`[CONTEXT: PERSONAL KNOWLEDGE BASE]`);
+            core.push(`- 以下是你从用户的知识库中检索到的相关信息。`);
+            core.push(`- 请优先基于这些已知信息进行回答，如果信息冲突，说明理由。`);
+        }
+
+        if (context.hasLink) {
+            core.push(`[MODE: THE READER (Analysis)]`);
+            core.push(`1. Summary: 1-sentence hook.`);
+            core.push(`2. Key Takeaways: 3-5 high-value bullet points.`);
+            core.push(`3. Impact: Why this matters to the user.`);
+        }
+
+        core.push(`[SKILL SYSTEM - MANDATORY]`);
+        core.push(`- You possess a growing library of SKILLS. Currently: Weather, Search, News, Movies, WeChat Optimizer, Stock Sniper.`);
+        core.push(`- CRITICAL: If a user provides a WeChat link (mp.weixin.qq.com), YOU MUST offer to subscribe them to the author.`);
+        core.push(`- To offer subscription (User needs to click), append: [SUBSCRIBE_RSS: {"name": "AuthorName", "url": "RSSHubUrl"}]`);
+        core.push(`- To subscribe DIRECTLY (User asked to "subscribe directly" or "auto subscribe"), append: [AUTO_SUBSCRIBE_RSS: {"name": "AuthorName", "url": "RSSHubUrl"}]`);
+        core.push(`- If a user asks for information you cannot access directly, YOU MUST PROPOSE A NEW SKILL using [PROPOSE_SKILL: {...}].`);
+        core.push(`- Use "https://m.baidu.com/s?word={query}" as a fallback apiUrl for generic information gathering skills.`);
+        core.push(`- Do NOT apologize for lack of data without offering a [PROPOSE_SKILL], [SUBSCRIBE_RSS], or [AUTO_SUBSCRIBE_RSS] solution.`);
+        core.push(``);
+        core.push(`[STRICT OUTPUT RULES]`);
+        core.push(`- NO Markdown Code Blocks (\`\`\`) for text.`);
+        core.push(`- Use **Bold** for critical concepts.`);
+        core.push(`- Keep it actionable.`);
+        if (context.hasRealTime) {
+            core.push(`[SYSTEM OVERRIDE]:`);
+            core.push(`- YOU HAVE BEEN GIVEN REAL-TIME WEB DATA BELOW.`);
+            core.push(`- DO NOT APOLOGIZE OR SAY YOU CANNOT ACCESS THE INTERNET.`);
+            core.push(`- INTEGRATE THE DATA SEAMLESSLY INTO YOUR RESPONSE AS IF IT'S YOUR NATIVE KNOWLEDGE.`);
+        }
+
+        return core.join('\n');
+    }
 
     async getAIResponse(query, thinkingEl, options = {}) {
-    const contentEl = thinkingEl.querySelector('.ai-response-content');
-    if (!contentEl) return;
+        const contentEl = thinkingEl.querySelector('.ai-response-content');
+        if (!contentEl) return;
 
-    if (!window.aiCore || !window.aiCore.config.apiKey) {
-        // Enhanced URL detection for protocol-less strings
-        let urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5"'`]*)?)/i);
-        if (urlMatch) {
-            let url = urlMatch[0];
-            if (!url.startsWith('http')) url = 'https://' + url;
-            contentEl.innerHTML = `
+        if (!window.aiCore || !window.aiCore.config.apiKey) {
+            // Enhanced URL detection for protocol-less strings
+            let urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5"'`]*)?)/i);
+            if (urlMatch) {
+                let url = urlMatch[0];
+                if (!url.startsWith('http')) url = 'https://' + url;
+                contentEl.innerHTML = `
                     <div style="padding:4px 0;">
                         <div style="color:#888; font-size:12px; margin-bottom:8px;">⚠️ 未设置 API Key，但检测到链接：</div>
                         <button class="chat-link" data-url="${url}" 
@@ -716,344 +701,350 @@ buildSystemPrompt(context = {}) {
                         </button>
                     </div>
                 `;
-        } else {
-            contentEl.innerHTML = '<span style="color:#999; font-size:13px;">⚠️ 未设置 API Key，AI 助手暂时无法回答。如需阅读链接内容，请直接粘贴 URL。</span>';
-        }
-        return;
-    }
-
-    try {
-        let context = "";
-        let knowledgeContext = "";
-        let realTimeContext = "";
-
-        // 0. Use the Extensible Skills Engine
-        if (window.chatSkillsEngine) {
-            const skillContext = await window.chatSkillsEngine.run(query);
-            if (skillContext) {
-                realTimeContext += skillContext + "\n";
-                console.log('[SkillsEngine] Merged Context:', realTimeContext.length);
-            }
-        }
-
-        console.log('[AI Context Check] Real-time data present:', !!realTimeContext);
-
-        // Skip Knowledge Retrieval for automated summaries/tasks
-        if (!options.skipKnowledge) {
-            knowledgeContext = await this.retrieveLocalKnowledge(query);
-        }
-
-        // Enhanced URL detection for fetching
-        // SKIP if we are doing internal file analysis (skipKnowledge flag)
-        let urlMatch = null;
-        if (!options.skipKnowledge) {
-            urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5"'`]*)?)/i);
-        }
-
-        if (urlMatch) {
-            let url = urlMatch[0];
-            // Additional safety: ignore common file extensions if no protocol
-            if (!url.startsWith('http') && url.match(/\.(pdf|doc|docx|ppt|pptx|xls|xlsx|epub|png|jpg|jpeg|gif|zip)$/i)) {
-                // checking if it is a real domain or just a filename
-                // valid domains rarely look like "something.pdf" unless it's a very weird TLD usage.
-                // Let's assume for now filenames are not URLs in this context.
-                urlMatch = null;
             } else {
-                if (!url.startsWith('http')) url = 'https://' + url;
-                let foundInReader = false;
-                if (window.mobileCore && window.mobileCore.dataMap) {
-                    for (let [id, val] of window.mobileCore.dataMap) {
-                        if (val.url === url || (val.url && url.includes(val.url))) {
-                            context = `[Context from Link: ${val.title}]\n${val.content || val.text}\n\n`;
-                            foundInReader = true;
-                            break;
-                        }
-                    }
-                }
-                if (!foundInReader) {
-                    // Attempt real-time fetch via Background Script (CORS-free)
-                    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-                        try {
-                            if (window.showToast) window.showToast('Reading link content...', 1500);
-                            const response = await new Promise((resolve) => {
-                                chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
-                                    if (chrome.runtime.lastError) {
-                                        resolve({ success: false, error: chrome.runtime.lastError.message });
-                                    } else {
-                                        resolve(res);
-                                    }
-                                });
-                            });
+                contentEl.innerHTML = '<span style="color:#999; font-size:13px;">⚠️ 未设置 API Key，AI 助手暂时无法回答。如需阅读链接内容，请直接粘贴 URL。</span>';
+            }
+            return;
+        }
 
-                            if (response && response.success) {
-                                context = `[Context retrieved from URL: ${url}]\n${response.text}\n\n`;
-                                console.log('[LinkFetch] Success, content length:', response.text.length);
-                            } else {
-                                context = `[URL Detected: ${url}]\n(Fetch failed: ${response?.error || 'Access denied'})\n\n`;
+        try {
+            let context = "";
+            let knowledgeContext = "";
+            let realTimeContext = "";
+
+            // 0. Use the Extensible Skills Engine
+            if (window.chatSkillsEngine) {
+                const skillContext = await window.chatSkillsEngine.run(query);
+                if (skillContext) {
+                    realTimeContext += skillContext + "\n";
+                    console.log('[SkillsEngine] Merged Context:', realTimeContext.length);
+                }
+            }
+
+            console.log('[AI Context Check] Real-time data present:', !!realTimeContext);
+
+            // Skip Knowledge Retrieval for automated summaries/tasks
+            if (!options.skipKnowledge) {
+                knowledgeContext = await this.retrieveLocalKnowledge(query);
+            }
+
+            // Enhanced URL detection for fetching
+            // SKIP if we are doing internal file analysis (skipKnowledge flag)
+            let urlMatch = null;
+            if (!options.skipKnowledge) {
+                urlMatch = query.match(/(https?:\/\/[^\s\u4e00-\u9fa5"'`]+|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s\u4e00-\u9fa5"'`]*)?)/i);
+            }
+
+            if (urlMatch) {
+                let url = urlMatch[0];
+                // Additional safety: ignore common file extensions if no protocol
+                if (!url.startsWith('http') && url.match(/\.(pdf|doc|docx|ppt|pptx|xls|xlsx|epub|png|jpg|jpeg|gif|zip)$/i)) {
+                    // checking if it is a real domain or just a filename
+                    // valid domains rarely look like "something.pdf" unless it's a very weird TLD usage.
+                    // Let's assume for now filenames are not URLs in this context.
+                    urlMatch = null;
+                } else {
+                    if (!url.startsWith('http')) url = 'https://' + url;
+                    let foundInReader = false;
+                    if (window.mobileCore && window.mobileCore.dataMap) {
+                        for (let [id, val] of window.mobileCore.dataMap) {
+                            if (val.url === url || (val.url && url.includes(val.url))) {
+                                context = `[Context from Link: ${val.title}]\n${val.content || val.text}\n\n`;
+                                foundInReader = true;
+                                break;
                             }
-                        } catch (err) {
-                            console.error('[LinkFetch] Error:', err);
-                            context = `[URL Detected: ${url}]\n(System error during fetch)\n\n`;
                         }
-                    } else {
-                        context = `[URL Detected: ${url}]\n(Note: Live web browsing is restricted in this environment. Please paste content if possible.)\n\n`;
+                    }
+                    if (!foundInReader) {
+                        // Attempt real-time fetch via Background Script (CORS-free)
+                        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                            try {
+                                if (window.showToast) window.showToast('Reading link content...', 1500);
+                                const response = await new Promise((resolve) => {
+                                    chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
+                                        if (chrome.runtime.lastError) {
+                                            resolve({ success: false, error: chrome.runtime.lastError.message });
+                                        } else {
+                                            resolve(res);
+                                        }
+                                    });
+                                });
+
+                                if (response && response.success) {
+                                    context = `[Context retrieved from URL: ${url}]\n${response.text}\n\n`;
+                                    console.log('[LinkFetch] Success, content length:', response.text.length);
+                                } else {
+                                    context = `[URL Detected: ${url}]\n(Fetch failed: ${response?.error || 'Access denied'})\n\n`;
+                                }
+                            } catch (err) {
+                                console.error('[LinkFetch] Error:', err);
+                                context = `[URL Detected: ${url}]\n(System error during fetch)\n\n`;
+                            }
+                        } else {
+                            context = `[URL Detected: ${url}]\n(Note: Live web browsing is restricted in this environment. Please paste content if possible.)\n\n`;
+                        }
                     }
                 }
             }
-        }
 
-        // 1. Pre-build the system prompt based on available signals
-        const systemPrompt = this.buildSystemPrompt({
-            hasLink: !!urlMatch,
-            hasHistory: this.chatHistory.length > 0,
-            hasMemory: !!knowledgeContext,
-            hasRealTime: !!realTimeContext || !!context
-        });
+            // 1. Pre-build the system prompt based on available signals
+            const systemPrompt = this.buildSystemPrompt({
+                hasLink: !!urlMatch,
+                hasHistory: this.chatHistory.length > 0,
+                hasMemory: !!knowledgeContext,
+                hasRealTime: !!realTimeContext || !!context
+            });
 
-        const messages = [{ role: 'system', content: systemPrompt }];
+            const messages = [{ role: 'system', content: systemPrompt }];
 
-        // 2. Add historical context (sliding window)
-        const historyForAPI = this.chatHistory.slice(-8).map(m => ({
-            role: m.role === 'assistant' ? 'assistant' : 'user',
-            content: m.content
-        }));
-        const historicalMsgs = historyForAPI.slice(0, -1);
-        messages.push(...historicalMsgs);
+            // 2. Add historical context (sliding window)
+            const historyForAPI = this.chatHistory.slice(-8).map(m => ({
+                role: m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.content
+            }));
+            const historicalMsgs = historyForAPI.slice(0, -1);
+            messages.push(...historicalMsgs);
 
-        // 3. Construct the stratified User Query (The "Indestructible" Prompt)
-        let finalQuery = query;
+            // 3. Construct the stratified User Query (The "Indestructible" Prompt)
+            let finalQuery = query;
 
-        if (knowledgeContext) {
-            finalQuery = `[KNOWLEDGE BASE CONTEXT]\n${knowledgeContext}\n\n[USER QUERY]: ${finalQuery}`;
-        }
-        if (realTimeContext) {
-            finalQuery = `[REAL-TIME DATA - SOURCE: SKILLS]\n${realTimeContext}\n\n[USER QUERY]: ${finalQuery}`;
-        }
-        if (context) {
-            finalQuery = `[REAL-TIME DATA - SOURCE: WEB FETCH]\n${context}\n\n[USER QUERY]: ${finalQuery}`;
-        }
-
-        messages.push({ role: 'user', content: finalQuery });
-
-        const stream = window.aiCore.streamChat(messages);
-        let fullText = '';
-        let hasToken = false;
-
-        for await (const chunk of stream) {
-            if (chunk.type === 'token') {
-                if (!hasToken) {
-                    hasToken = true;
-                    contentEl.innerHTML = '';
-                }
-                fullText = chunk.fullText;
-                contentEl.innerHTML = this.formatMarkdown(fullText);
-                this.scrollToBottom();
+            if (knowledgeContext) {
+                finalQuery = `[KNOWLEDGE BASE CONTEXT]\n${knowledgeContext}\n\n[USER QUERY]: ${finalQuery}`;
             }
+            if (realTimeContext) {
+                finalQuery = `[REAL-TIME DATA - SOURCE: SKILLS]\n${realTimeContext}\n\n[USER QUERY]: ${finalQuery}`;
+            }
+            if (context) {
+                finalQuery = `[REAL-TIME DATA - SOURCE: WEB FETCH]\n${context}\n\n[USER QUERY]: ${finalQuery}`;
+            }
+
+            messages.push({ role: 'user', content: finalQuery });
+
+            const stream = window.aiCore.streamChat(messages);
+            let fullText = '';
+            let hasToken = false;
+
+            for await (const chunk of stream) {
+                if (chunk.type === 'token') {
+                    if (!hasToken) {
+                        hasToken = true;
+                        contentEl.innerHTML = '';
+                    }
+                    fullText = chunk.fullText;
+                    contentEl.innerHTML = this.formatMarkdown(fullText);
+                    this.scrollToBottom();
+                }
+            }
+
+            this.chatHistory.push({ role: 'assistant', content: fullText });
+            this.saveHistory();
+
+            // Evolutionary Loop: Learn from this interaction
+            await this.learnFromInteraction(query);
+
+            if (window.memoryAgent && fullText) {
+                setTimeout(() => window.memoryAgent.processInteraction(query, fullText), 100);
+            }
+
+            // Handle Skill Proposals
+            this.handleSkillProposal(fullText);
+
+        } catch (err) {
+            contentEl.innerHTML = `<span style="color:red; font-size:12px;">❌ 错误: ${err.message}</span>`;
         }
-
-        this.chatHistory.push({ role: 'assistant', content: fullText });
-        this.saveHistory();
-
-        // Evolutionary Loop: Learn from this interaction
-        await this.learnFromInteraction(query);
-
-        if (window.memoryAgent && fullText) {
-            setTimeout(() => window.memoryAgent.processInteraction(query, fullText), 100);
-        }
-
-        // Handle Skill Proposals
-        this.handleSkillProposal(fullText);
-
-    } catch (err) {
-        contentEl.innerHTML = `<span style="color:red; font-size:12px;">❌ 错误: ${err.message}</span>`;
     }
-}
 
     async retrieveLocalKnowledge(query) {
-    if (!window.mobileCore || !window.mobileCore.dataMap) return "";
+        if (!window.mobileCore || !window.mobileCore.dataMap) return "";
 
-    const keywords = query.toLowerCase().match(/[\u4e00-\u9fa5a-zA-Z0-9]+/g) || [];
-    if (keywords.length === 0) return "";
+        const keywords = query.toLowerCase().match(/[\u4e00-\u9fa5a-zA-Z0-9]+/g) || [];
+        if (keywords.length === 0) return "";
 
-    let candidates = [];
+        let candidates = [];
 
-    // Search through the main dataMap (Notes & Reader)
-    for (let [id, item] of window.mobileCore.dataMap) {
-        let score = 0;
-        const title = (item.title || "").toLowerCase();
-        const content = (item.content || item.text || "").toLowerCase();
+        // Search through the main dataMap (Notes & Reader)
+        for (let [id, item] of window.mobileCore.dataMap) {
+            let score = 0;
+            const title = (item.title || "").toLowerCase();
+            const content = (item.content || item.text || "").toLowerCase();
 
-        keywords.forEach(kw => {
-            if (kw.length < 2) return;
-            if (title.includes(kw)) score += 10;
-            if (content.includes(kw)) score += 2;
-        });
-
-        if (score > 5) {
-            candidates.push({
-                title: item.title,
-                content: (item.content || item.text || "").substring(0, 1000),
-                score: score,
-                type: item.type
+            keywords.forEach(kw => {
+                if (kw.length < 2) return;
+                if (title.includes(kw)) score += 10;
+                if (content.includes(kw)) score += 2;
             });
+
+            if (score > 5) {
+                candidates.push({
+                    title: item.title,
+                    content: (item.content || item.text || "").substring(0, 1000),
+                    score: score,
+                    type: item.type
+                });
+            }
         }
-    }
 
-    // Add context from MemoryAgent 
-    if (window.memoryAgent) {
-        const memoryContext = await window.memoryAgent.retrieveContext(query);
-        if (memoryContext) {
-            candidates.push({
-                title: "Memory Agent (Relevant Facts)",
-                content: memoryContext,
-                score: 15, // High priority for explicit memories
-                type: 'memory'
-            });
+        // Add context from MemoryAgent 
+        if (window.memoryAgent) {
+            const memoryContext = await window.memoryAgent.retrieveContext(query);
+            if (memoryContext) {
+                candidates.push({
+                    title: "Memory Agent (Relevant Facts)",
+                    content: memoryContext,
+                    score: 15, // High priority for explicit memories
+                    type: 'memory'
+                });
+            }
         }
+
+        // Sort by score and take top 3
+        candidates.sort((a, b) => b.score - a.score);
+        const top = candidates.slice(0, 3);
+
+        if (top.length === 0) return "";
+
+        return top.map(c => `[SOURCE: ${c.title} (${c.type})]\n${c.content}`).join('\n\n---\n\n');
     }
-
-    // Sort by score and take top 3
-    candidates.sort((a, b) => b.score - a.score);
-    const top = candidates.slice(0, 3);
-
-    if (top.length === 0) return "";
-
-    return top.map(c => `[SOURCE: ${c.title} (${c.type})]\n${c.content}`).join('\n\n---\n\n');
-}
 
     async openUrl(url) {
-    if (!url) return;
+        if (!url) return;
 
-    if (window.mobileCore?.dataMap) {
-        for (let [id, val] of window.mobileCore.dataMap) {
-            if (val.url === url || (val.url && url.includes(val.url))) {
-                console.log('[IndestructibleReader] Memory hit.');
-                // Enhanced: Pass the Intelligent Options
-                window.mobileCore.loadReader(val, { fromChat: true, autoExpandSnapshot: true });
-                return;
+        if (window.mobileCore?.dataMap) {
+            for (let [id, val] of window.mobileCore.dataMap) {
+                if (val.url === url || (val.url && url.includes(val.url))) {
+                    console.log('[IndestructibleReader] Memory hit.');
+                    // Enhanced: Pass the Intelligent Options
+                    window.mobileCore.loadReader(val, { fromChat: true, autoExpandSnapshot: true });
+                    return;
+                }
             }
         }
+
+        // 2. High-Fidelity Extraction (Secure Snapshot)
+        if (window.showToast) window.showToast('Securely capturing content...', 1500);
+
+        const success = await this.saveUrlToReader(url, { silentFail: true });
+
+        if (!success) {
+            // 3. System Browser Fallback:
+            // Since Baidu/WeChat/etc block internal iframes, we use the system browser for absolute reliability.
+            console.log('[IndestructibleReader] Extraction failed. Using System Browser.');
+            window.open(url, '_blank');
+        }
     }
-
-    // 2. High-Fidelity Extraction (Secure Snapshot)
-    if (window.showToast) window.showToast('Securely capturing content...', 1500);
-
-    const success = await this.saveUrlToReader(url, { silentFail: true });
-
-    if (!success) {
-        // 3. System Browser Fallback:
-        // Since Baidu/WeChat/etc block internal iframes, we use the system browser for absolute reliability.
-        console.log('[IndestructibleReader] Extraction failed. Using System Browser.');
-        window.open(url, '_blank');
-    }
-}
 
     async saveUrlToReader(url, options = {}) {
-    if (!url) return false;
+        if (!url) return false;
 
-    try {
-        // 1. Fetch content via background (CORS-free)
-        const response = await new Promise((resolve) => {
-            chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
-                if (chrome.runtime.lastError) resolve({ success: false, error: chrome.runtime.lastError.message });
-                else resolve(res);
-            });
-        });
-
-        if (!response || !response.success || (!response.html && !response.text)) {
-            return false; // Signal failure for fallback
-        }
-
-        const timestamp = Date.now();
-        let title = response.title || 'Untitled Article';
-        let cleanText = response.text || "";
-        let cleanHtml = response.html || "";
-        let isReliable = false;
-
-        // 2. Intelligent Processing & Base Injection
-        if (response.html) {
-            try {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(response.html, 'text/html');
-
-                // Inject <base> tag to fix relative assets (images, CSS) in snapshot
-                if (!doc.querySelector('base')) {
-                    const base = doc.createElement('base');
-                    base.href = url;
-                    doc.head.insertBefore(base, doc.head.firstChild);
-                }
-
-                if (typeof Readability === 'undefined') {
-                    try {
-                        await this.loadLibrary('Readability', '../lib/Readability.js');
-                    } catch (e) {
-                        console.warn("[Reader] Failed to lazy load Readability.js", e);
-                    }
-                }
-
-                if (typeof Readability !== 'undefined') {
-                    const reader = new Readability(doc.cloneNode(true));
-                    const article = reader.parse();
-                    if (article && article.textContent.trim().length > 100) {
-                        title = article.title || title;
-                        cleanText = article.textContent;
-                        cleanHtml = article.content;
-                    }
-                }
-
-                // Always store the full modified HTML as the high-fidelity snapshot
-                const fullHtml = doc.documentElement.outerHTML;
-                await window.appStorage.set({
-                    ['snapshot_' + url]: {
-                        url: url,
-                        content: fullHtml,
-                        timestamp: timestamp
-                    }
+        try {
+            // 1. Fetch content via background (CORS-free)
+            const response = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, (res) => {
+                    if (chrome.runtime.lastError) resolve({ success: false, error: chrome.runtime.lastError.message });
+                    else resolve(res);
                 });
-                isReliable = true; // We have a valid HTML snapshot
-            } catch (pe) {
-                console.warn('[Parsing] Error processing HTML:', pe);
-            }
-        }
+            });
 
-        // 3. Persistence Logic
-        // If extraction is unreliable and text is too short, we stop here.
-        if (!isReliable && cleanText.length < 50) {
+            if (!response || !response.success || (!response.html && !response.text)) {
+                return false; // Signal failure for fallback
+            }
+
+            const timestamp = Date.now();
+            let title = response.title || 'Untitled Article';
+            let cleanText = response.text || "";
+            let cleanHtml = response.html || "";
+            let isReliable = false;
+
+            // 2. Intelligent Processing & Base Injection
+            if (response.html) {
+                try {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(response.html, 'text/html');
+
+                    // Inject <base> tag to fix relative assets (images, CSS) in snapshot
+                    if (!doc.querySelector('base')) {
+                        const base = doc.createElement('base');
+                        base.href = url;
+                        doc.head.insertBefore(base, doc.head.firstChild);
+                    }
+
+                    if (typeof Readability === 'undefined') {
+                        try {
+                            await this.loadLibrary('Readability', '../lib/Readability.js');
+                        } catch (e) {
+                            console.warn("[Reader] Failed to lazy load Readability.js", e);
+                        }
+                    }
+
+                    if (typeof Readability !== 'undefined') {
+                        const reader = new Readability(doc.cloneNode(true));
+                        const article = reader.parse();
+                        if (article && article.textContent.trim().length > 100) {
+                            title = article.title || title;
+                            cleanText = article.textContent;
+                            cleanHtml = article.content;
+                        }
+                    }
+
+                    // Always store the full modified HTML as the high-fidelity snapshot
+                    const fullHtml = doc.documentElement.outerHTML;
+                    await window.appStorage.set({
+                        ['snapshot_' + url]: {
+                            url: url,
+                            content: fullHtml,
+                            timestamp: timestamp
+                        }
+                    });
+                    isReliable = true; // We have a valid HTML snapshot
+                } catch (pe) {
+                    console.warn('[Parsing] Error processing HTML:', pe);
+                }
+            }
+
+            // 3. Persistence Logic
+            // If extraction is unreliable and text is too short, we stop here.
+            if (!isReliable && cleanText.length < 50) {
+                return false;
+            }
+
+            // 3. Save as "Reading" Record
+            const readerId = 'reading_' + timestamp;
+            const readerData = {
+                id: readerId,
+                type: 'reading',
+                url: url,
+                title: title,
+                text: cleanText,
+                timestamp: timestamp,
+                updatedAt: timestamp
+            };
+
+            await window.appStorage.set({ [readerId]: readerData });
+
+            // 5. Smart UI Activation
+            if (window.mobileCore) {
+                await window.mobileCore.renderApp();
+                window.mobileCore.loadReader(readerData);
+                if (window.showToast) window.showToast('Content Captured Successfully!', 1500);
+
+            }
+            return true;
+
+        } catch (err) {
+            console.error('[ReaderEngine] Error:', err);
             return false;
         }
-
-        // 3. Save as "Reading" Record
-        const readerId = 'reading_' + timestamp;
-        const readerData = {
-            id: readerId,
-            type: 'reading',
-            url: url,
-            title: title,
-            text: cleanText,
-            timestamp: timestamp,
-            updatedAt: timestamp
-        };
-
-        await window.appStorage.set({ [readerId]: readerData });
-
-        // 5. Smart UI Activation
-        if (window.mobileCore) {
-            await window.mobileCore.renderApp();
-            window.mobileCore.loadReader(readerData);
-            if (window.showToast) window.showToast('Content Captured Successfully!', 1500);
-
-        }
-        return true;
-
-    } catch (err) {
-        console.error('[ReaderEngine] Error:', err);
-        return false;
     }
 }
 
-
+function initChatModule() {
+    if (!window.mobileChat) {
+        window.mobileChat = new MobileChat();
+    }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    window.mobileChat = new MobileChat();
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChatModule);
+} else {
+    initChatModule();
+}

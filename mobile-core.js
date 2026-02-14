@@ -189,26 +189,56 @@ class MobileApp {
         */
     }
 
-    triggerUniversalSend(inputEl) {
-        if (!inputEl) return;
-        const text = inputEl.value ? inputEl.value.trim() : '';
-        if (!text) return;
+    triggerUniversalSend(inputElOrText) {
+        let text = '';
+        let actualInput = null;
 
-        // Auto-exit voice mode for visual feedback
+        if (typeof inputElOrText === 'string') {
+            text = inputElOrText.trim();
+            actualInput = document.getElementById('global-input');
+        } else {
+            actualInput = inputElOrText;
+            if (!inputElOrText || actualInput.tagName !== 'INPUT') {
+                actualInput = document.getElementById('global-input');
+            }
+            text = actualInput ? (actualInput.value || '').trim() : '';
+        }
+
+        if (!text) return; // Prevent empty sends
+
+        console.log('[Core] Triggering send:', text.substring(0, 30) + '...');
+        if (typeof window.showToast === 'function' && text.length > 50) {
+            // Optional: feedback for long voice inputs
+        }
+
+        // Auto-exit voice mode
         if (this.isVoiceMode) this.toggleVoiceMode();
 
         if (window.mobileChat) {
-            // Case 1: Already in Assistant view
-            if (this.activeView === 'home') {
-                window.mobileChat.handleExternalSend(text);
-                if (inputEl.tagName === 'INPUT') inputEl.value = '';
-            }
-            // Case 2: In other views
-            else {
+            // Ensure we are in the Assistant (Home) view
+            if (this.activeView !== 'home') {
                 this.navigateTo('home');
-                window.mobileChat.handleExternalSend(text);
-                if (inputEl.tagName === 'INPUT') inputEl.value = '';
             }
+
+            // Call the chat module's send logic
+            window.mobileChat.handleExternalSend(text);
+
+            // Clear input with a safer delay to ensure the text was read
+            setTimeout(() => {
+                actualInput.value = '';
+                if (typeof updateDockState === 'function') updateDockState();
+                else {
+                    // Fallback: manually trigger icons if updateDockState is closure-scoped
+                    const iconMic = document.getElementById('icon-dock-mic');
+                    const iconSend = document.getElementById('icon-dock-send');
+                    if (iconMic) iconMic.classList.remove('hidden');
+                    if (iconSend) iconSend.classList.add('hidden');
+                }
+            }, 50);
+
+            actualInput.blur(); // Dismiss keyboard
+        } else {
+            console.warn('[Core] MobileChat module not ready yet.');
         }
     }
 
@@ -450,15 +480,19 @@ class MobileApp {
 
             globalInput.oninput = (e) => {
                 this.searchQuery = e.target.value.toLowerCase();
-                this.renderApp();
+                // Only render results if NOT in home/assistant view to avoid focus stealing
+                if (this.activeView !== 'home' && this.activeView !== 'chat') {
+                    this.renderApp();
+                }
                 updateDockState();
             };
 
             globalInput.onkeydown = (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
+                    // Let triggerUniversalSend handle the logic and clearing
                     this.triggerUniversalSend(globalInput);
-                    globalInput.value = ''; // clear
+                    // Do NOT clear here immediately, or text is lost before send
                     updateDockState();
                 }
             };
@@ -926,6 +960,29 @@ class MobileApp {
         if (target) {
             target.classList.add('active');
             this.activeView = viewId;
+
+            // Auto-scroll chat to bottom
+            if (viewId === 'home' || viewId === 'chat') {
+                const forceScroll = () => {
+                    const scroller = document.getElementById('chat-content');
+                    const messages = document.getElementById('messages-container');
+                    if (!scroller || !messages) return;
+
+                    // Method 1: Scroll Top
+                    scroller.scrollTop = scroller.scrollHeight + 1000;
+
+                    // Method 2: Element Snap
+                    if (messages.lastElementChild) {
+                        messages.lastElementChild.scrollIntoView({ behavior: 'auto', block: 'end' });
+                    }
+                };
+
+                // Immediate and staggered execution
+                requestAnimationFrame(forceScroll);
+                setTimeout(forceScroll, 50);
+                setTimeout(forceScroll, 300);
+                setTimeout(forceScroll, 800);
+            }
         }
 
         // --- Global Nav Dock & Chat Hub Visibility ---
@@ -1169,40 +1226,39 @@ class MobileApp {
             this.isRecognitionActive = false;
         }
 
-        if (this.isRecognitionActive) {
-            console.log('[Voice] Already active, ignoring');
+        if (this.isRecognitionActive || this.isStartingRecognition) {
+            console.log('[Voice] Already active or starting, ignoring');
             return;
         }
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            alert('Speech recognition is not supported in this browser.');
+            if (window.showToast) window.showToast('Speech recognition not supported');
             return;
         }
 
-        // 1. Immediate UI Feedback (Crucial for UX)
+        this.isStartingRecognition = true;
+
+        // 1. Immediate UI Feedback
         if (window.navigator.vibrate) window.navigator.vibrate(50);
 
         const holdBtn = document.getElementById('hold-to-talk');
+        const previewOverlay = document.getElementById('voice-preview-overlay');
         const holdStatus = document.getElementById('voice-status-text');
-        if (holdBtn) {
-            holdBtn.classList.remove('hidden');
-            if (holdStatus) {
-                holdStatus.textContent = 'Listening...';
-                holdStatus.style.display = 'block';
-            }
-            holdBtn.classList.add('recording');
-        }
+
+        if (previewOverlay) previewOverlay.classList.remove('hidden');
+        if (holdBtn) holdBtn.classList.add('recording');
+        if (holdStatus) holdStatus.textContent = 'Preparing...';
 
         // Editor floating button feedback
         const editorVoiceBtn = document.getElementById('btn-editor-voice');
         if (editorVoiceBtn) editorVoiceBtn.style.color = '#ff3b30';
 
         const editorIndicator = document.getElementById('editor-voice-indicator');
-        if (editorIndicator) editorIndicator.classList.remove('hidden');
-
-        const dockIndicator = document.getElementById('dock-voice-indicator');
-        if (dockIndicator) dockIndicator.classList.remove('hidden');
+        if (editorIndicator) {
+            editorIndicator.classList.remove('hidden');
+            editorIndicator.textContent = 'Listening...';
+        }
 
         try {
             const recognition = new SpeechRecognition();
@@ -1215,9 +1271,9 @@ class MobileApp {
 
             recognition.onstart = () => {
                 this.isRecognitionActive = true;
+                this.isStartingRecognition = false;
                 console.log('[Voice] Engine Started');
-                // Double confirm UI
-                if (holdBtn) holdBtn.textContent = '说吧 (Listening)';
+                if (holdStatus) holdStatus.textContent = '说吧 (Listening)';
             };
 
             recognition.onresult = (event) => {
@@ -1232,61 +1288,48 @@ class MobileApp {
                     }
                 }
 
-                // Visual feedback
-                const display = (finalTranscript + interimTranscript).substring(0, 30);
-                if (holdStatus && (finalTranscript || interimTranscript)) {
-                    holdStatus.textContent = display || 'Listening...';
-                }
-                if (editorIndicator && (finalTranscript || interimTranscript)) {
-                    editorIndicator.textContent = display;
-                }
-                if (dockIndicator && (finalTranscript || interimTranscript)) {
-                    dockIndicator.textContent = display;
-                }
-
-                // Buffer logic: Keep track of the latest full transcript
-                this.latestVoiceTranscript = (finalTranscript + interimTranscript).trim();
-
-                // Still keep the cumulative final buffer if needed, 
-                // but for strict PTT, latestVoiceTranscript is more accurate for the final "end"
                 this.voiceBuffer = (this.voiceBuffer || '') + finalTranscript;
+                const currentText = (this.voiceBuffer + interimTranscript).trim();
+
+                if (currentText) {
+                    this.latestVoiceTranscript = currentText;
+                    if (holdStatus) holdStatus.textContent = currentText;
+                }
+
+                if (editorIndicator) editorIndicator.textContent = currentText.substring(0, 30);
             };
 
             recognition.onerror = (event) => {
                 console.error('[Voice] Error:', event.error);
-
-                // Allow restart on next try
                 this.isRecognitionActive = false;
+                this.isStartingRecognition = false;
 
-                // Ignore harmless errors
                 if (event.error === 'no-speech' || event.error === 'aborted') {
+                    this.resetVoiceUI();
                     return;
                 }
 
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    alert('⚠️ Microphone access denied. Please check permission settings (HTTPS required).');
-                } else {
+                if (event.error === 'not-allowed') {
+                    alert('⚠️ Microphone access denied. Check HTTPS and permissions.');
+                } else if (event.error !== 'already-started') {
                     if (window.showToast) window.showToast('Voice Error: ' + event.error);
                 }
-
-                // Reset UI
                 this.resetVoiceUI();
             };
 
             recognition.onend = () => {
                 console.log('[Voice] Engine Ended');
                 this.isRecognitionActive = false;
+                this.isStartingRecognition = false;
                 this.currentRecognition = null;
+
+                const textToSend = (this.latestVoiceTranscript || '').trim();
 
                 this.resetVoiceUI();
 
-                // Process Latest Transcript (Final + Interim captured at moment of end)
-                // Use latestVoiceTranscript if it exists, fallback to voiceBuffer
-                const textToSend = (this.latestVoiceTranscript && this.latestVoiceTranscript.trim())
-                    || (this.voiceBuffer && this.voiceBuffer.trim());
-
                 if (textToSend) {
-                    this.latestVoiceTranscript = ''; // Reset
+                    console.log('[Voice] Finalizing transcript:', textToSend.substring(0, 30));
+                    this.latestVoiceTranscript = '';
                     this.voiceBuffer = '';
                     this.handleVoiceResult(textToSend);
                 }
@@ -1295,26 +1338,29 @@ class MobileApp {
             };
 
             this.voiceBuffer = '';
+            this.latestVoiceTranscript = '';
             recognition.start();
 
         } catch (e) {
-            console.error('[Voice] Start exception:', e);
+            console.error('[Voice] Exception:', e);
             this.isRecognitionActive = false;
+            this.isStartingRecognition = false;
             this.resetVoiceUI();
-            alert('Voice Start Failed: ' + e.message);
         }
     }
 
     resetVoiceUI() {
+        const previewOverlay = document.getElementById('voice-preview-overlay');
         const holdBtn = document.getElementById('hold-to-talk');
-        if (holdBtn) {
-            holdBtn.classList.add('hidden');
-            holdBtn.classList.remove('recording');
-        }
-
         const holdStatus = document.getElementById('voice-status-text');
+
+        if (previewOverlay) previewOverlay.classList.add('hidden');
+        if (holdBtn) {
+            holdBtn.classList.remove('recording');
+            holdBtn.textContent = '按住 说话';
+        }
         if (holdStatus) {
-            holdStatus.textContent = '按住 说话';
+            holdStatus.textContent = '说吧 (Listening)';
         }
 
         const editorVoiceBtn = document.getElementById('btn-editor-voice');
@@ -1331,12 +1377,19 @@ class MobileApp {
     }
 
     handleVoiceResult(text) {
-        if (!text) return;
+        if (!text || !text.trim()) return;
+        const cleanText = text.trim();
+        console.log('[Voice] Result Captured:', cleanText.substring(0, 30));
+
         if (this.activeView === 'editor' && window.mobileEditor) {
-            window.mobileEditor.insertTextAtCursor(text);
+            window.mobileEditor.insertTextAtCursor(cleanText);
         } else {
             // For global chat, send directly
-            this.triggerUniversalSend({ value: text, id: 'voice-input' });
+            this.triggerUniversalSend(cleanText);
+
+            // Clear input buffer just in case
+            const globalInput = document.getElementById('global-input');
+            if (globalInput) globalInput.value = '';
         }
     }
 
@@ -1365,8 +1418,8 @@ class MobileApp {
     handleAttachment(files, source) {
         if (!files || files.length === 0) return;
 
-        // Navigate to chat view
-        this.navigateTo('chat');
+        // Navigate to home view (where Assistant/Chat lives)
+        this.navigateTo('home');
 
         // If mobileChat has an attachment handler, use it
         if (window.mobileChat && typeof window.mobileChat.addAttachments === 'function') {

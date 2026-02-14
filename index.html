@@ -29,7 +29,7 @@
                         <path d="M15 18l-6-6 6-6" />
                     </svg>
                 </button>
-                <div class="header-title">Assistant</div>
+                <div class="header-title" id="chat-title">Assistant</div>
                 <div style="display: flex; gap: 4px;">
                     <button id="btn-home-new-chat" class="header-btn icon-btn">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -52,6 +52,29 @@
             </main>
             <!-- Chat Input Area (Repurposed Core Hub) -->
             <!-- We'll keep the logic in mobile-core.js but style it per screen -->
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW: CHAT HISTORY             -->
+        <!-- ============================== -->
+        <div id="view-chat-history" class="app-view full-screen-view">
+            <header class="notes-header">
+                <button id="btn-history-back" class="header-btn back-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <div class="header-title">Chat History</div>
+                <button id="btn-clear-chat-history" class="header-btn icon-btn" style="color:#ff3b30;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </header>
+            <main class="home-scroll-area">
+                <div id="chat-sessions-container" style="padding: 16px;"></div>
+                <div class="bottom-spacer"></div>
+            </main>
         </div>
 
         <!-- ============================== -->
@@ -353,6 +376,10 @@
                     </svg>
                 </button>
                 <input type="text" id="global-input" class="universal-core-input" placeholder="Ask Assistant...">
+                <div id="hold-to-talk" class="hidden"
+                    style="flex:1; height:38px; display:flex; align-items:center; justify-content:center; background:#f2f2f7; border-radius:19px; font-weight:600; color:#1c1c1e; user-select:none; -webkit-user-select:none; transition:background 0.2s, transform 0.1s; cursor:pointer;">
+                    按住 说话
+                </div>
             </div>
             <button id="btn-dock-action" class="send-btn-line mic-btn">
                 <svg id="icon-dock-mic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -431,16 +458,26 @@
         </div>
     </div>
 
-    <!-- Voice Recording Overlay -->
-    <div id="hold-to-talk" class="hidden"
-        style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:160px; height:160px; background:rgba(0,0,0,0.7); backdrop-filter:blur(10px); border-radius:30px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; z-index:9999;">
-        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-            <line x1="12" y1="19" x2="12" y2="23"></line>
-        </svg>
-        <div id="voice-status-text" style="margin-top:16px; font-weight:600; text-align:center; padding:0 20px;">
+    <!-- Voice Preview Overlay (PTT Feedback) -->
+    <div id="voice-preview-overlay" class="hidden"
+        style="position:fixed; top:45%; left:50%; transform:translate(-50%,-50%); width:280px; min-height:180px; background:rgba(30,30,30,0.85); backdrop-filter:blur(25px); -webkit-backdrop-filter:blur(25px); border-radius:32px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; z-index:99999; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); padding: 24px;">
+        <div class="voice-anim-container" style="margin-bottom:20px;">
+            <div class="voice-pulse"
+                style="width:60px; height:60px; background:rgba(0,122,255,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                </svg>
+            </div>
+        </div>
+        <div id="voice-status-text"
+            style="font-size:17px; font-weight:500; text-align:center; line-height:1.4; color:rgba(255,255,255,0.95); width:100%; word-break:break-word; min-height:1.4em;">
             Listening...</div>
+        <div
+            style="margin-top:20px; font-size:11px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px; font-weight:700;">
+            Speech Preview</div>
     </div>
 
     <!-- Hidden Functional Inputs -->
