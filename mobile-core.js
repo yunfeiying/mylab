@@ -213,7 +213,7 @@ class MobileApp {
     }
 
     navigateToChat() {
-        this.navigateTo('chat');
+        this.navigateTo('home');
         if (window.mobileChat) {
             if (window.mobileChat.currentSessionId) {
                 window.mobileChat.renderCurrentChat();
@@ -1405,7 +1405,8 @@ class MobileApp {
 
             // If content is very short (typical for RSS snippets) or missing, 
             // and we have a URL, show a loading indicator and fetch full text.
-            const isShort = content.length < 500;
+            const textContent = content.replace(/<[^>]*>/g, '').trim();
+            const isShort = textContent.length < 500;
             const fromRSS = options && (options.fromRSS || options.fromRSSFeed);
 
             if (data.url && (isShort || fromRSS)) {

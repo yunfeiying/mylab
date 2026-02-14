@@ -385,6 +385,7 @@ function getFeedIcon(url) {
 }
 
 window.renderFullRSSHeadlines = async function (container, forceRefresh = false) {
+    console.log('[RSS] renderFullRSSHeadlines called', { container, forceRefresh });
     if (!container) return;
 
     // Cache Check: If content exists and not forced, do nothing (preserve scroll/state)
@@ -398,11 +399,13 @@ window.renderFullRSSHeadlines = async function (container, forceRefresh = false)
 
     // Fetch from MORE feeds (Top 15) for the main tab
     const hotFeeds = window.RSS_FEEDS.slice(0, 15);
+    console.log('[RSS] Fetching feeds:', hotFeeds.length);
     let allItems = [];
 
     try {
         const fetchPromises = hotFeeds.map(feed => window.fetchRSS(feed.url));
         const results = await Promise.all(fetchPromises);
+        console.log('[RSS] Fetch results:', results);
 
         results.forEach((items, idx) => {
             const feed = hotFeeds[idx];
@@ -415,6 +418,7 @@ window.renderFullRSSHeadlines = async function (container, forceRefresh = false)
 
         // Filter valid items
         allItems = allItems.filter(i => i.title && i.link);
+        console.log('[RSS] Total valid items:', allItems.length);
 
         // Sort by date desc
         allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -433,10 +437,6 @@ window.renderFullRSSHeadlines = async function (container, forceRefresh = false)
         manageBtn.style.cssText = 'padding: 10px 16px; margin-bottom: 10px; background: rgba(0,0,0,0.03); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 500; color: var(--ios-blue);';
         manageBtn.innerHTML = `<span>我的订阅源 (${window.RSS_FEEDS.length})</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
         manageBtn.onclick = () => {
-            // Toggle to accordion list? Or navigate to a settings page?
-            // For now, let's just toggle the view or show a sheet.
-            // But since we replaced the content, maybe just alert or use a temporary overlay.
-            // Actually, we can re-render the accordion into the container if they click this.
             renderAccordionStyle(container);
         };
         container.appendChild(manageBtn);
@@ -452,12 +452,13 @@ window.renderFullRSSHeadlines = async function (container, forceRefresh = false)
         container.appendChild(spacer);
 
     } catch (e) {
-        console.error(e);
+        console.error('[RSS] Render Error:', e);
         container.innerHTML = `<div style="padding:20px; color:red;">加载失败: ${e.message}</div>`;
     }
 };
 
 window.renderHomeRSSHeadlines = async function () {
+    console.log('[RSS] renderHomeRSSHeadlines called');
     const listContainer = document.getElementById('rss-feed-list');
     if (!listContainer) return;
 
@@ -468,6 +469,7 @@ window.renderHomeRSSHeadlines = async function () {
 
     // Fetch from top feeds (Baidu Focus and others)
     const hotFeeds = window.RSS_FEEDS.slice(0, 5); // Just take the first few for home speed
+    console.log('[RSS] Home fetching:', hotFeeds.map(f => f.name));
     let allItems = [];
 
     // Parallel fetch
@@ -488,6 +490,7 @@ window.renderHomeRSSHeadlines = async function () {
 
     // Limit to 10
     const displayItems = allItems.slice(0, 10);
+    console.log('[RSS] Home display items:', displayItems.length);
 
     listContainer.innerHTML = '';
     if (displayItems.length === 0) {
@@ -613,13 +616,39 @@ function createRSSItemCard(item) {
 function fetchSingleRSS(url) {
     return new Promise((resolve) => {
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+            // Extension Context
             chrome.runtime.sendMessage({ action: 'BACKGROUND_FETCH', url: url }, (response) => {
-                if (!response || !response.success) resolve([]);
+                if (!response || !response.success) {
+                    console.warn('[RSS] Background fetch failed for:', url, response?.error);
+                    resolve([]);
+                }
                 else resolve(parseRSSResponse(response.text));
             });
         } else {
-            // Mobile/Direct
-            fetch(url).then(r => r.text()).then(text => resolve(parseRSSResponse(text))).catch(() => resolve([]));
+            // Mobile/Direct (CORS Restricted)
+            console.log('[RSS] Direct fetch (CORS warning):', url);
+
+            // V12.0: Try CORS Proxy first for mobile web compatibility
+            const proxy = 'https://api.allorigins.win/raw?url=';
+            const targetUrl = proxy + encodeURIComponent(url);
+
+            fetch(targetUrl)
+                .then(r => {
+                    if (!r.ok) throw new Error(r.statusText);
+                    return r.text();
+                })
+                .then(text => resolve(parseRSSResponse(text)))
+                .catch(e => {
+                    console.warn('[RSS] Proxy fetch failed, trying direct:', e);
+                    // Fallback to direct fetch
+                    fetch(url)
+                        .then(r => r.text())
+                        .then(text => resolve(parseRSSResponse(text)))
+                        .catch(err => {
+                            console.error('[RSS] All fetch methods failed:', err);
+                            resolve([]);
+                        });
+                });
         }
     });
 }
