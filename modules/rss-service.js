@@ -5,44 +5,50 @@
 
 // 默认频道列表：百度焦点、最新并存，且排在最前
 const DEFAULT_RSS_FEEDS = [
-    // --- 百度焦点新闻 ---
-    { id: 'baidu-focus-civil', name: '国内焦点', url: 'http://news.baidu.com/n?cmd=1&class=civilnews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-intern', name: '国际焦点', url: 'http://news.baidu.com/n?cmd=1&class=internews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-mil', name: '军事焦点', url: 'http://news.baidu.com/n?cmd=1&class=mil&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-finance', name: '财经焦点', url: 'http://news.baidu.com/n?cmd=1&class=finannews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-internet', name: '互联网焦点', url: 'http://news.baidu.com/n?cmd=1&class=internet&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-house', name: '房产焦点', url: 'http://news.baidu.com/n?cmd=1&class=housenews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-auto', name: '汽车焦点', url: 'http://news.baidu.com/n?cmd=1&class=autonews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-sport', name: '体育焦点', url: 'http://news.baidu.com/n?cmd=1&class=sportnews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-enter', name: '娱乐焦点', url: 'http://news.baidu.com/n?cmd=1&class=enternews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-game', name: '游戏焦点', url: 'http://news.baidu.com/n?cmd=1&class=gamenews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-edu', name: '教育焦点', url: 'http://news.baidu.com/n?cmd=1&class=edunews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-health', name: '女人焦点', url: 'http://news.baidu.com/n?cmd=1&class=healthnews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-tech', name: '科技焦点', url: 'http://news.baidu.com/n?cmd=1&class=technnews&tn=rss', category: '百度焦点' },
-    { id: 'baidu-focus-socia', name: '社会焦点', url: 'http://news.baidu.com/n?cmd=1&class=socianews&tn=rss', category: '百度焦点' },
+    // --- 百度焦点新闻 (聚合) ---
+    { id: 'baidu-focus-all', name: '百度焦点 (聚合)', url: 'aggregated://baidu-focus', category: '百度新闻' },
 
-    // --- 百度最新新闻 ---
-    { id: 'baidu-latest-civil', name: '国内最新', url: 'http://news.baidu.com/n?cmd=4&class=civilnews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-intern', name: '国际最新', url: 'http://news.baidu.com/n?cmd=4&class=internews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-mil', name: '军事最新', url: 'http://news.baidu.com/n?cmd=4&class=mil&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-finance', name: '财经最新', url: 'http://news.baidu.com/n?cmd=4&class=finannews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-internet', name: '互联网最新', url: 'http://news.baidu.com/n?cmd=4&class=internet&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-house', name: '房产最新', url: 'http://news.baidu.com/n?cmd=4&class=housenews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-auto', name: '汽车最新', url: 'http://news.baidu.com/n?cmd=4&class=autonews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-sport', name: '体育最新', url: 'http://news.baidu.com/n?cmd=4&class=sportnews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-enter', name: '娱乐最新', url: 'http://news.baidu.com/n?cmd=4&class=enternews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-game', name: '游戏最新', url: 'http://news.baidu.com/n?cmd=4&class=gamenews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-edu', name: '教育最新', url: 'http://news.baidu.com/n?cmd=4&class=edunews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-health', name: '女人最新', url: 'http://news.baidu.com/n?cmd=4&class=healthnews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-tech', name: '科技最新', url: 'http://news.baidu.com/n?cmd=4&class=technnews&tn=rss', category: '百度最新' },
-    { id: 'baidu-latest-socia', name: '社会最新', url: 'http://news.baidu.com/n?cmd=4&class=socianews&tn=rss', category: '百度最新' },
+    // --- 百度最新新闻 (聚合) ---
+    { id: 'baidu-latest-all', name: '百度最新 (聚合)', url: 'aggregated://baidu-latest', category: '百度新闻' },
 
     // --- 深度 / 财经专业源 ---
-    { id: 'wsj-cn', name: '华尔街日报(中)', url: 'https://rsshub.app/wsj/zh-cn', category: '财经专业' },
-    { id: 'ft-cn', name: 'FT中文网', url: 'http://www.ftchinese.com/rss/news', category: '财经专业' },
-    { id: 'yicai-brief', name: '第一财经(正在)', url: 'https://rsshub.app/yicai/brief', category: '财经专业' },
-    { id: 'caixin-all', name: '财新网', url: 'http://www.caixin.com/rss/all.xml', category: '财经专业' }
 ];
+
+// Definition of Aggregated Sources
+const AGGREGATED_SOURCES = {
+    'baidu-focus': [
+        'http://news.baidu.com/n?cmd=1&class=civilnews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=internews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=mil&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=finannews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=internet&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=housenews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=autonews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=sportnews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=enternews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=gamenews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=edunews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=healthnews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=technnews&tn=rss',
+        'http://news.baidu.com/n?cmd=1&class=socianews&tn=rss'
+    ],
+    'baidu-latest': [
+        'http://news.baidu.com/n?cmd=4&class=civilnews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=internews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=mil&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=finannews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=internet&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=housenews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=autonews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=sportnews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=enternews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=gamenews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=edunews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=healthnews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=technnews&tn=rss',
+        'http://news.baidu.com/n?cmd=4&class=socianews&tn=rss'
+    ]
+};
 
 window.RSS_FEEDS = [];
 let currentRSSItem = null;
@@ -168,7 +174,7 @@ async function importOPML(xmlText) {
     } catch (e) { console.error(e); }
 }
 
-async function addCustomFeed(name, url, category) {
+window.addCustomFeed = async function (name, url, category) {
     const newFeed = { id: 'custom-' + Date.now(), name, url, category, timestamp: Date.now() };
     const data = await window.appStorage.get('custom_rss_feeds');
     const feeds = data.custom_rss_feeds || [];
@@ -244,139 +250,414 @@ window.removeRSSCategory = async function (categoryName) {
 };
 
 window.renderRSSFeeds = function () {
-    const listContainers = [
-        document.getElementById('rss-feed-list'),
-        document.getElementById('rss-feed-list-full')
-    ].filter(el => el !== null);
+    const listContainerFull = document.getElementById('rss-feed-list-full');
+    const listContainerHome = document.getElementById('rss-feed-list');
 
-    if (listContainers.length === 0) return;
+    // 1. Render Full View (RSS Tab)
+    if (listContainerFull) {
+        if (window.mobileCore) {
+            // User Request: Show Article List directly, not Feed List
+            window.renderFullRSSHeadlines(listContainerFull);
+        } else {
+            renderAccordionStyle(listContainerFull);
+        }
+    }
 
-    listContainers.forEach(listEl => {
-        listEl.innerHTML = '';
-        const groups = {};
-        window.RSS_FEEDS.forEach(f => {
-            const cat = f.category || 'Uncategorized';
-            if (!groups[cat]) groups[cat] = [];
-            groups[cat].push(f);
-        });
+    // 2. Render Sidebar/Home View
+    if (listContainerHome) {
+        // Use headlines ONLY for Mobile Home page. PC sidebar uses simple folder structure.
+        if (window.mobileCore) {
+            window.renderHomeRSSHeadlines();
+        } else {
+            renderSimpleFolderList(listContainerHome);
+        }
+    }
+};
 
-        const priority = { '百度焦点': 1, '百度最新': 2, '新浪': 3, '财新': 4, 'Google': 5 };
-        const sortedCategories = Object.keys(groups).sort((a, b) => {
-            const pA = priority[a] || 999;
-            const pB = priority[b] || 999;
-            if (pA !== pB) return pA - pB;
-            return a.localeCompare(b);
-        });
+function renderAccordionStyle(container) {
+    container.innerHTML = '';
+    const groups = groupFeeds();
+    Object.keys(groups).sort().forEach(cat => {
+        const accItem = document.createElement('div');
+        accItem.className = 'rss-accordion-item';
 
-        sortedCategories.forEach(cat => {
-            const folder = document.createElement('div');
-            folder.className = 'rss-folder';
-            const header = document.createElement('div');
-            // Use persistent expansion state
-            const isExpanded = window.RSS_EXPANDED_CATS.has(cat);
-            header.className = `rss-folder-header ${isExpanded ? '' : 'collapsed'}`;
+        const isExpanded = window.RSS_EXPANDED_CATS.has(cat);
+        const header = document.createElement('div');
+        header.className = `rss-accordion-header ${isExpanded ? 'expanded' : ''}`;
+        header.innerHTML = `
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+            <span class="folder-name">${cat}</span>
+            <span class="count">${groups[cat].length}</span>
+        `;
 
-            header.style.position = 'relative';
-            header.style.paddingRight = '32px';
+        const content = document.createElement('div');
+        content.className = `rss-accordion-content ${isExpanded ? '' : 'hidden'}`;
 
-            let delBtnHtml = '';
-            const systemCats = ['百度焦点', '百度最新', '财经专业'];
-            if (!systemCats.includes(cat)) {
-                delBtnHtml = `
-                    <div class="rss-delete-btn" title="删除全部分类">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
-                    </div>
-                `;
-            }
+        header.onclick = () => {
+            const expanded = header.classList.toggle('expanded');
+            content.classList.toggle('hidden', !expanded);
+            if (expanded) window.RSS_EXPANDED_CATS.add(cat);
+            else window.RSS_EXPANDED_CATS.delete(cat);
+        };
 
-            header.innerHTML = `<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg><span class="folder-name">${cat}</span><span style="font-size:10px; color:#94a3b8; margin-left:8px;">${groups[cat].length}</span>${delBtnHtml}`;
+        groups[cat].forEach(feed => {
+            const source = document.createElement('div');
+            source.className = 'rss-sub-source';
+            let iconUrl = getFeedIcon(feed.url);
 
-            const folderDelBtn = header.querySelector('.rss-delete-btn');
-            if (folderDelBtn) {
-                folderDelBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    window.removeRSSCategory(cat);
-                };
-            }
-
-            const itemsContainer = document.createElement('div');
-            itemsContainer.className = `rss-folder-items ${isExpanded ? '' : 'hidden'}`;
-
-            header.onclick = () => {
-                const isCollapsedNow = header.classList.toggle('collapsed');
-                itemsContainer.classList.toggle('hidden', isCollapsedNow);
-                if (isCollapsedNow) {
-                    window.RSS_EXPANDED_CATS.delete(cat);
-                } else {
-                    window.RSS_EXPANDED_CATS.add(cat);
-                }
+            source.innerHTML = `
+                <img src="${iconUrl}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23ccc%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22/></svg>'">
+                <span>${feed.name}</span>
+            `;
+            source.onclick = (e) => {
+                e.stopPropagation();
+                if (window.mobileCore) window.mobileCore.navigateTo('rss-feed');
+                window.selectRSSFeed(feed);
             };
-            groups[cat].forEach(feed => {
-                const item = document.createElement('div');
-                item.className = 'nav-item';
-                item.style.position = 'relative'; // Ensure button positioning works
-                item.style.paddingRight = '32px'; // Room for delete button
-                item.dataset.id = feed.id;
-                let hostname = "";
-                try { hostname = new URL(feed.url).hostname; } catch (e) { hostname = "news.baidu.com"; }
-
-                let iconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
-                // Special Case: Baidu official favicon
-                if (hostname.includes('baidu.com')) {
-                    iconUrl = "https://www.baidu.com/favicon.ico";
-                }
-
-                let delBtnHtml = '';
-                if (feed.id.startsWith('custom-')) {
-                    delBtnHtml = `
-                        <div class="rss-delete-btn" title="删除订阅源">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M18 6L6 18M6 6l12 12"/>
-                            </svg>
-                        </div>
-                    `;
-                }
-
-                item.innerHTML = `<img src="${iconUrl}" class="nav-icon-rss" style="width:14px; height:14px; margin-right:8px; border-radius:2px; object-fit:contain; flex-shrink:0;"><span class="label" style="font-size:13px; color:#334155;">${feed.name}</span>${delBtnHtml}`;
-
-                const delBtn = item.querySelector('.rss-delete-btn');
-                if (delBtn) {
-                    delBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        window.removeRSSFeed(feed.id);
-                    };
-                }
-
-                item.onclick = (e) => {
-                    e.stopPropagation();
-                    if (window.mobileCore) window.mobileCore.navigateTo('rss-feed');
-                    window.selectRSSFeed(feed);
-                };
-                itemsContainer.appendChild(item);
-            });
-            folder.appendChild(header); folder.appendChild(itemsContainer);
-            listEl.appendChild(folder);
+            content.appendChild(source);
         });
+
+        accItem.appendChild(header);
+        accItem.appendChild(content);
+        container.appendChild(accItem);
+    });
+}
+
+function renderSimpleFolderList(container) {
+    container.innerHTML = '';
+    const groups = groupFeeds();
+    const sortedCategories = Object.keys(groups).sort();
+
+    sortedCategories.forEach(cat => {
+        const folder = document.createElement('div');
+        folder.className = 'rss-folder';
+        const isExpanded = window.RSS_EXPANDED_CATS.has(cat);
+
+        const header = document.createElement('div');
+        header.className = `rss-folder-header ${isExpanded ? '' : 'collapsed'}`;
+        header.innerHTML = `<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg><span class="label">${cat}</span>`;
+
+        const itemsContainer = document.createElement('div');
+        itemsContainer.className = `rss-folder-items ${isExpanded ? '' : 'hidden'}`;
+
+        header.onclick = () => {
+            const isCollapsed = header.classList.toggle('collapsed');
+            itemsContainer.classList.toggle('hidden', isCollapsed);
+            if (isCollapsed) window.RSS_EXPANDED_CATS.delete(cat);
+            else window.RSS_EXPANDED_CATS.add(cat);
+        };
+
+        groups[cat].forEach(feed => {
+            const item = document.createElement('div');
+            item.className = 'nav-item';
+            let iconUrl = getFeedIcon(feed.url);
+
+            item.innerHTML = `<img src="${iconUrl}" class="nav-icon-rss" style="width:14px; height:14px; margin-right:8px; border-radius:2px; object-fit:contain;"><span class="label">${feed.name}</span>`;
+            item.onclick = (e) => {
+                e.stopPropagation();
+                window.selectRSSFeed(feed);
+            };
+            itemsContainer.appendChild(item);
+        });
+
+        folder.appendChild(header);
+        folder.appendChild(itemsContainer);
+        container.appendChild(folder);
+    });
+}
+
+function groupFeeds() {
+    const groups = {};
+    window.RSS_FEEDS.forEach(f => {
+        const cat = f.category || 'Uncategorized';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(f);
+    });
+    return groups;
+}
+
+function getFeedIcon(url) {
+    let hostname = "news.baidu.com";
+    try { hostname = new URL(url).hostname; } catch (e) { }
+    let iconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+    if (hostname.includes('baidu.com')) iconUrl = "https://www.baidu.com/favicon.ico";
+    return iconUrl;
+}
+
+window.renderFullRSSHeadlines = async function (container, forceRefresh = false) {
+    if (!container) return;
+
+    // Cache Check: If content exists and not forced, do nothing (preserve scroll/state)
+    if (!forceRefresh && container.children.length > 2) {
+        console.log('[RSS] Content already loaded, skipping refresh.');
+        return;
+    }
+
+    // Show loading skeleton
+    container.innerHTML = '<div style="padding:20px; text-align:center; color:#999; font-size:14px;"><div class="loading-spinner" style="margin:0 auto 10px;"></div>正在聚合全网资讯...</div>';
+
+    // Fetch from MORE feeds (Top 15) for the main tab
+    const hotFeeds = window.RSS_FEEDS.slice(0, 15);
+    let allItems = [];
+
+    try {
+        const fetchPromises = hotFeeds.map(feed => window.fetchRSS(feed.url));
+        const results = await Promise.all(fetchPromises);
+
+        results.forEach((items, idx) => {
+            const feed = hotFeeds[idx];
+            items.forEach(item => {
+                item.feedName = feed.name;
+                item.feedId = feed.id;
+                allItems.push(item);
+            });
+        });
+
+        // Filter valid items
+        allItems = allItems.filter(i => i.title && i.link);
+
+        // Sort by date desc
+        allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Limit to 50 items for the main list
+        const displayItems = allItems.slice(0, 50);
+
+        container.innerHTML = '';
+        if (displayItems.length === 0) {
+            container.innerHTML = '<div style="padding:40px; text-align:center; color:#999;">暂无新闻动态<br><span style="font-size:12px; opacity:0.7">请检查网络或添加更多订阅源</span></div>';
+            return;
+        }
+
+        // Add a "Manage Feeds" button at the top
+        const manageBtn = document.createElement('div');
+        manageBtn.style.cssText = 'padding: 10px 16px; margin-bottom: 10px; background: rgba(0,0,0,0.03); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 500; color: var(--ios-blue);';
+        manageBtn.innerHTML = `<span>我的订阅源 (${window.RSS_FEEDS.length})</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+        manageBtn.onclick = () => {
+            // Toggle to accordion list? Or navigate to a settings page?
+            // For now, let's just toggle the view or show a sheet.
+            // But since we replaced the content, maybe just alert or use a temporary overlay.
+            // Actually, we can re-render the accordion into the container if they click this.
+            renderAccordionStyle(container);
+        };
+        container.appendChild(manageBtn);
+
+        displayItems.forEach(item => {
+            const card = createRSSItemCard(item);
+            container.appendChild(card);
+        });
+
+        // Add spacer
+        const spacer = document.createElement('div');
+        spacer.style.height = "80px";
+        container.appendChild(spacer);
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = `<div style="padding:20px; color:red;">加载失败: ${e.message}</div>`;
+    }
+};
+
+window.renderHomeRSSHeadlines = async function () {
+    const listContainer = document.getElementById('rss-feed-list');
+    if (!listContainer) return;
+
+    // Show loading skeleton if empty
+    if (listContainer.innerHTML === '') {
+        listContainer.innerHTML = '<div style="padding:20px; color:#999; font-size:13px;">正在提取精选新鲜事...</div>';
+    }
+
+    // Fetch from top feeds (Baidu Focus and others)
+    const hotFeeds = window.RSS_FEEDS.slice(0, 5); // Just take the first few for home speed
+    let allItems = [];
+
+    // Parallel fetch
+    const fetchPromises = hotFeeds.map(feed => window.fetchRSS(feed.url));
+    const results = await Promise.all(fetchPromises);
+
+    results.forEach((items, idx) => {
+        const feed = hotFeeds[idx];
+        items.forEach(item => {
+            item.feedName = feed.name;
+            item.feedId = feed.id;
+            allItems.push(item);
+        });
+    });
+
+    // Sort by date (if available) or random shuffle for freshness
+    allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Limit to 10
+    const displayItems = allItems.slice(0, 10);
+
+    listContainer.innerHTML = '';
+    if (displayItems.length === 0) {
+        listContainer.innerHTML = '<div style="padding:20px; color: #999;">暂无新闻动态</div>';
+        return;
+    }
+
+    displayItems.forEach(item => {
+        const card = createRSSItemCard(item);
+        listContainer.appendChild(card);
     });
 };
 
-window.fetchRSS = async function (url) {
+function createRSSItemCard(item) {
+    const card = document.createElement('div');
+    card.className = 'rss-news-card';
+
+    let hostname = "rss-source";
+    try { hostname = new URL(item.link || item.url).hostname.replace('www.', ''); } catch (e) { }
+
+    const sourceLabel = item.feedName || hostname;
+
+    let iconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+    if (hostname.includes('baidu.com')) iconUrl = "https://www.baidu.com/favicon.ico";
+
+    // Extract potential image
+    let thumb = item.image || "";
+    if (!thumb && (item.content || item.description)) {
+        const temp = document.createElement('div');
+        temp.innerHTML = item.content || item.description;
+        const imgs = temp.querySelectorAll('img');
+        for (const img of imgs) {
+            let src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original');
+            if (!src) continue;
+
+            // Resolve relative URLs if necessary
+            if (src.startsWith('//')) src = 'https:' + src;
+            else if (src.startsWith('/') && item.link) {
+                try {
+                    const baseUrl = new URL(item.link).origin;
+                    src = baseUrl + src;
+                } catch (e) { }
+            }
+
+            // Check for valid image and not a tiny tracking pixel or favicon-like small image
+            const isTracker = src.includes('1x1') || src.includes('pixel') || src.includes('favicon') || src.includes('dot.gif');
+            if (src && src.startsWith('http') && !isTracker) {
+                thumb = src;
+                break;
+            }
+        }
+    }
+
+    // High-quality text snippet extraction
+    const cleanSnippet = (item.description || item.content || '')
+        .replace(/<[^>]*>/g, '') // Strip HTML
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')    // Collapse whitespace
+        .trim()
+        .substring(0, 120);
+
+    // Date formatting with new helper
+    let displayTime = formatRSSDate(item.date);
+
+    // Render HTML (CSP-Safe, no inline onerror)
+    card.innerHTML = `
+        <div class="rss-news-card-header">
+            <div class="rss-news-card-icon">
+                <img src="${iconUrl}" referrerpolicy="no-referrer" class="rss-source-icon">
+            </div>
+            <div class="rss-news-card-meta">
+                <span>${sourceLabel}</span>
+                <span class="separator">•</span>
+                <span>${displayTime}</span>
+            </div>
+        </div>
+        <div class="rss-news-card-content">
+            <div class="rss-news-card-text">
+                <div class="rss-news-card-title">${item.title}</div>
+                ${cleanSnippet ? `<div class="rss-news-card-snippet">${cleanSnippet}...</div>` : ''}
+            </div>
+            ${thumb ? `<img src="${thumb}" class="rss-news-card-thumbnail" referrerpolicy="no-referrer">` : ''}
+        </div>
+    `;
+
+    // Bind Errors Handlers (Fixes Manifest V3 CSP issues)
+    const iconImg = card.querySelector('.rss-source-icon');
+    if (iconImg) {
+        iconImg.onerror = () => {
+            iconImg.src = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23ccc%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22/></svg>';
+        };
+    }
+
+    const thumbImg = card.querySelector('.rss-news-card-thumbnail');
+    if (thumbImg) {
+        thumbImg.onerror = () => {
+            // Hide broken image and expand text
+            thumbImg.style.display = 'none';
+            const textCol = card.querySelector('.rss-news-card-text');
+            if (textCol) textCol.style.flex = '1'; // Expand to fill
+        };
+    }
+
+    // Click Handler (Supports both Mobile and PC)
+    card.onclick = () => {
+        if (window.mobileCore) {
+            window.mobileCore.loadReader({
+                title: item.title,
+                url: item.link,
+                content: item.content || item.description,
+                timestamp: new Date(item.date).getTime()
+            }, { fromRSS: true });
+        } else {
+            // PC Fallback
+            if (window.renderRSSDetail) window.renderRSSDetail(item);
+        }
+    };
+    return card;
+}
+
+
+// Helper: Fetch a single URL (promisified)
+function fetchSingleRSS(url) {
     return new Promise((resolve) => {
         if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
             chrome.runtime.sendMessage({ action: 'BACKGROUND_FETCH', url: url }, (response) => {
-                if (!response || !response.success) return resolve([]);
-                resolve(parseRSSResponse(response.text));
+                if (!response || !response.success) resolve([]);
+                else resolve(parseRSSResponse(response.text));
             });
         } else {
-            // Mobile PWA / Browser mode: Direct fetch
-            fetch(url)
-                .then(r => r.text())
-                .then(text => resolve(parseRSSResponse(text)))
-                .catch(() => resolve([]));
+            // Mobile/Direct
+            fetch(url).then(r => r.text()).then(text => resolve(parseRSSResponse(text))).catch(() => resolve([]));
         }
     });
+}
+
+window.fetchRSS = async function (url) {
+    // 1. Handle Aggregated Feeds
+    if (url.startsWith('aggregated://')) {
+        const key = url.replace('aggregated://', '');
+        const sourceUrls = AGGREGATED_SOURCES[key];
+        if (!sourceUrls) return [];
+
+        // Parallel Fetch
+        const promises = sourceUrls.map(u => fetchSingleRSS(u));
+        const allResults = await Promise.all(promises);
+
+        // Flatten
+        let merged = allResults.flat();
+
+        // Deduplicate (by link)
+        const seen = new Set();
+        merged = merged.filter(item => {
+            if (!item.link || seen.has(item.link)) return false;
+            seen.add(item.link);
+            return true;
+        });
+
+        // Parse Dates & Sort (Newest First)
+        merged.sort((a, b) => {
+            const dA = a.date ? new Date(a.date).getTime() : 0;
+            const dB = b.date ? new Date(b.date).getTime() : 0;
+            return dB - dA;
+        });
+
+        return merged;
+    }
+
+    // 2. Standard Single Feed
+    return fetchSingleRSS(url);
 };
 
 function parseRSSResponse(text) {
@@ -399,7 +680,18 @@ function parseRSSResponse(text) {
             const pubDate = item.querySelector("pubDate")?.textContent || item.querySelector("updated")?.textContent || item.querySelector("published")?.textContent || '';
             const description = item.querySelector("description")?.textContent || item.querySelector("summary")?.textContent || '';
             const content = item.querySelector("encoded")?.textContent || item.querySelector("content")?.textContent || description;
-            results.push({ title, link, date: pubDate, description, content });
+
+            // Extract image from XML tags (enclosure or media:content)
+            let image = "";
+            const enclosure = item.querySelector("enclosure[type^='image']");
+            if (enclosure) {
+                image = enclosure.getAttribute("url");
+            } else {
+                const media = item.querySelector("content[medium='image']") || item.querySelector("thumbnail");
+                if (media) image = media.getAttribute("url");
+            }
+
+            results.push({ title, link, date: pubDate, description, content, image });
         });
         return results;
     } catch (e) { return []; }
@@ -416,6 +708,16 @@ window.selectRSSFeed = async function (feed) {
     if (articleListView) articleListView.style.display = 'none';
     if (contentView) contentView.style.display = 'none';
     if (rssListView) rssListView.style.display = 'flex';
+
+    // Ensure right pane shows empty state until an article is selected
+    const emptyState = document.getElementById('empty-state');
+    const readerView = document.getElementById('rss-reader-view');
+    if (emptyState) emptyState.style.display = 'flex';
+    if (readerView) readerView.style.display = 'none';
+
+    // Hide article header info since no specific article is selected yet
+    const artHeader = document.getElementById('article-header-info');
+    if (artHeader) artHeader.style.display = 'none';
 
     // Set Title
     if (titleEl) titleEl.innerText = feed.name;
@@ -447,29 +749,10 @@ window.selectRSSFeed = async function (feed) {
         }
 
         items.forEach(item => {
-            const isRead = readLinks.includes(item.link);
-            const row = document.createElement('div');
-            row.className = 'rss-item-row';
-            row.dataset.link = item.link;
-            row.style = `padding:12px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s; opacity: ${isRead ? '0.6' : '1'};`;
-            row.innerHTML = `
-                <div style="font-weight:600; font-size:14px; color:#1e293b; margin-bottom:4px;">${item.title}</div>
-                <div class="rss-date-row" style="font-size:11px; color:#94a3b8; display: flex; align-items: center;">
-                    ${formatRSSDate(item.date)}
-                    ${isRead ? '<span class="rss-read-indicator" style="display:inline-block; width:8px; height:8px; background-color:#a5d6a7; border-radius:50%; margin-left:8px;"></span>' : ''}
-                </div>
-            `;
-            row.onclick = () => {
-                if (window.mobileCore) {
-                    window.mobileCore.navigateTo('rss-feed');
-                    window.renderRSSDetail(item);
-                } else {
-                    window.renderRSSDetail(item);
-                }
-            };
-            listContainer.appendChild(row);
+            item.feedName = feed.name;
+            const card = createRSSItemCard(item);
+            listContainer.appendChild(card);
         });
-        if (items.length > 0 && !window.mobileCore) window.renderRSSDetail(items[0]);
     }
 };
 
@@ -497,11 +780,25 @@ window.renderRSSDetail = async function (item) {
         }
     }
 
+    if (window.mobileCore) {
+        window.mobileCore.loadReader({
+            title: item.title,
+            url: item.link,
+            content: item.content || item.description,
+            timestamp: new Date(item.date).getTime()
+        }, { fromRSS: true });
+        return;
+    }
+
     const readerView = document.getElementById('rss-reader-view');
+    const emptyState = document.getElementById('empty-state');
     if (!readerView) return;
     readerView.style.display = 'flex';
+    if (emptyState) emptyState.style.display = 'none';
+
     const globalTitle = document.getElementById('current-page-title');
     const toolbarTitle = document.getElementById('toolbar-article-title');
+    const artHeader = document.getElementById('article-header-info');
     const rssTitleEl = document.getElementById('rss-article-title');
     const contentEl = document.getElementById('rss-article-content');
     const sourceEl = document.getElementById('rss-article-source');
@@ -509,20 +806,11 @@ window.renderRSSDetail = async function (item) {
     const linkEl = document.getElementById('rss-article-link');
     const displayTitle = item.title || 'Untitled Article';
 
-    if (window.mobileCore) {
-        window.mobileCore.navigateTo('reader-detail');
-        window.mobileCore.loadReader({
-            title: item.title,
-            url: item.link,
-            content: item.content || item.description,
-            timestamp: new Date(item.date).getTime()
-        });
-        return;
-    }
-
     if (rssTitleEl) rssTitleEl.innerText = displayTitle;
     if (globalTitle) globalTitle.innerText = displayTitle;
-    if (toolbarTitle) toolbarTitle.innerText = displayTitle.length > 25 ? displayTitle.substring(0, 25) + '...' : displayTitle;
+    if (toolbarTitle) toolbarTitle.innerText = displayTitle.length > 60 ? displayTitle.substring(0, 60) + '...' : displayTitle;
+    if (artHeader) artHeader.style.display = 'flex';
+
     const scrollContainer = document.getElementById('reader-content-scroll');
     if (scrollContainer) scrollContainer.scrollTop = 0;
     if (dateEl) dateEl.innerText = formatRSSDate(item.date);
@@ -707,3 +995,28 @@ async function saveRSSHighlight(text) {
 
 function updateDiagStatus(msg, isError = false) { const bar = document.getElementById('snapshot-status-bar'); if (bar) { bar.innerText = msg; bar.style.color = isError ? '#ef4444' : '#64748b'; } }
 function formatRSSDate(dateStr) { if (!dateStr) return ''; try { return new Date(dateStr).toLocaleDateString(); } catch (e) { return dateStr; } }
+
+// Helper: Time Format (Copied from mobile-core.js for standalone usage)
+function formatRSSDate(date) {
+    if (!date) return '';
+    // Try to parse if it's not a valid date object/string
+    let past;
+    try {
+        past = new Date(date);
+        if (isNaN(past.getTime())) return date; // Return original if parsing fails
+    } catch (e) { return date; }
+
+    const now = new Date();
+    const diff = Math.floor((now - past) / 1000);
+
+    // Future protection
+    if (diff < 0) return '刚刚';
+
+    if (diff < 60) return '刚刚';
+    if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+    if (diff < 2592000) return `${Math.floor(diff / 86400)}天前`;
+
+    // Fallback to simple date for older items
+    return past.getMonth() + 1 + '-' + past.getDate();
+};

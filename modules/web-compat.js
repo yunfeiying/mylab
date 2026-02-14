@@ -1,5 +1,5 @@
 /**
- * web-compat.js (v11.4 - Fixed Infinite Loop)
+ * web-compat.js (v11.5 - Fixed Infinite Loop)
  * Provides a mock for Chrome Extension APIs when running in a standard web/mobile browser.
  * IMPORTANT: We DO NOT mock chrome.storage to avoid circular dependency with storage-bridge.js
  */

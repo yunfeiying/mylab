@@ -1,6 +1,84 @@
 /**
- * mobile-core.js - The Brain of Mobile App (V11.5)
+ * mobile-core.js - The Brain of Mobile App (V11.6)
  */
+
+
+/**
+ * VisualContentExtractor - V1.0
+ * Specialized PureJS heuristic engine to identify article "focal points"
+ */
+class VisualContentExtractor {
+    static extract(doc) {
+        let highestScore = -1;
+        let bestNode = null;
+
+        // 1. Candidate selection - focus on structural containers
+        const candidates = doc.querySelectorAll('div, article, section, main');
+
+        candidates.forEach(node => {
+            const text = node.innerText.trim();
+            if (text.length < 100) return;
+
+            const linkCount = node.querySelectorAll('a').length;
+            const textDensity = text.length / (linkCount + 1);
+
+            // Critical Signal: High density of punctuation indicates narrative content
+            const punctuationMatches = text.match(/[，。？！,.?!:：]/g) || [];
+            const puncDensity = (punctuationMatches.length / Math.max(text.length, 1)) * 100;
+
+            // Structural weight
+            let weight = 0;
+            const identity = (node.className + ' ' + node.id).toLowerCase();
+
+            // Positive signals
+            if (identity.match(/article|content|body|main|post|topic|detail/)) weight += 50;
+            if (identity.match(/entry-content|article-view|article-content/)) weight += 100;
+
+            // Negative signals (Sidebars, comments, etc)
+            if (identity.match(/comment|sidebar|footer|nav|recommend|ad-|share|related|menu/)) weight -= 80;
+
+            // Score calculation
+            const score = (text.length * 0.1) + (textDensity * 1.5) + (puncDensity * 50) + weight;
+
+            if (score > highestScore) {
+                highestScore = score;
+                bestNode = node;
+            }
+        });
+
+        return bestNode || doc.body;
+    }
+
+    static clean(node) {
+        if (!node) return;
+        const junkSelectors = [
+            'script', 'style', 'iframe', 'canvas', 'video', 'audio', 'svg',
+            'footer', 'nav', 'header', 'aside',
+            '.ad', '.ads', '.share', '.social', '.comment', '.recommend',
+            '.baidu-logo', '.open-app', '.app-open-btn', '.s-f-header', '.s-f-footer',
+            '[class*="ad-"]', '[class*="share-"]', '[class*="footer"]',
+            '.index-module_header', '.index-module_footer', '.tag-box', '.hot-news-box'
+        ];
+        node.querySelectorAll(junkSelectors.join(',')).forEach(el => el.remove());
+
+        // Remove mostly-link small blocks and empty spacers
+        node.querySelectorAll('div, section, ul, p').forEach(el => {
+            const hasText = el.innerText.trim().length > 0;
+            const hasImg = el.querySelector('img');
+
+            // Remove blocks that are mostly links and have very little text
+            if (!hasText && !hasImg) {
+                el.remove();
+                return;
+            }
+
+            if (el.innerText.trim().length < 50 && el.querySelectorAll('a').length > 2 && !hasImg) {
+                el.remove();
+            }
+        });
+        return node;
+    }
+}
 
 class MobileApp {
     constructor() {
@@ -10,7 +88,7 @@ class MobileApp {
         this.globalSearch = document.getElementById('global-search');
 
         this.searchQuery = '';
-        this.activeView = 'home';
+        this.activeView = 'rss';
         this.dataMap = new Map();
         this.dataCache = null; // Performance: Persistent cache for lists
         this.cacheDirty = true; // Flag for re-fetch
@@ -18,13 +96,66 @@ class MobileApp {
         this.setupKeyboardTracking();
         this.setupEvents();
         this.setupSwipeToDelete();
+        this.setupSwipeToBack();
         this.setupVoiceListeners();
 
         // Initialize external modules if available
         if (window.initMobileBrowser) window.initMobileBrowser(this);
-        if (window.initRSSService) window.initRSSService();
+        if (window.initRSSService) {
+            window.initRSSService().then(() => {
+                console.log('[App] RSS Service initialized, rendering headlines...');
+            });
+        }
+        this.setupDataManagement();
 
-        console.log('MobileCore V11.5 (Modular) Initialized');
+        // Default: Start at RSS View
+        this.navigateTo('rss');
+
+        // Helper: Time Format
+        window.formatRelativeTime = (date) => {
+            if (!date) return '';
+            const now = new Date();
+            const past = new Date(date);
+            const diff = Math.floor((now - past) / 1000);
+            if (diff < 60) return '刚刚';
+            if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+            if (diff < 2592000) return `${Math.floor(diff / 86400)}天前`;
+            return past.toLocaleDateString();
+        };
+
+        console.log('MobileCore V11.6 (Modular) Initialized');
+    }
+
+    setupSwipeToBack() {
+        const area = document.querySelector('.reader-scroll-area');
+        if (!area) return;
+
+        let startX = 0;
+        let startY = 0;
+
+        area.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+
+        area.addEventListener('touchend', (e) => {
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            const diffX = endX - startX;
+            const diffY = Math.abs(endY - startY);
+
+            // Threshold: swipe right > 100px and vertical movement < 50px
+            if (diffX > 100 && diffY < 50) {
+                console.log('[Gesture] Swipe to back detected');
+                if (this.activeView === 'reader-detail') {
+                    // Navigate back to the previous context
+                    const fromRSS = area.dataset.fromContext === 'rss';
+                    if (fromRSS) this.navigateTo('rss-feed');
+                    else this.navigateTo('home');
+                }
+            }
+        }, { passive: true });
     }
 
     // Robust date parser to prevent NaN display
@@ -67,14 +198,14 @@ class MobileApp {
         if (this.isVoiceMode) this.toggleVoiceMode();
 
         if (window.mobileChat) {
-            // Case 1: Already in Chat view
-            if (this.activeView === 'chat') {
+            // Case 1: Already in Assistant view
+            if (this.activeView === 'home') {
                 window.mobileChat.handleExternalSend(text);
                 if (inputEl.tagName === 'INPUT') inputEl.value = '';
             }
-            // Case 2: In Home or List views
+            // Case 2: In other views
             else {
-                this.navigateTo('chat');
+                this.navigateTo('home');
                 window.mobileChat.handleExternalSend(text);
                 if (inputEl.tagName === 'INPUT') inputEl.value = '';
             }
@@ -138,6 +269,24 @@ class MobileApp {
         if (cancelBtn) cancelBtn.onclick = () => sheet.classList.add('hidden');
         if (sheet) sheet.onclick = (e) => { if (e.target === sheet) sheet.classList.add('hidden'); };
 
+        // Global Navigation Tabs (V12.0 Redesign)
+        const tabs = {
+            'nav-tab-home': 'home',
+            'nav-tab-notes': 'notes',
+            'nav-tab-reader': 'reader',
+            'nav-tab-rss': 'rss',
+            'nav-tab-settings': 'settings'
+        };
+
+        Object.entries(tabs).forEach(([id, view]) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.onclick = () => {
+                    this.navigateTo(view);
+                };
+            }
+        });
+
         const syncBtn = document.getElementById('act-sync');
         if (syncBtn) {
             syncBtn.onclick = () => {
@@ -167,7 +316,8 @@ class MobileApp {
         const saveBtn = document.getElementById('act-save-note');
         if (saveBtn) {
             saveBtn.onclick = () => {
-                sheet.classList.add('hidden');
+                const sheet = document.getElementById('action-sheet-overlay');
+                if (sheet) sheet.classList.add('hidden');
                 if (window.mobileEditor) window.mobileEditor.saveNote();
             };
         }
@@ -177,73 +327,82 @@ class MobileApp {
 
         // Headers
         const notesHeader = document.getElementById('header-notes-all');
-        if (notesHeader) notesHeader.onclick = () => this.navigateTo('notes-all');
+        if (notesHeader) notesHeader.onclick = () => this.navigateTo('notes');
 
         const readingHeader = document.getElementById('header-reading-all');
-        if (readingHeader) readingHeader.onclick = () => this.navigateTo('reading-all');
+        if (readingHeader) readingHeader.onclick = () => this.navigateTo('reader');
 
         const rssHeader = document.getElementById('header-rss-all');
-        if (rssHeader) rssHeader.onclick = () => this.navigateTo('rss-all');
+        if (rssHeader) rssHeader.onclick = () => this.navigateTo('rss');
 
-        // New Note Buttons
-        const notesAllNew = document.getElementById('btn-notes-all-new');
-        if (notesAllNew) {
-            notesAllNew.onclick = () => {
+        // RSS Settings Button
+        const rssSettingsBtn = document.getElementById('btn-rss-settings');
+        if (rssSettingsBtn) {
+            rssSettingsBtn.onclick = () => this.navigateTo('settings');
+        }
+
+        // New Note Button
+        const notesNewBtn = document.getElementById('btn-notes-new');
+        if (notesNewBtn) {
+            notesNewBtn.onclick = () => {
                 if (window.mobileEditor) window.mobileEditor.initNewNote();
             };
         }
 
-        const notesPageNew = document.getElementById('btn-notes-page-new');
-        if (notesPageNew) {
-            notesPageNew.onclick = () => {
-                if (window.mobileEditor) window.mobileEditor.initNewNote();
+        // Consolidated Back logic for specific views
+        document.querySelectorAll('.btn-home-back-to-rss').forEach(btn => {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                this.navigateTo('rss');
             };
-        }
+        });
 
-        // --- Global Nav: Home/Back Button with Voice Toggle (Long Press) ---
-        // --- Global Nav: Home/Back Button (Pure Home Function) ---
-        const homeNavBtn = document.getElementById('nav-btn-home');
-        if (homeNavBtn) {
-            homeNavBtn.onclick = (e) => {
-                // If in voice mode, valid to reset to text mode
-                if (this.isVoiceMode) {
-                    this.toggleVoiceMode();
-                }
+        document.querySelectorAll('.btn-back-to-rss-all').forEach(btn => {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                this.navigateTo('rss');
+            };
+        });
 
-                // Always navigate home
-                if (this.activeView !== 'home') {
-                    this.navigateTo('home');
+        document.querySelectorAll('.btn-back-to-reader').forEach(btn => {
+            btn.onclick = (e) => {
+                e.preventDefault();
+                const scrollArea = document.querySelector('.reader-scroll-area');
+                const fromRSS = (scrollArea && scrollArea.dataset.fromContext === 'rss') || this.returnToRSS;
+
+                if (fromRSS) {
+                    this.navigateTo('rss');
+                    this.returnToRSS = false;
                 } else {
-                    // If already at home, maybe refresh or scroll to top?
-                    // For now, just reset search if any
-                    if (this.searchQuery) {
-                        this.searchQuery = '';
-                        const input = document.getElementById('global-input');
-                        if (input) input.value = '';
-                        this.renderApp();
-                    }
+                    // Default behavior: return to Reader tab list
+                    this.navigateTo('reader');
                 }
             };
-        }
+        });
 
-        // Back logic for specific views
         document.querySelectorAll('.btn-go-home').forEach(btn => {
-            if (btn.id !== 'nav-btn-home') btn.addEventListener('click', () => {
+            btn.onclick = (e) => {
+                e.preventDefault();
                 if (this.isVoiceMode) this.toggleVoiceMode();
                 this.navigateTo('home');
-            });
+            };
         });
+
+        // Note Editor Back Button - Responsive Navigation (Navigate First, Save Later)
         document.querySelectorAll('.btn-back-to-notes').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                console.log('[Back] btn-back-to-notes clicked');
+            // Use onclick to prevent multiple bindings if this function is re-run
+            btn.onclick = (e) => {
+                e.preventDefault();
+                console.log('[Back] Instant navigation to notes');
+
+                // 1. Navigate Immediately
+                this.navigateTo('notes');
+
+                // 2. Save in Background coverage
                 if (window.mobileEditor) {
-                    await window.mobileEditor.saveNote(true);
+                    window.mobileEditor.saveNote(true).catch(e => console.warn('Background save warning:', e));
                 }
-                this.navigateTo('notes-all');
-            });
-        });
-        document.querySelectorAll('.btn-back-to-reader').forEach(btn => {
-            btn.addEventListener('click', () => this.navigateTo('reading-all'));
+            };
         });
 
         // --- Global Core Hub: Input & Dynamic Action Button ---
@@ -283,7 +442,7 @@ class MobileApp {
             globalInput.onfocus = () => {
                 setTimeout(() => {
                     if (!this.isVoiceMode) {
-                        const viewsToAutoChat = ['home', 'notes-all', 'reading-all', 'reader-detail'];
+                        const viewsToAutoChat = ['home', 'notes', 'reader', 'reader-detail'];
                         if (viewsToAutoChat.includes(this.activeView)) this.navigateToChat();
                     }
                 }, 100);
@@ -307,41 +466,21 @@ class MobileApp {
 
         // Action Button Logic
         if (dockActionBtn) {
-            // 1. Click Handler (Send for text, Toggle for voice)
-            dockActionBtn.onclick = (e) => {
-                if (this.isTypingMode) {
-                    // Send Action
-                    this.triggerUniversalSend(globalInput);
-                    // Let's force clear UI update
-                    setTimeout(() => updateDockState(), 50);
-                } else {
-                    // Mic Click -> Toggle Continuous Mode
-                    if (this.isRecognitionActive) {
-                        this.stopVoiceRecognition();
-                        this.isContinuousChat = false; // User manually stopped
-                        if (window.showToast) window.showToast('Voice Chat Paused');
-                    } else {
-                        this.isContinuousChat = true; // Enable continuous loop
-                        this.startVoiceRecognition();
-                        if (window.showToast) window.showToast('Continuous Voice Chat Active');
-                    }
-                }
-            };
-
-            // 2. Long Press Handler (Voice)
+            // Priority: Push-to-Talk (PTT) Behavior
             const startVoice = (e) => {
-                if (this.isTypingMode) return; // Ignore if typing
-                // Only handle primary mouse button or touch
+                if (this.isTypingMode) return;
                 if (e.type === 'mousedown' && e.button !== 0) return;
 
-                e.preventDefault(); // Prevent click, context menu, scrolling
-                dockActionBtn.style.color = '#ff3b30'; // Red feedback
+                e.preventDefault();
+                if (window.navigator.vibrate) window.navigator.vibrate(20);
+                this.isPTTActive = true;
                 this.startVoiceRecognition();
             };
 
             const stopVoice = (e) => {
-                if (this.isTypingMode) return;
-                dockActionBtn.style.color = '';
+                if (!this.isPTTActive) return;
+                this.isPTTActive = false;
+                if (window.navigator.vibrate) window.navigator.vibrate([10, 30]);
                 this.stopVoiceRecognition();
             };
 
@@ -349,12 +488,47 @@ class MobileApp {
             dockActionBtn.addEventListener('touchend', stopVoice);
             dockActionBtn.addEventListener('mousedown', startVoice);
             dockActionBtn.addEventListener('mouseup', stopVoice);
-            dockActionBtn.addEventListener('mouseleave', stopVoice); // Stop if mouse leaves while holding
+            dockActionBtn.addEventListener('mouseleave', stopVoice);
+
+            // Click handler remains for sending text if typing
+            dockActionBtn.onclick = (e) => {
+                if (this.isTypingMode) {
+                    this.triggerUniversalSend(globalInput);
+                    setTimeout(() => updateDockState(), 50);
+                }
+            };
         }
 
         // --- API & GDrive Settings Dialogs ---
         this.setupSettingsDialogs();
 
+        // --- Swipe Gesture: Chat Hub to Notes ---
+        const chatHub = document.getElementById('universal-chat-hub');
+        if (chatHub) {
+            let startX = 0;
+            let startY = 0;
+            chatHub.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+
+            chatHub.addEventListener('touchend', (e) => {
+                const deltaX = e.changedTouches[0].clientX - startX;
+                const deltaY = e.changedTouches[0].clientY - startY;
+
+                // Right to Left swipe on the Hub
+                if (deltaX < -70 && Math.abs(deltaY) < 40) {
+                    console.log('[Gesture] Hub swipe left -> Notes');
+                    chatHub.classList.add('hub-shrink-to-circle');
+
+                    // Transition to Notes
+                    setTimeout(() => {
+                        this.navigateTo('notes');
+                        chatHub.classList.remove('hub-shrink-to-circle');
+                    }, 400);
+                }
+            }, { passive: true });
+        }
         // Aggressive binding to capture phase if possible, but basic click usually works
         // Use addEventListener to allow multiple listeners (e.g. from other modules)
         document.body.addEventListener('click', (e) => this.onGlobalClick(e));
@@ -463,10 +637,13 @@ class MobileApp {
             return; // Stop further processing if delete action was handled
         }
 
-        const card = target.closest('.note-card');
-        if (card) {
-            const id = card.dataset.id;
-            const type = card.dataset.type;
+        // General Card Click (Open Editor/Reader)
+        // Check for wrapper first as it holds the data attributes
+        const wrapper = target.closest('.note-item-wrapper');
+        if (wrapper && !deleteAction) {
+            const id = wrapper.dataset.id;
+            const type = wrapper.dataset.type;
+
             if (!id) return;
 
             // Fetch Data from dataMap
@@ -477,7 +654,8 @@ class MobileApp {
             }
 
             if (data) {
-                if (type === 'reader') {
+                console.log('[GlobalClick] Opening item:', id, type);
+                if (type === 'reader' || type === 'reading') {
                     this.loadReader(data);
                 } else {
                     // Default to Note
@@ -750,31 +928,62 @@ class MobileApp {
             this.activeView = viewId;
         }
 
-        // --- Global Nav Dock Visibility ---
+        // --- Global Nav Dock & Chat Hub Visibility ---
         const navBar = document.getElementById('global-nav-bar');
+        const chatHub = document.getElementById('universal-chat-hub');
+
         if (navBar) {
-            // ONLY hide in these specific deep-level views or views with their own Local Dock
-            // User requested that List views (notes-all, reading-all) AND Chat use the Global Dock.
-            // We now keep it visible in Editor & Reader as per V4.0 request.
-            const hideIn = ['browser', 'editor']; // Hide in browser and editor for focus
-            if (hideIn.includes(viewId)) {
+            // Immersive/Detail views: Hide dock
+            // Comprehensive visibility list
+            const hideDockIn = ['home', 'editor', 'reader-detail', 'rss-feed', 'browser'];
+            const shouldHideDock = hideDockIn.includes(viewId);
+
+            if (shouldHideDock) {
+                console.log('[Nav] Hiding dock for view:', viewId);
                 navBar.classList.add('hidden');
+                // Force hide to prevent layout interference
+                navBar.style.display = 'none';
             } else {
+                console.log('[Nav] Showing dock for view:', viewId);
                 navBar.classList.remove('hidden');
+                // Force flex to ensure visibility
+                navBar.style.display = 'flex';
+                // Reset transform to ensure it's not stuck off-screen
+                navBar.style.transform = 'translateX(-50%)';
             }
 
-            // Sync active state for the Home button
-            const homeBtn = document.getElementById('nav-btn-home');
-            if (homeBtn) {
-                if (viewId === 'home') homeBtn.classList.add('active');
-                else homeBtn.classList.remove('active');
+            // Update Tab Active State
+            document.querySelectorAll('.dock-tab').forEach(t => t.classList.remove('active'));
+            const tabMap = {
+                'home': 'nav-tab-home',
+                'notes': 'nav-tab-notes',
+                'reader': 'nav-tab-reader',
+                'reader-detail': 'nav-tab-reader',
+                'rss': 'nav-tab-rss',
+                'rss-feed': 'nav-tab-rss',
+                'settings': 'nav-tab-settings'
+            };
+            const activeTabId = tabMap[viewId];
+            if (activeTabId) {
+                const tab = document.getElementById(activeTabId);
+                if (tab) tab.classList.add('active');
             }
+        }
 
-            // Snappy Page Render - for Home and List views
-            if (viewId === 'home' || viewId === 'notes-all' || viewId === 'reading-all' || viewId === 'rss-all') {
-                if (this.renderTimeout) clearTimeout(this.renderTimeout);
-                this.renderTimeout = setTimeout(() => this.renderApp(), 10);
+        if (chatHub) {
+            // Chat Input Hub strictly for Assistant (Home) view
+            if (viewId === 'home' || viewId === 'chat') {
+                chatHub.classList.remove('hidden');
+            } else {
+                chatHub.classList.add('hidden');
             }
+        }
+
+        // Snappy Page Render
+        const listViews = ['home', 'notes', 'reader', 'rss', 'settings'];
+        if (listViews.includes(viewId)) {
+            if (this.renderTimeout) clearTimeout(this.renderTimeout);
+            this.renderTimeout = setTimeout(() => this.renderApp(), 10);
         }
     }
 
@@ -975,10 +1184,13 @@ class MobileApp {
         if (window.navigator.vibrate) window.navigator.vibrate(50);
 
         const holdBtn = document.getElementById('hold-to-talk');
+        const holdStatus = document.getElementById('voice-status-text');
         if (holdBtn) {
-            holdBtn.classList.remove('hidden'); // Ensure visible
-            holdBtn.style.backgroundColor = '#ff3b30'; // Red
-            holdBtn.textContent = 'Listening...';
+            holdBtn.classList.remove('hidden');
+            if (holdStatus) {
+                holdStatus.textContent = 'Listening...';
+                holdStatus.style.display = 'block';
+            }
             holdBtn.classList.add('recording');
         }
 
@@ -1021,18 +1233,22 @@ class MobileApp {
                 }
 
                 // Visual feedback
-                const displayText = (finalTranscript + interimTranscript).substring(0, 15) + '...';
-                if (holdBtn && (finalTranscript || interimTranscript)) {
-                    holdBtn.textContent = displayText;
+                const display = (finalTranscript + interimTranscript).substring(0, 30);
+                if (holdStatus && (finalTranscript || interimTranscript)) {
+                    holdStatus.textContent = display || 'Listening...';
                 }
                 if (editorIndicator && (finalTranscript || interimTranscript)) {
-                    editorIndicator.textContent = displayText;
+                    editorIndicator.textContent = display;
                 }
                 if (dockIndicator && (finalTranscript || interimTranscript)) {
-                    dockIndicator.textContent = displayText;
+                    dockIndicator.textContent = display;
                 }
 
-                // Buffer logic
+                // Buffer logic: Keep track of the latest full transcript
+                this.latestVoiceTranscript = (finalTranscript + interimTranscript).trim();
+
+                // Still keep the cumulative final buffer if needed, 
+                // but for strict PTT, latestVoiceTranscript is more accurate for the final "end"
                 this.voiceBuffer = (this.voiceBuffer || '') + finalTranscript;
             };
 
@@ -1062,15 +1278,17 @@ class MobileApp {
                 this.isRecognitionActive = false;
                 this.currentRecognition = null;
 
-                // Don't reset UI here immediately if we want to show 'Sending...',
-                // but for now, reset is safer.
                 this.resetVoiceUI();
 
-                // Process Buffer
-                if (this.voiceBuffer && this.voiceBuffer.trim()) {
-                    const text = this.voiceBuffer.trim();
+                // Process Latest Transcript (Final + Interim captured at moment of end)
+                // Use latestVoiceTranscript if it exists, fallback to voiceBuffer
+                const textToSend = (this.latestVoiceTranscript && this.latestVoiceTranscript.trim())
+                    || (this.voiceBuffer && this.voiceBuffer.trim());
+
+                if (textToSend) {
+                    this.latestVoiceTranscript = ''; // Reset
                     this.voiceBuffer = '';
-                    this.handleVoiceResult(text);
+                    this.handleVoiceResult(textToSend);
                 }
 
                 if (typeof onFinished === 'function') onFinished();
@@ -1090,22 +1308,25 @@ class MobileApp {
     resetVoiceUI() {
         const holdBtn = document.getElementById('hold-to-talk');
         if (holdBtn) {
-            holdBtn.style.backgroundColor = '';
-            holdBtn.textContent = '按住 说话';
+            holdBtn.classList.add('hidden');
             holdBtn.classList.remove('recording');
         }
+
+        const holdStatus = document.getElementById('voice-status-text');
+        if (holdStatus) {
+            holdStatus.textContent = '按住 说话';
+        }
+
         const editorVoiceBtn = document.getElementById('btn-editor-voice');
         if (editorVoiceBtn) editorVoiceBtn.style.color = '';
 
         const editorIndicator = document.getElementById('editor-voice-indicator');
         if (editorIndicator) {
             editorIndicator.classList.add('hidden');
-            editorIndicator.textContent = 'Recording...';
         }
         const dockIndicator = document.getElementById('dock-voice-indicator');
         if (dockIndicator) {
             dockIndicator.classList.add('hidden');
-            dockIndicator.textContent = 'Recording...';
         }
     }
 
@@ -1120,17 +1341,13 @@ class MobileApp {
     }
 
     stopVoiceRecognition(callback) {
-        // Immediate UI feedback to show "Processing"
-        const holdBtn = document.getElementById('hold-to-talk');
-        if (holdBtn) holdBtn.textContent = 'Processing...';
-
         if (this.currentRecognition) {
-            // Delay stop slightly to catch trailing audio
+            // Release-to-send delay: 100ms for Snappy PTT
             setTimeout(() => {
                 try {
                     if (this.currentRecognition) this.currentRecognition.stop();
                 } catch (e) { console.log(e); }
-            }, 500);
+            }, 100);
         } else {
             this.isRecognitionActive = false;
             this.resetVoiceUI();
@@ -1166,38 +1383,45 @@ class MobileApp {
         const titleEl = document.getElementById('reader-title');
         const metaEl = document.getElementById('reader-meta');
         const contentEl = document.getElementById('reader-content');
+        const scrollArea = document.querySelector('.reader-scroll-area');
 
         if (titleEl) titleEl.innerText = data.title || 'Untitled Article';
         if (metaEl) {
-            const domain = data.url ? new URL(data.url).hostname : 'Local Source';
+            let domain = 'Local Source';
+            try {
+                if (data.url && data.url.startsWith('http')) {
+                    domain = new URL(data.url).hostname;
+                }
+            } catch (e) { console.warn('URL Parse Error', e); }
+
             const time = data.updatedAt || data.timestamp || Date.now();
             const date = new Date(time).toLocaleString();
             metaEl.innerText = `${domain} • ${date}`;
         }
 
         if (contentEl) {
-            // Enhanced Readability: Preserve some formatting
+            // Enhanced Readability: Preserve formatting
             let content = (data.content || data.text || '').replace(/\n/g, '<br>');
 
-            // Auto-fallback: If content is empty, try snapshot immediately
-            if (!content.trim() && data.url) {
-                const key = 'snapshot_' + data.url;
-                // We use a non-blocking check to update UI if found
-                window.appStorage.get(key).then(res => {
-                    if (res[key] && res[key].content) {
-                        console.log('[Reader] Main content empty, using snapshot.');
-                        contentEl.innerHTML = `
-                            <div style="background:#f8f9fa; color:#666; padding:8px; font-size:12px; margin-bottom:16px; border-radius:4px;">
-                                ⚠️ Main content missing. Showing web snapshot.
-                            </div>
-                            ${res[key].content}
-                        `;
-                    } else {
-                        contentEl.innerHTML = '<div style="text-align:center; color:#999; margin-top:40px;">No content available for this article.</div>';
-                    }
-                });
+            // If content is very short (typical for RSS snippets) or missing, 
+            // and we have a URL, show a loading indicator and fetch full text.
+            const isShort = content.length < 500;
+            const fromRSS = options && (options.fromRSS || options.fromRSSFeed);
+
+            if (data.url && (isShort || fromRSS)) {
+                contentEl.innerHTML = `
+                    <div id="full-text-loader" style="padding: 20px; text-align: center; color: #8e8e93; font-size: 13px;">
+                        <div class="typing-indicator" style="margin-bottom: 8px;">...</div>
+                        📡 正在获取全文并优化排版...
+                    </div>
+                    <div id="original-preview" style="opacity: 0.5;">${content}</div>
+                `;
+
+                // Trigger full text extraction
+                this.fetchFullArticle(data.url, contentEl);
             } else {
-                contentEl.innerHTML = content;
+                contentEl.innerHTML = content || '<div style="text-align:center; color:#999; margin-top:40px;">No content available.</div>';
+                this.fixContentImages(contentEl, data.url);
             }
         }
 
@@ -1217,8 +1441,16 @@ class MobileApp {
         // Handle navigation state
         if (options && options.fromChat) {
             this.returnToChat = true;
+            this.returnToRSS = false;
+        } else if (options && (options.fromRSS || options.fromRSSFeed)) {
+            this.returnToRSS = true;
+            this.returnToChat = false;
+            // Explicitly mark context so back button knows
+            const scrollArea = document.querySelector('.reader-scroll-area');
+            if (scrollArea) scrollArea.dataset.fromContext = 'rss';
         } else {
             this.returnToChat = false;
+            this.returnToRSS = false;
         }
 
         this.navigateTo('reader-detail');
@@ -1313,6 +1545,155 @@ class MobileApp {
         }
     }
 
+    async fetchFullArticle(url, targetEl) {
+        if (typeof chrome === 'undefined' || !chrome.runtime) return;
+
+        chrome.runtime.sendMessage({ action: 'FETCH_ARTICLE_SNAPSHOT', url: url }, async (response) => {
+            if (!response || !response.success || !response.html) {
+                const loader = targetEl.querySelector('#full-text-loader');
+                if (loader) loader.innerHTML = '⚠️ 无法提取全文，显示预览版本';
+                const preview = targetEl.querySelector('#original-preview');
+                if (preview) preview.style.opacity = '1';
+                return;
+            }
+
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(response.html, 'text/html');
+
+                // 1. Core Visual Focusing (Identify the "Red Box" region)
+                let mainContent = VisualContentExtractor.extract(doc);
+
+                // 2. Focused Cleaning (Remove junk while preserving focus)
+                mainContent = VisualContentExtractor.clean(mainContent);
+
+                // 3. Title Preservation: REMOVED as per user request (Duplicate Title Fix)
+                // The main title is already rendered in the reader header.
+                // const docTitle = doc.querySelector('h1')?.innerText.trim();
+                /* 
+                if (docTitle && !mainContent.innerText.includes(docTitle)) {
+                    const titleEl = doc.createElement('h1');
+                    titleEl.innerText = docTitle;
+                    // ... styles ...
+                    mainContent.prepend(titleEl);
+                } 
+                */
+
+
+                // 4. Final safety check & UI Update
+                let html = mainContent.innerHTML;
+                if (!html.trim() || html.length < 50) {
+                    html = doc.body.innerHTML;
+                }
+
+                targetEl.innerHTML = `
+                    <div class="full-article-content">
+                        ${html}
+                    </div>
+                `;
+
+                this.fixContentImages(targetEl, url);
+
+                const key = 'snapshot_' + url;
+                await window.appStorage.set({ [key]: { content: html, timestamp: Date.now() } });
+                this.loadSnapshot(url);
+
+            } catch (e) {
+                console.error('[ArticleFetch] Parse error:', e);
+            }
+        });
+    }
+
+    fixContentImages(container, baseUri) {
+        if (!container) return;
+
+        container.querySelectorAll('img').forEach(img => {
+            // 1. Handle Lazy Loading
+            const lazyAttrs = ['data-src', 'original-src', 'data-original', 'data-actualsrc', 'data-srcset', 'file-src', 'data-lazy-src'];
+            let realSrc = null;
+            for (const attr of lazyAttrs) {
+                const val = img.getAttribute(attr);
+                if (val) { realSrc = val; break; }
+            }
+            if (!realSrc) realSrc = img.getAttribute('src');
+
+            if (realSrc) {
+                // 2. Resolve Relative URLs
+                if (!realSrc.startsWith('http') && !realSrc.startsWith('data:') && baseUri) {
+                    try { img.src = new URL(realSrc, baseUri).href; } catch (e) { }
+                } else if (realSrc.startsWith('//')) {
+                    img.src = 'https:' + realSrc;
+                } else {
+                    img.src = realSrc;
+                }
+            }
+
+            // 3. Referer Protection (Baidu, etc.)
+            img.setAttribute('referrerpolicy', 'no-referrer');
+
+            // 4. Aggressive Style Reset (Kill excessive whitespace)
+            img.removeAttribute('height'); // Remove fixed height attributes
+            img.style.height = 'auto';     // Force auto height
+            img.style.maxHeight = 'none';
+            img.style.maxWidth = '100%';
+            img.style.display = 'block';
+            img.style.margin = '10px auto'; // Compact margin
+            img.style.borderRadius = '6px';
+            img.style.padding = '0';
+            img.style.border = 'none';
+
+            // 5. Recursive Parent Spacer Cleanup
+            // Articles often wrap images in multiple nested divs with fixed aspect-ratios (padding-top: 66%)
+            // We climb up to 3 levels to neutralize these spacers.
+            let p = img.parentElement;
+            let depth = 0;
+            while (p && p !== container && depth < 3) {
+                const styleAttr = p.getAttribute('style') || '';
+                const hasSpacerStyle = styleAttr.includes('height:') ||
+                    styleAttr.includes('padding:') ||
+                    styleAttr.includes('margin:') ||
+                    styleAttr.includes('width:');
+
+                if (hasSpacerStyle || p.tagName === 'P') {
+                    p.style.height = 'auto';
+                    p.style.minHeight = '0';
+                    p.style.paddingTop = '0';
+                    p.style.marginTop = '0';
+                    p.style.paddingBottom = '4px'; // Minimal gap
+                    p.style.width = '100%';
+                    p.style.textAlign = 'center';
+                }
+                p = p.parentElement;
+                depth++;
+            }
+
+            // 6. Filter tiny images (icons, logos, placeholders)
+            const w = parseInt(img.getAttribute('width') || '0');
+            const h = parseInt(img.getAttribute('height') || '0');
+            if ((w > 0 && w < 20) || (h > 0 && h < 20)) {
+                img.style.display = 'none';
+            }
+
+            // 7. Error Handling
+            img.onerror = () => {
+                img.style.display = 'none';
+            };
+        });
+
+        // 8. Final Link/Button Cleanup
+        container.querySelectorAll('a').forEach(a => {
+            const href = a.getAttribute('href');
+            if (href && !href.startsWith('http') && !href.startsWith('#') && baseUri) {
+                try { a.href = new URL(href, baseUri).href; } catch (e) { }
+            }
+            a.target = '_blank';
+            // Suppress "Open in App" buttons that look like links
+            if (a.innerText.includes('打开APP') || a.innerText.includes('App') || a.innerText.includes('全文')) {
+                a.style.display = 'none';
+            }
+        });
+    }
+
     async renderApp(force = false) {
         if (!window.appStorage) return;
 
@@ -1322,17 +1703,20 @@ class MobileApp {
             this.cacheDirty = false;
         }
 
-        // Performance: Skip UI update if we are in a deep view
-        const shallowViews = ['home', 'notes-all', 'reading-all'];
+        // Performance: Skip UI update if we are in a deep view (Detail views)
+        // shallowViews are the main tabs where data needs to be rendered
+        const shallowViews = ['home', 'notes', 'reader', 'rss'];
         if (!force && !shallowViews.includes(this.activeView)) {
+            // But still allow RSS rendering if we are on RSS view? 
+            // Actually, if we are on 'rss', we WANT to proceed to window.renderRSSFeeds below.
             return;
         }
 
-        const all = this.dataCache;
-        if (!all || Object.keys(all).length === 0) {
-            console.log('[renderApp] No data found');
-            return;
-        }
+        const all = this.dataCache || {};
+        // if (!all || Object.keys(all).length === 0) {
+        //     console.log('[renderApp] No data found (rendering empty state)');
+        //     // Do not return early, as we still need to render RSS and empty placeholders
+        // }
 
         const noteMap = new Map(); // Use Map to deduplicate by ID
         const readerMap = {}; // For grouping
@@ -1362,14 +1746,14 @@ class MobileApp {
             }
 
             // 2. Detection Logic
-            const isNote = val.type === 'note' ||
-                ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url) ||
-                (key && (key.startsWith('note-') || key.startsWith('note_')));
-
             const isReading = (val.type === 'reading' ||
                 val.url ||
                 (key && (key.startsWith('http') || key.startsWith('meta_')))) &&
                 !(key && key.startsWith('snapshot_')); // Exclude full snapshots
+
+            const isNote = (val.type === 'note' ||
+                (key && (key.startsWith('note-') || key.startsWith('note_')))) ||
+                ((val.hasOwnProperty('content') || val.hasOwnProperty('text')) && !val.url && !isReading);
 
             if (key && key.startsWith('snapshot_')) return; // Explicitly skip snapshot keys
 
@@ -1431,9 +1815,14 @@ class MobileApp {
                         contents: []
                     };
                 }
-                const body = val.content || val.text || val.body || '';
-                if (body && !readerMap[rKey].contents.includes(body)) {
-                    readerMap[rKey].contents.push(body);
+                const textBody = val.text || val.content || '';
+                const item = {
+                    text: textBody,
+                    color: val.color || '#fff176',
+                    timestamp: val.timestamp || Date.now()
+                };
+                if (textBody && !readerMap[rKey].contents.some(c => (typeof c === 'object' ? c.text : c) === textBody)) {
+                    readerMap[rKey].contents.push(item);
                 }
                 const currentTime = this.safeParseToNumber(val.updatedAt || val.timestamp);
                 if (currentTime > (readerMap[rKey].updatedAt || 0)) {
@@ -1460,14 +1849,25 @@ class MobileApp {
         const readings = Object.values(readerMap).map(r => {
             // Pre-process each snippet for proper HTML wrapping
             const processedContents = r.contents.map(c => {
-                if (!c) return '';
-                if (c.includes('<p>') || c.includes('<div') || c.includes('<br')) return c;
-                return c.split('\n\n').map(p => `<p>${p.trim()}</p>`).join('');
+                const text = typeof c === 'object' ? c.text : c;
+                const color = typeof c === 'object' ? c.color : '#fff176';
+                if (!text) return '';
+
+                let html = text;
+                if (!html.includes('<p>') && !html.includes('<div') && !html.includes('<br')) {
+                    html = html.split('\n\n').map(p => `<p>${p.trim()}</p>`).join('');
+                }
+
+                return `
+                    <div class="reader-highlight-block" style="border-left: 4px solid ${color}; padding-left: 12px; margin: 16px 0; background: rgba(0,0,0,0.02); padding: 8px 8px 8px 12px; border-radius: 2px 4px 4px 2px;">
+                        ${html}
+                    </div>
+                `;
             });
 
             return {
                 ...r,
-                content: processedContents.join('<hr style="border:none; border-top:1px dashed #ddd; margin:24px 0;">')
+                content: processedContents.join('')
             };
         });
 
@@ -1513,77 +1913,120 @@ class MobileApp {
         }
     }
 
+    createCard(data, type) {
+        const isNote = type === 'notes';
+        const id = isNote ? data.id : data.url;
+        const title = (isNote ? data.title : data.title) || 'Untitled Note';
+        const preview = (isNote ? (data.summary || data.content) : data.content) || 'No summary available...';
+        const source = data.url ? new URL(data.url).hostname.replace('www.', '') : 'Highlighti';
+        const timeStr = window.formatRelativeTime(data.timestamp);
+        const favicon = `https://www.google.com/s2/favicons?domain=${source}&sz=32`;
+
+        return `
+            <div class="note-item-wrapper" data-id="${id}" data-type="${type}">
+                <div class="note-card">
+                    <div class="note-title">${this.stripHtml(title)}</div>
+                    <div class="note-summary">${this.stripHtml(preview)}</div>
+                    <div class="note-meta">
+                        <img class="note-meta-icon" src="${favicon}" onerror="this.src='../icons/icon32.png'">
+                        <span class="note-meta-url">${source}</span>
+                        <span>•</span>
+                        <span>${timeStr}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     renderNotes(notes, containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
-        container.innerHTML = notes.map((n) => {
-            const displayTitle = n.title || 'Untitled Note';
-            const body = n.content || n.text || '';
-            const id = n.id;
-            const parentKey = n._storageKey || '';
-
-            // Format time: MM/DD HH:mm
-            const timeVal = this.safeParseToNumber(n.updatedAt || n.timestamp);
-            let dateStr = '';
-            try {
-                if (timeVal > 0) {
-                    const d = new Date(timeVal);
-                    const now = new Date();
-                    const isToday = d.toDateString() === now.toDateString();
-
-                    if (isToday) {
-                        dateStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                    } else {
-                        dateStr = d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
-                    }
-                }
-            } catch (e) {
-                dateStr = '';
-            }
-
-            return `
-                <div class="note-item-wrapper" data-id="${id}" data-parent-key="${parentKey}" data-type="note">
-                    <div class="note-card" data-type="note" data-id="${id}">
-                        <div class="note-title-row">
-                            <div class="note-title">${displayTitle}</div>
-                            <div class="note-date-tag">${dateStr}</div>
-                        </div>
-                        <div class="note-preview">${this.stripHtml(body).substring(0, 80)}</div>
-                    </div>
-                    <div class="note-delete-action">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        container.innerHTML = notes.map(n => this.createCard(n, 'notes')).join('');
     }
 
     renderReader(items, containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
-        container.innerHTML = items.map(i => {
-            const date = i.date || new Date(i.timestamp || Date.now()).toLocaleDateString();
-            const parentKey = i._storageKey || '';
-            return `
-                <div class="note-item-wrapper" data-id="${i.id}" data-parent-key="${parentKey}" data-type="reader">
-                    <div class="note-card" data-type="reader" data-id="${i.id}">
-                        <div class="note-title">${i.title || 'Untitled Article'}</div>
-                        <div class="note-preview">${date}</div>
-                    </div>
-                    <div class="note-delete-action">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        container.innerHTML = items.map(i => this.createCard(i, 'reader')).join('');
+    }
+
+    // End of rendering logic
+
+    setupDataManagement() {
+        // Settings Action Sheet buttons (Compatibility)
+        const btnExport = document.getElementById('btn-export-json');
+        const btnImport = document.getElementById('btn-import-json');
+        const inputImport = document.getElementById('input-import-json');
+        const btnReset = document.getElementById('btn-reset-data');
+
+        // New Settings View buttons (V12.0)
+        const btnExportAlt = document.getElementById('btn-export-json-alt');
+        const btnImportAlt = document.getElementById('btn-import-json-alt');
+        const btnResetAlt = document.getElementById('btn-reset-data-alt');
+
+        const handleExport = async () => {
+            try {
+                const allData = await window.appStorage.get(null);
+                const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `highlighti_backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('导出失败: ' + e.message);
+            }
+        };
+
+        const handleReset = async () => {
+            if (confirm('⚠️ 确定要清空所有本地数据吗？此操作不可撤销！')) {
+                await window.appStorage.clear();
+                alert('数据已重置。');
+                window.location.reload();
+            }
+        };
+
+        if (btnExport) btnExport.onclick = handleExport;
+        if (btnExportAlt) btnExportAlt.onclick = handleExport;
+        if (btnReset) btnReset.onclick = handleReset;
+        if (btnResetAlt) btnResetAlt.onclick = handleReset;
+
+        if ((btnImport || btnImportAlt) && inputImport) {
+            const triggerImport = () => inputImport.click();
+            if (btnImport) btnImport.onclick = triggerImport;
+            if (btnImportAlt) btnImportAlt.onclick = triggerImport;
+
+            inputImport.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (confirm('导入的数据将合并到当前存储。确定继续吗？')) {
+                            await window.appStorage.set(data);
+                            alert('数据导入成功，应用将自动刷新。');
+                            window.location.reload();
+                        }
+                    } catch (err) {
+                        alert('导入失败: 无效的 JSON 文件。');
+                    }
+                    inputImport.value = '';
+                };
+                reader.readAsText(file);
+            };
+        }
+
+        // New Settings Navigation Items
+        const setLang = document.getElementById('set-language');
+        if (setLang) setLang.onclick = () => alert('Language options: CN/EN (Auto-detected)');
+
+        const setGDrive = document.getElementById('act-sync'); // GDrive
+        const setWebDAV = document.getElementById('act-sync-webdav'); // WebDAV
+        const setAI = document.getElementById('act-ai'); // AI Key
+
+        // These already have listeners in setupEvents, but we can enhance them here if needed
     }
 
     stripHtml(html) {
@@ -1594,6 +2037,16 @@ class MobileApp {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.mobileCore = new MobileApp();
+    window.app = window.mobileCore; // Support for legacy 'app.navigateTo' calls
     // Optimization: Immediate render for perceived speed (was 500ms)
     setTimeout(() => window.mobileCore.renderApp(), 10);
 });
+
+// Service Worker Registration (Moved for CSP compliance)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('SW registered:', reg.scope))
+            .catch(e => console.log('SW failed:', e));
+    });
+}

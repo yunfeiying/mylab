@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ai-note-v11';
+const CACHE_NAME = 'ai-note-v11.6';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

@@ -228,30 +228,77 @@ html {
 }
 
 /* List Cards */
-/* Swipe to Delete System */
+/* Swipe-able Note/Article Card (V12.0) */
 .note-item-wrapper {
     position: relative;
     margin-bottom: 12px;
-    overflow: hidden;
-    border-radius: 16px;
     background: #ff3b30;
-    /* iOS Red */
+    /* iOS Red for swipe action */
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .note-card {
     position: relative;
-    background: var(--ios-card);
+    z-index: 2;
+    background: #fff;
     padding: 16px;
     border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.3s;
-    z-index: 2;
-    transform: translateX(0);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
 }
 
 .note-card.swiped {
     transform: translateX(-80px);
-    border-radius: 16px 0 0 16px;
+}
+
+.note-card:active {
+    background: #f9f9f9;
+}
+
+.note-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.note-summary {
+    font-size: 14px;
+    color: var(--ios-text-secondary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.note-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--ios-text-tertiary);
+}
+
+.note-meta-icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    object-fit: cover;
+}
+
+.note-meta-url {
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .note-delete-action {
@@ -265,75 +312,10 @@ html {
     justify-content: center;
     color: white;
     z-index: 1;
-    cursor: pointer;
 }
 
-.note-card:active {
-    background: #f2f2f7;
-}
-
-.note-title {
-    font-size: 17px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.note-preview {
-    font-size: 14px;
-    color: var(--ios-text-secondary);
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* === The Core Hub (Floating Capsule) === */
-/* --- Global Dock (Core Hub) --- */
-.core-hub {
-    position: fixed;
-    /* Reset all potential offsets */
-    top: auto !important;
-    left: 50% !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
-    transform: translateX(-50%) !important;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    width: 90%;
-    max-width: 440px;
-    height: auto;
-    background: transparent !important;
-    /* Make container invisible */
-    border: none !important;
-    box-shadow: none !important;
-    z-index: 10001;
-    /* Higher than full-screen-view (2000) */
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Keyboard Docked State: Force to very bottom + keyboard height */
-.keyboard-visible .core-hub {
-    bottom: var(--keyboard-offset, 0px) !important;
-    left: 0 !important;
-    right: 0 !important;
-    transform: none !important;
-    width: 100% !important;
-    max-width: none !important;
-    height: 52px !important;
-    border-radius: 0 !important;
-    background: #f8f8f8 !important;
-    /* Solid matte finish */
-    padding: 0 12px !important;
-    box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.1) !important;
-    border: none !important;
-}
+/* Legacy Dock Removed in V12.0 */
+/* Spacing for Floating Dock */
 
 /* Give enough scrolling room so the dock never hides last items */
 .home-scroll-area,
@@ -622,9 +604,9 @@ html {
     background: none;
     border: none;
     color: var(--ios-blue);
-    padding: 8px;
-    min-width: 44px;
-    min-height: 44px;
+    padding: 12px;
+    min-width: 48px;
+    min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -634,6 +616,12 @@ html {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+}
+
+.header-btn:active {
+    opacity: 0.5;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 50%;
 }
 
 .header-title,
@@ -682,7 +670,8 @@ html {
     bottom: 0;
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(5px);
-    z-index: 3000;
+    z-index: 20000;
+    /* Much higher than everything else */
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -1080,6 +1069,187 @@ html {
     font-size: 14px;
 }
 
+/* === RSS Custom Styles (V11.6 Refresh) === */
+.rss-news-card {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    background: #fff;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.rss-news-card:active {
+    transform: scale(0.98);
+    background: #f9f9f9;
+}
+
+.rss-news-card {
+    display: flex;
+    flex-direction: column;
+    padding: 18px 20px;
+    background: #fff;
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
+    cursor: pointer;
+    transition: background 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.rss-news-card:active {
+    background: #f2f2f7;
+}
+
+.rss-news-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.rss-news-card-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: #f8fafc;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0.5px solid rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.rss-news-card-icon img {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+}
+
+.rss-news-card-meta {
+    font-size: 13px;
+    font-weight: 500;
+    color: #636366;
+    /* iOS label secondary */
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rss-news-card-meta .separator {
+    color: #d1d1d6;
+    font-weight: 400;
+}
+
+.rss-news-card-content {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.rss-news-card-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.rss-news-card-title {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #1c1c1e;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.rss-news-card-snippet {
+    font-size: 15px;
+    line-height: 1.5;
+    color: #8e8e93;
+    letter-spacing: -0.01em;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.rss-news-card-thumbnail {
+    width: 86px;
+    height: 86px;
+    border-radius: 12px;
+    object-fit: cover;
+    background: #f2f2f7;
+    flex-shrink: 0;
+    border: 0.5px solid rgba(0, 0, 0, 0.04);
+}
+
+/* Accordion for RSS Sources */
+.rss-accordion-item {
+    border-bottom: 0.5px solid #eee;
+    background: #fff;
+}
+
+.rss-accordion-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    font-weight: 600;
+    color: #000;
+    cursor: pointer;
+}
+
+.rss-accordion-header .chevron {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+    transition: transform 0.3s ease;
+    color: #8e8e93;
+}
+
+.rss-accordion-header.expanded .chevron {
+    transform: rotate(90deg);
+}
+
+.rss-accordion-header .count {
+    margin-left: auto;
+    font-size: 12px;
+    color: #8e8e93;
+    font-weight: 400;
+}
+
+.rss-accordion-content {
+    background: #f9f9f9;
+    padding: 0 0 8px 0;
+}
+
+.rss-sub-source {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px 12px 46px;
+    font-size: 15px;
+    color: #333;
+    cursor: pointer;
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.05);
+}
+
+.rss-sub-source:active {
+    background: #eee;
+}
+
+.rss-sub-source img {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+    border-radius: 4px;
+}
+
 .chat-input-area {
     display: flex;
     align-items: flex-end;
@@ -1145,9 +1315,74 @@ html {
     transform: scale(0.9);
 }
 
-.chat-send-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+/* Settings List Styles */
+.settings-list {
+    background: white;
+    margin: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 0.5px solid #eee;
+}
+
+.settings-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 0.5px solid #f2f2f7;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.settings-item:active {
+    background: #f2f2f7;
+}
+
+.settings-icon {
+    font-size: 20px;
+    margin-right: 12px;
+    width: 32px;
+    text-align: center;
+}
+
+.settings-text {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 500;
+    color: #000;
+}
+
+.settings-arrow {
+    color: #c7c7cc;
+    font-size: 20px;
+    font-weight: 300;
+}
+
+.settings-divider {
+    padding: 24px 16px 8px 16px;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: #8e8e93;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+/* Chat Input Bar for Home */
+.core-hub {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 100px);
+    /* Above the floating dock */
+    left: 12px;
+    right: 12px;
+    z-index: 900;
+    transition: all 0.3s;
+}
+
+.core-hub.hidden {
+    display: none;
 }
 
 /* ============================== */
@@ -1162,7 +1397,9 @@ html {
     display: flex;
     align-items: center;
     gap: 8px;
-    z-index: 1000;
+    z-index: 10000;
+    /* High z-index */
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .home-btn-line {
@@ -1192,9 +1429,29 @@ html {
     align-items: center;
     background: white;
     border-radius: 24px;
-    padding: 0 20px;
+    padding: 0 12px 0 8px;
+    /* Adjusted for internal plus button */
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     height: 48px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+.plus-btn-line {
+    width: 36px;
+    height: 36px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: var(--ios-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 4px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .universal-core-input {
@@ -1210,23 +1467,144 @@ html {
     color: var(--ios-text-tertiary);
 }
 
-.plus-btn-line {
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: transparent;
-    color: var(--ios-text-secondary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s, opacity 0.2s;
-    flex-shrink: 0;
-}
-
 .plus-btn-line:active {
     transform: scale(0.9);
     opacity: 0.6;
+}
+
+.mic-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    /* Use parent send-btn-line color */
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.mic-btn.active {
+    color: #ff3b30 !important;
+    transform: scale(1.2);
+}
+
+.reader-detail-view .floating-capsule-dock {
+    display: none;
+}
+
+.reader-detail-view .core-hub {
+    display: none;
+}
+
+.rss-news-card-title {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+}
+
+.rss-news-card-snippet {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+}
+
+/* Hub Transition Interaction (V12.0) */
+.core-hub.hub-shrink-to-circle {
+    left: calc(100% - 72px) !important;
+    right: 12px !important;
+    width: 60px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    pointer-events: none;
+}
+
+.core-hub.hub-shrink-to-circle .input-capsule {
+    width: 0 !important;
+    flex: 0 !important;
+    opacity: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.core-hub.hub-shrink-to-circle #btn-dock-action {
+    transform: scale(0.9);
+    background: var(--ios-blue) !important;
+    color: white !important;
+    border-radius: 50% !important;
+}
+
+/* Redesigned Floating Capsule Dock (V12.0) */
+.floating-capsule-dock {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 20px + var(--keyboard-offset, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 400px;
+    height: 56px;
+    /* Match typical input height */
+    background: rgba(255, 255, 255, 0.85);
+    /* Slightly more opaque for premium feel */
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    border-radius: 28px;
+    /* Perfectly round capsule */
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    /* Even spacing */
+    padding: 0 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1), 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+    /* Softer, deeper shadow */
+    border: none;
+    /* Removed border in favor of inner shadow or just clean look */
+    z-index: 3000;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s;
+}
+
+.floating-capsule-dock.hidden {
+    transform: translate(-50%, 150%);
+}
+
+.dock-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--ios-text-tertiary);
+    transition: all 0.2s;
+    width: auto;
+    flex: 1;
+    gap: 0;
+}
+
+.dock-tab svg {
+    width: 28px;
+    /* Larger icons */
+    height: 28px;
+    stroke-width: 2;
+    /* Slightly thinner stroke for elegance */
+    opacity: 0.5;
+    /* Inactive state */
+    transition: all 0.2s ease;
+}
+
+.dock-tab .tab-label {
+    display: none;
+    /* Hide labels as requested */
+}
+
+.dock-tab.active svg {
+    opacity: 1;
+    color: var(--ios-blue);
+    transform: scale(1.1);
+    /* Subtle pop */
+    filter: drop-shadow(0 2px 4px rgba(0, 122, 255, 0.2));
+}
+
+.dock-tab:active {
+    transform: scale(0.9);
 }
 
 .send-btn-line {
@@ -1396,9 +1774,70 @@ html {
     color: #000;
 }
 
-.snapshot-content p {
-    margin-bottom: 1em;
-    text-indent: 2em;
+.snapshot-content p,
+.reader-body-content p {
+    margin-bottom: 0.8em;
+    line-height: 1.6;
+    text-indent: 0;
+}
+
+.reader-body-content {
+    font-size: 16px;
+    color: #1e293b;
+    line-height: 1.6;
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+
+.full-article-content {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Eliminate large vertical gaps from nested elements */
+.full-article-content>* {
+    margin-top: 0 !important;
+    margin-bottom: 0.8em !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.full-article-content img {
+    margin: 12px auto !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.reader-article {
+    padding: 0 16px;
+}
+
+.reader-main-title {
+    margin-top: 10px;
+    margin-bottom: 6px;
+    font-size: 20px;
+    line-height: 1.3;
+}
+
+.reader-meta {
+    margin-bottom: 16px;
+    font-size: 13px;
+    opacity: 0.4;
+}
+
+/* Ensure no truncation in reader */
+.reader-scroll-area {
+    padding-bottom: 80px;
 }
 
 .snapshot-content img {
@@ -1675,4 +2114,83 @@ html {
 .rss-delete-btn:hover {
     background: #fee2e2;
     color: #ef4444;
+}
+
+/* Styles moved from index.html for CSP compliance */
+.note-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.note-date-tag {
+    font-size: 11px;
+    color: #999;
+    flex-shrink: 0;
+    font-weight: 400;
+}
+
+.note-title {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* === Global Navigation Dock (iOS Style) === */
+.core-hub {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 84px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 0.5px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 12px 24px 12px;
+    /* iOS safe area padding */
+    z-index: 2000;
+}
+
+.core-dock-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: #8e8e93;
+    /* iOS inactive gray */
+    padding: 8px 0;
+    gap: 4px;
+    transition: color 0.2s ease, transform 0.1s active;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.core-dock-tab svg {
+    width: 24px;
+    height: 24px;
+    stroke-width: 2;
+}
+
+.core-dock-tab.active {
+    color: #007aff;
+    /* iOS blue */
+}
+
+.core-dock-tab .tab-label {
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.core-dock-tab:active {
+    transform: scale(0.92);
 }

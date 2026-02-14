@@ -334,6 +334,59 @@ Unable to auto-scan market data. Please view this pre-configured strategy search
                 });
             }
         });
+
+        // 8. WeChat Subscription Skill
+        this.registerSkill({
+            id: 'wechat_follow',
+            name: 'WeChat Optimizer',
+            patterns: [/mp\.weixin\.qq\.com/i, /(公众号|关注作者|订阅公众号|follow author|wechat account)/i],
+            async execute(query) {
+                return new Promise(async (resolve) => {
+                    let urlMatch = query.match(/https?:\/\/mp\.weixin\.qq\.com\/s\/[a-zA-Z0-9_-]+/i);
+                    if (!urlMatch) {
+                        urlMatch = query.match(/https?:\/\/mp\.weixin\.qq\.com\/s\?[^\s]*/i);
+                    }
+
+                    if (urlMatch) {
+                        const url = urlMatch[0];
+                        // Attempt to fetch title/author to provide a better subscription proposal
+                        let author = "该公众号";
+                        let bizId = "";
+
+                        try {
+                            const res = await new Promise(r => chrome.runtime.sendMessage({ action: 'FETCH_URL_CONTENT', url: url }, r));
+                            if (res && res.success) {
+                                // Extract author/account name from WeChat page
+                                const authorMatch = res.text.match(/id="js_name">\s*([^<]+)/) || res.text.match(/profile_nickname">([^<]+)/);
+                                if (authorMatch) author = authorMatch[1].trim();
+
+                                // Extract __biz if available for RSSHub
+                                const bizMatch = res.text.match(/__biz=([^&"']+)/);
+                                if (bizMatch) bizId = bizMatch[1];
+                            }
+                        } catch (e) { }
+
+                        // Prepare subscription URL via RSSHub (Standard for WeChat)
+                        // If we have biz, we can use a more reliable route
+                        const rssUrl = bizId ? `https://rsshub.app/wechat/msghistory/${bizId}` : `https://rsshub.app/wechat/articles/${author}`;
+
+                        resolve(`[WECHAT DETECTION]:
+检测到微信公众号链接。
+作者/账号: ${author}
+建议动作: 向用户推荐订阅该作者。
+
+[MANDATORY INSTRUCTION]:
+1. 告诉用户：你可以通过 Highlighti 的 **Reader (RSS News)** 功能持续关注 **${author}**。
+2. 解释：订阅后，该作者的后续更新将自动同步到你的 Reader 列表，无需反复粘贴链接。
+3. 必须在回复末尾附带以下格式的订阅指令（注意不要放在代码块中）：
+[SUBSCRIBE_RSS: {"name": "${author}", "url": "${rssUrl}", "category": "微信公众号"}]
+`);
+                    } else {
+                        resolve(null);
+                    }
+                });
+            }
+        });
     }
 
     registerSkill(skill) {

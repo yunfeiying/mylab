@@ -18,7 +18,18 @@ class UniversalStorage {
     async get(keys) {
         if (this.isExtension) {
             return new Promise((resolve) => {
-                chrome.storage.local.get(keys, (res) => resolve(res));
+                chrome.storage.local.get(keys, async (res) => {
+                    // [Fix] If missing and looks like a URL/Highlight, check IDB bucket
+                    if (window.idb && typeof keys === 'string' && !res[keys] && (keys.includes('://') || keys.includes('h_') || keys.includes('.'))) {
+                        try {
+                            const bucket = await window.idb.get('user_highlights') || {};
+                            if (bucket[keys]) {
+                                res[keys] = bucket[keys];
+                            }
+                        } catch (e) { }
+                    }
+                    resolve(res);
+                });
             });
         } else {
             // Fallback to IndexedDB (Mobile/Web)
@@ -49,12 +60,46 @@ class UniversalStorage {
      */
     async set(items) {
         if (this.isExtension) {
-            // Dual-write specific keys to IDB if available (e.g. user_notes for big data)
-            if (window.idb && items.user_notes) {
-                await window.idb.set('user_notes', items.user_notes);
+            const localToSet = { ...items };
+            const idbHighlights = {};
+            let hasIDBNotes = false;
+
+            // Logic: Divert highlights and notes to IDB
+            for (const [key, val] of Object.entries(items)) {
+                if (key === 'user_notes') {
+                    hasIDBNotes = true;
+                } else if (Array.isArray(val) && val.length > 0 && val[0].timestamp && !['trash_bin'].includes(key)) {
+                    // This is a highlight list for a specific URL
+                    idbHighlights[key] = val;
+                    // delete localToSet[key]; // Keep in local storage for content script visibility
+                }
             }
+
+            if (window.idb) {
+                if (hasIDBNotes && items.user_notes) {
+                    await window.idb.set('user_notes', items.user_notes);
+                }
+
+                if (Object.keys(idbHighlights).length > 0) {
+                    const current = await window.idb.get('user_highlights') || {};
+                    const merged = { ...current, ...idbHighlights };
+                    await window.idb.set('user_highlights', merged);
+
+                    // [Modified] Keep in local storage as well so content-script and popup can see it without bridge
+                    // chrome.storage.local.remove(Object.keys(idbHighlights));
+                }
+            }
+
             return new Promise((resolve) => {
-                chrome.storage.local.set(items, () => resolve());
+                // [Fix] Prevent saving the entire bucket back to local storage as a single key
+                delete localToSet['user_highlights'];
+                delete localToSet['user_notes'];
+
+                if (Object.keys(localToSet).length > 0) {
+                    chrome.storage.local.set(localToSet, () => resolve());
+                } else {
+                    resolve();
+                }
             });
         } else {
             if (!window.idb) return;
@@ -69,6 +114,28 @@ class UniversalStorage {
      */
     async remove(keys) {
         if (this.isExtension) {
+            const keyArray = Array.isArray(keys) ? keys : [keys];
+
+            // 1. Remove from IDB bucket if present
+            if (window.idb) {
+                try {
+                    const currentH = await window.idb.get('user_highlights') || {};
+                    let changed = false;
+                    keyArray.forEach(k => {
+                        if (currentH[k]) {
+                            delete currentH[k];
+                            changed = true;
+                        }
+                    });
+                    if (changed) {
+                        await window.idb.set('user_highlights', currentH);
+                    }
+                } catch (e) {
+                    console.warn('[StorageBridge] IDB remove failed', e);
+                }
+            }
+
+            // 2. Remove from Local Storage
             return new Promise((resolve) => {
                 chrome.storage.local.remove(keys, () => resolve());
             });
@@ -92,13 +159,14 @@ class UniversalStorage {
                     // Start with local storage data
                     const result = { ...localData };
 
-                    // Merge critical IDB data (user_notes) if available
+                    // Merge critical IDB data (user_notes & user_highlights) if available
                     if (window.idb) {
                         try {
                             const notes = await window.idb.get('user_notes');
-                            if (notes) {
-                                result.user_notes = notes;
-                            }
+                            if (notes) result.user_notes = notes;
+
+                            const hlights = await window.idb.get('user_highlights');
+                            if (hlights) result.user_highlights = hlights;
                         } catch (e) {
                             console.warn('[StorageBridge] Failed to read IDB in Extension mode', e);
                         }

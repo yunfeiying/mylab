@@ -218,7 +218,8 @@ class MobileEditor {
                         await window.appStorage.remove(this.currentNoteId);
                         if (window.mobileCore) {
                             window.mobileCore.cacheDirty = true;
-                            window.mobileCore.navigateTo('notes-all');
+                            // Critical Fix: Target valid view ID 'notes' (not 'notes-all')
+                            window.mobileCore.navigateTo('notes');
                             window.mobileCore.renderApp(true);
                         }
                         if (window.showToast) window.showToast('Note deleted', 1500);

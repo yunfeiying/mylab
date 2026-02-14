@@ -128,6 +128,27 @@ class MobileChat {
             };
         }
         if (closeBtn) closeBtn.onclick = () => modal.classList.add('hidden');
+
+        // Delegation for dynamic buttons in chat bubbles
+        if (this.messagesContainer) {
+            this.messagesContainer.onclick = (e) => {
+                const installBtn = e.target.closest('.btn-install-skill');
+                if (installBtn) {
+                    this.installSkill(installBtn.dataset.skill);
+                    installBtn.disabled = true;
+                    installBtn.innerText = '已启用';
+                    return;
+                }
+
+                const subscribeBtn = e.target.closest('.btn-subscribe-rss');
+                if (subscribeBtn) {
+                    this.subscribeRSS(subscribeBtn.dataset.feed);
+                    subscribeBtn.disabled = true;
+                    subscribeBtn.innerText = '已关注';
+                    return;
+                }
+            };
+        }
     }
 
     showImageModal(src) {
@@ -249,36 +270,6 @@ class MobileChat {
         }
     }
 
-    buildSystemPrompt(context = {}) {
-        const timestamp = new Date().toLocaleString();
-
-        // 1. Dynamic Soul (Identity)
-        const soulBaseline = this.soulConfig || `Role: Highlighti Intelligence (Knowledge Architect)\nCore Persona: You are the user's Second Brain.`;
-
-        // 2. Learned Preferences (Evolution)
-        let evolutionContext = "";
-        if (this.userPreferences && (this.userPreferences.formatting.length > 0 || this.userPreferences.conciseness)) {
-            evolutionContext = `\n[EVOLVED USER PREFERENCES - OBEY STRICTLY]\n`;
-            if (this.userPreferences.formatting.includes('table_preferred')) {
-                evolutionContext += `- The user loves TABLES. Use Markdown tables whenever comparing data.\n`;
-            }
-            if (this.userPreferences.conciseness === 'extreme') {
-                evolutionContext += `- BREVITY IS KEY. The user hates long-winded answers. Cut the fluff.\n`;
-            }
-        }
-
-        const core = [
-            soulBaseline,
-            evolutionContext,
-            `\nCurrent Time: ${timestamp}`,
-            `\nCommunication Style: Professional, Insightful, Humanized.`,
-            context.hasLink ? `\n[CONTENT SOURCE MODE]\nUser provided a link. \n1. Summarize the main thesis (1 sentence).\n2. Extract 3-5 key hard facts.\n3. Analyze reliability.\n` : '',
-            context.hasMemory ? `\n[MEMORY ACTIVATED]\nUse the provided Knowledge Base context to ground your answer.` : '',
-            context.hasRealTime ? `\n[REAL-TIME DATA]\nPrioritize live data over training data.` : ''
-        ];
-
-        return core.join('\n');
-    }
 
     async loadHistory() {
         try {
@@ -446,16 +437,45 @@ class MobileChat {
             // Preserve newlines
             .replace(/\n/g, '<br>')
             // Handle Skill Proposals
-            .replace(/\[PROPOSE_SKILL: (.*?)\]/g, (match, p1) => {
+            .replace(/\[PROPOSE_SKILL:\s*(\{.*?\})\]/g, (match, p1) => {
                 try {
-                    const skill = JSON.parse(p1);
+                    const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                    const skill = JSON.parse(p1Unescaped);
                     return `<div class="skill-proposal-card" style="margin-top:12px; padding:12px; border:1px solid var(--ios-blue); border-radius:12px; background:rgba(0,122,255,0.05);">
                         <div style="font-weight:600; color:var(--ios-blue); margin-bottom:4px;">✨ 技能提案: ${skill.name}</div>
                         <div style="font-size:12px; color:#666; margin-bottom:8px;">检测到相关需求，是否为 AI 开启此项新技能？</div>
-                        <button id="btn-install-skill" data-skill='${p1}' 
+                        <button class="btn-install-skill" data-skill='${JSON.stringify(skill)}' 
                                 style="background:var(--ios-blue); color:white; border:none; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600; width:100%;">
                             立即启用
                         </button>
+                    </div>`;
+                } catch (e) { console.warn('Skill parse error:', e); return match; }
+            })
+            // Handle RSS Subscription Proposals
+            .replace(/\[SUBSCRIBE_RSS:\s*(\{.*?\})\]/g, (match, p1) => {
+                try {
+                    const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                    const feed = JSON.parse(p1Unescaped);
+                    console.log('[Markdown] Rendering RSS Subscription Card for:', feed.name);
+                    return `<div class="rss-subscription-card" style="margin-top:12px; padding:12px; border:1px solid #34c759; border-radius:12px; background:rgba(52,199,89,0.05);">
+                        <div style="font-weight:600; color:#34c759; margin-bottom:4px;">📰 订阅建议: ${feed.name}</div>
+                        <div style="font-size:12px; color:#666; margin-bottom:8px;">将此作者添加到你的阅读清单，自动追踪后续更新。</div>
+                        <button class="btn-subscribe-rss" data-feed='${JSON.stringify(feed)}' 
+                                style="background:#34c759; color:white; border:none; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600; width:100%;">
+                            立即订阅
+                        </button>
+                    </div>`;
+                } catch (e) { console.warn('RSS parse error:', e); return match; }
+            })
+            // Handle Auto-Subscription Hidden Action
+            .replace(/\[AUTO_SUBSCRIBE_RSS:\s*(\{.*?\})\]/g, (match, p1) => {
+                try {
+                    const p1Unescaped = p1.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                    const feed = JSON.parse(p1Unescaped);
+                    // Trigger immediate subscription
+                    this.subscribeRSS(JSON.stringify(feed));
+                    return `<div style="margin:10px 0; padding:10px; border-left:4px solid #34c759; background:#f0fdf4; font-size:13px; color:#166534;">
+                        ✅ <b>已自动为你订阅</b>: ${feed.name}
                     </div>`;
                 } catch (e) { return ''; }
             });
@@ -473,6 +493,19 @@ class MobileChat {
             }
         } catch (e) {
             console.error('Skill Install Error:', e);
+        }
+    }
+
+    async subscribeRSS(feedJson) {
+        try {
+            const feed = JSON.parse(feedJson);
+            if (window.addCustomFeed) {
+                await window.addCustomFeed(feed.name, feed.url, feed.category || 'AI Subscriptions');
+                if (window.showToast) window.showToast(`已成功关注: ${feed.name}`, 2000);
+                this.addAIMessage(`✅ 已为你持续关注 **${feed.name}**。后续该作者发布的文章将自动出现在你的 **Reader (RSS News)** 列表中。`, true);
+            }
+        } catch (e) {
+            console.error('RSS Subscribe Error:', e);
         }
     }
 
@@ -634,12 +667,13 @@ class MobileChat {
         }
 
         core.push(`[SKILL SYSTEM - MANDATORY]`);
-        core.push(`- You possess a growing library of SKILLS. Currently: Weather, Search, News, Movies.`);
-        core.push(`- CRITICAL: If a user asks for information you cannot access directly (e.g., Stock prices, Crypto, Flight status, Translation, or specific API data), YOU MUST PROPOSE A NEW SKILL.`);
-        core.push(`- To propose, append technical JSON at the end of your response:`);
-        core.push(`  [PROPOSE_SKILL: {"id": "crypto", "name": "Crypto Tracker", "patterns": ["btc", "crypto", "price"], "apiUrl": "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"}]`);
+        core.push(`- You possess a growing library of SKILLS. Currently: Weather, Search, News, Movies, WeChat Optimizer, Stock Sniper.`);
+        core.push(`- CRITICAL: If a user provides a WeChat link (mp.weixin.qq.com), YOU MUST offer to subscribe them to the author.`);
+        core.push(`- To offer subscription (User needs to click), append: [SUBSCRIBE_RSS: {"name": "AuthorName", "url": "RSSHubUrl"}]`);
+        core.push(`- To subscribe DIRECTLY (User asked to "subscribe directly" or "auto subscribe"), append: [AUTO_SUBSCRIBE_RSS: {"name": "AuthorName", "url": "RSSHubUrl"}]`);
+        core.push(`- If a user asks for information you cannot access directly, YOU MUST PROPOSE A NEW SKILL using [PROPOSE_SKILL: {...}].`);
         core.push(`- Use "https://m.baidu.com/s?word={query}" as a fallback apiUrl for generic information gathering skills.`);
-        core.push(`- Do NOT apologize for lack of data without offering a [PROPOSE_SKILL] solution.`);
+        core.push(`- Do NOT apologize for lack of data without offering a [PROPOSE_SKILL], [SUBSCRIBE_RSS], or [AUTO_SUBSCRIBE_RSS] solution.`);
         core.push(``);
         core.push(`[STRICT OUTPUT RULES]`);
         core.push(`- NO Markdown Code Blocks (\`\`\`) for text.`);

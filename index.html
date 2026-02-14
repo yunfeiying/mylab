@@ -13,142 +13,165 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="mobile.css?v=11.0">
-    <style>
-        /* New styles for note date tags */
-        .note-title-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            gap: 8px;
-            margin-bottom: 2px;
-        }
-
-        .note-date-tag {
-            font-size: 11px;
-            color: #999;
-            flex-shrink: 0;
-            font-weight: 400;
-        }
-
-        .note-title {
-            flex-grow: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-    </style>
+    <link rel="stylesheet" href="mobile.css?v=12.0">
     <script src="modules/web-compat.js?v=11.4" defer></script>
 </head>
 
 <body>
     <div id="app">
         <!-- ============================== -->
-        <!-- VIEW: HOME (The Monolith)      -->
+        <!-- VIEW: HOME (AI Assistant)      -->
         <!-- ============================== -->
-        <div id="view-home" class="app-view active">
-            <header class="home-header">
-                <button class="icon-btn" id="btn-sidebar-toggle">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <line x1="3" y1="12" x2="21" y2="12" />
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <line x1="3" y1="18" x2="21" y2="18" />
+        <div id="view-home" class="app-view active full-screen-view">
+            <header class="gemini-header">
+                <button class="header-btn back-btn btn-home-back-to-rss">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
                     </svg>
                 </button>
-                <div class="brand-title">Highlighti <span
-                        style="font-size: 10px; opacity: 0.5; vertical-align: middle;">v11.5</span></div>
-                <button class="user-avatar-btn" id="btn-settings">
-                    <div class="avatar-icon-wrapper">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="7" r="4"></circle>
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <div class="header-title">Assistant</div>
+                <div style="display: flex; gap: 4px;">
+                    <button id="btn-home-new-chat" class="header-btn icon-btn">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
-                    </div>
-                </button>
+                    </button>
+                    <button id="btn-home-history" class="header-btn icon-btn">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </button>
+                </div>
             </header>
-
-            <main class="home-scroll-area">
-                <!-- Notes Section -->
-                <section class="home-section">
-                    <div class="section-header-row">
-                        <div id="header-notes-all" class="section-title-clickable">
-                            <h2 class="section-title">Notes</h2>
-                        </div>
-                        <div id="btn-notes-all-new" class="plus-icon-btn">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2.5">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                        </div>
-                    </div>
-                    <div id="notes-list-container"></div>
-                </section>
-
-                <!-- Reader Section -->
-                <section class="home-section">
-                    <div id="header-reading-all" class="section-header-row">
-                        <h2 class="section-title">Reader</h2>
-                        <svg class="chevron-right" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <path d="M9 18l6-6-6-6" />
-                        </svg>
-                    </div>
-                    <div id="reader-list-container"></div>
-                </section>
-                <div class="bottom-spacer"></div>
+            <main id="chat-content" class="chat-content">
+                <div id="messages-container"></div>
             </main>
-
-            <!-- Removed local core-hub -->
+            <!-- Chat Input Area (Repurposed Core Hub) -->
+            <!-- We'll keep the logic in mobile-core.js but style it per screen -->
         </div>
 
         <!-- ============================== -->
-        <!-- VIEW: CHAT (Sub View)          -->
+        <!-- VIEW: NOTES (Articles List)    -->
         <!-- ============================== -->
-        <div id="view-chat" class="app-view full-screen-view">
-            <header class="gemini-header">
+        <div id="view-notes" class="app-view full-screen-view">
+            <header class="notes-header">
                 <button class="header-btn back-btn btn-go-home">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M15 18l-6-6 6-6" />
                     </svg>
                 </button>
-                <div class="header-title" id="chat-title">AI Assistant</div>
-                <button id="btn-chat-history" class="header-btn icon-btn">
+                <div class="header-title">Notes</div>
+                <button id="btn-notes-new" class="header-btn icon-btn">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-            </header>
-            <main id="chat-content" class="chat-content">
-                <div id="messages-container"></div>
-            </main>
-            <!-- Dedicated Chat Input Area -->
-
-        </div>
-
-        <!-- ============================== -->
-        <!-- VIEW: CHAT HISTORY             -->
-        <!-- ============================== -->
-        <div id="view-chat-history" class="app-view full-screen-view">
-            <header class="notes-header">
-                <button id="btn-history-back" class="header-btn back-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M15 18l-6-6 6-6" />
-                    </svg>
-                </button>
-                <div class="header-title">Chat History</div>
-                <button id="btn-clear-chat-history" class="header-btn icon-btn" style="color:#ff3b30;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                 </button>
             </header>
             <main class="home-scroll-area">
-                <div id="chat-sessions-container" style="padding-top:16px;"></div>
+                <div id="full-notes-container" style="padding: 16px;"></div>
+                <div class="bottom-spacer"></div>
+            </main>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW: READER (Articles List)   -->
+        <!-- ============================== -->
+        <div id="view-reader" class="app-view full-screen-view">
+            <header class="notes-header">
+                <button class="header-btn back-btn btn-go-home">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <div class="header-title">Reader</div>
+                <div style="width:44px;"></div>
+            </header>
+            <main class="home-scroll-area">
+                <div id="full-reader-container" style="padding: 16px;"></div>
+                <div class="bottom-spacer"></div>
+            </main>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW: RSS (Articles List)      -->
+        <!-- ============================== -->
+        <div id="view-rss" class="app-view full-screen-view">
+            <header class="notes-header">
+                <button class="header-btn back-btn btn-go-home">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <div class="header-title">RSS News</div>
+                <button id="btn-rss-manage" class="header-btn icon-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                </button>
+            </header>
+            <main class="home-scroll-area">
+                <div id="rss-feed-list-full" style="padding: 16px;"></div>
+                <div class="bottom-spacer"></div>
+            </main>
+        </div>
+
+        <!-- ============================== -->
+        <!-- VIEW: SETTINGS                 -->
+        <!-- ============================== -->
+        <div id="view-settings" class="app-view full-screen-view">
+            <header class="notes-header">
+                <button class="header-btn back-btn btn-go-home">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <div class="header-title">Settings</div>
+                <div style="width:44px;"></div>
+            </header>
+            <main class="home-scroll-area">
+                <div class="settings-list" style="padding-top: 16px;">
+                    <div class="settings-item" id="set-language">
+                        <div class="settings-icon">🌐</div>
+                        <div class="settings-text">Language / 语言</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                    <div class="settings-item" id="act-sync">
+                        <div class="settings-icon">☁️</div>
+                        <div class="settings-text">Google Drive Sync</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                    <div class="settings-item" id="act-sync-webdav">
+                        <div class="settings-icon">📂</div>
+                        <div class="settings-text">WebDAV Sync</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+                    <div class="settings-item" id="act-ai">
+                        <div class="settings-icon">🔑</div>
+                        <div class="settings-text">API Key & Model</div>
+                        <div class="settings-arrow">›</div>
+                    </div>
+
+                    <div class="settings-divider">Data</div>
+                    <div class="settings-item" id="btn-export-json-alt">
+                        <div class="settings-icon">📤</div>
+                        <div class="settings-text">Export Backup (JSON)</div>
+                    </div>
+                    <div class="settings-item" id="btn-import-json-alt">
+                        <div class="settings-icon">📥</div>
+                        <div class="settings-text">Import Backup (JSON)</div>
+                    </div>
+                    <div class="settings-item" id="btn-reset-data-alt" style="color:#ff3b30;">
+                        <div class="settings-icon">⚠️</div>
+                        <div class="settings-text">Reset All Data</div>
+                    </div>
+                </div>
                 <div class="bottom-spacer"></div>
             </main>
         </div>
@@ -167,28 +190,35 @@
                     <div class="editor-header-title" contenteditable="true" placeholder="Untitled Note"
                         spellcheck="false" autocorrect="off" autocapitalize="sentences"></div>
                 </div>
-                <button class="header-btn icon-btn" id="btn-editor-menu">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="1" />
-                        <circle cx="19" cy="12" r="1" />
-                        <circle cx="5" cy="12" r="1" />
-                    </svg>
-                </button>
+                <div style="display: flex; gap: 4px;">
+                    <button id="act-save-note" class="header-btn icon-btn" title="Save">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                    </button>
+                    <button id="act-editor-delete" class="header-btn icon-btn" style="color:#ff3b30;" title="Delete">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
             </header>
             <div class="editor-content">
                 <div class="editor-body" contenteditable="true" placeholder="Start typing..." spellcheck="false"
                     autocorrect="on"></div>
             </div>
-            <!-- Editor Floating Toolbar (Capsule Style) -->
+            <!-- Editor Floating Toolbar -->
             <div class="editor-toolbar-floating">
-                <div id="editor-voice-indicator" class="hidden"
-                    style="position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); background: rgba(255, 59, 48, 0.9); color: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15); pointer-events: none;">
-                    Recording...
-                </div>
+                <div id="editor-voice-indicator" class="hidden">Recording...</div>
                 <div class="editor-toolbar-capsule collapsed">
-                    <!-- Dot icon: visible only when collapsed -->
                     <svg class="editor-toolbar-dot-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        stroke="currentColor" stroke-width="2">
                         <path d="M12 20h9"></path>
                         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                     </svg>
@@ -198,74 +228,9 @@
                         <button id="btn-editor-bold" class="toolbar-btn-mini"><b>B</b></button>
                         <button id="btn-editor-italic" class="toolbar-btn-mini"><i>I</i></button>
                         <button id="btn-editor-list" class="toolbar-btn-mini">List</button>
-                        <button id="btn-editor-todo" class="toolbar-btn-mini">Todo</button>
-                    </div>
-                    <div class="toolbar-divider"></div>
-                    <div class="toolbar-section">
-                        <button id="btn-editor-attach" class="toolbar-btn-mini">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path
-                                    d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
-                                </path>
-                            </svg>
-                        </button>
-                        <button id="btn-editor-voice" class="toolbar-btn-mini">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                                <line x1="12" y1="19" x2="12" y2="22"></line>
-                            </svg>
-                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- ============================== -->
-        <!-- VIEW: FULL NOTES LIST          -->
-        <!-- ============================== -->
-        <div id="view-notes-all" class="app-view full-screen-view">
-            <header class="notes-header">
-                <button class="header-btn back-btn btn-go-home">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M15 18l-6-6 6-6" />
-                    </svg>
-                </button>
-                <div class="header-title">Notes</div>
-                <button id="btn-notes-page-new" class="header-btn icon-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                </button>
-            </header>
-            <main class="home-scroll-area">
-                <div id="full-notes-container" style="padding-top:16px;"></div>
-                <div class="bottom-spacer"></div>
-            </main>
-
-        </div>
-
-        <!-- ============================== -->
-        <!-- VIEW: FULL READER LIST         -->
-        <!-- ============================== -->
-        <div id="view-reading-all" class="app-view full-screen-view">
-            <header class="notes-header">
-                <button class="header-btn back-btn btn-go-home">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M15 18l-6-6 6-6" />
-                    </svg>
-                </button>
-                <div class="header-title">Reader</div>
-                <div style="width:40px;"></div>
-            </header>
-            <main class="home-scroll-area">
-                <div id="full-reader-container" style="padding-top:16px;"></div>
-                <div class="bottom-spacer"></div>
-            </main>
-
         </div>
 
         <!-- ============================== -->
@@ -291,31 +256,34 @@
                 <article class="reader-article">
                     <h1 id="reader-title" class="reader-main-title">Article Title</h1>
                     <div id="reader-meta" class="reader-meta">source.com • 2024-02-04</div>
-
-                    <div id="reader-content" class="reader-body-content">
-                        <!-- Content injected here -->
-                    </div>
-
-                    <!-- Web Snapshot Toggle -->
-                    <div id="reader-snapshot-container" class="snapshot-toggle-wrapper hidden">
-                        <button id="btn-toggle-snapshot" class="snapshot-toggle-btn">
-                            <span class="icon">📷</span>
-                            <span data-i18n="btn_viewSnapshot">View Web Snapshot</span>
-                            <span class="arrow">▼</span>
-                        </button>
-                        <div id="reader-snapshot-content" class="snapshot-content hidden">
-                            <!-- Snapshot content injected here -->
-                        </div>
-                    </div>
+                    <div id="reader-content" class="reader-body-content"></div>
                 </article>
-
                 <div class="bottom-spacer"></div>
             </main>
         </div>
 
-        <!-- ============================== -->
-        <!-- VIEW: IN-APP BROWSER           -->
-        <!-- ============================== -->
+        <!-- Other views (RSS Feed, Browser) kept as is... -->
+        <div id="view-rss-feed" class="app-view full-screen-view">
+            <header class="notes-header">
+                <button class="header-btn back-btn btn-back-to-rss">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+                <div class="header-title" id="rss-feed-title">RSS News</div>
+                <button id="btn-refresh-rss" class="header-btn icon-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6"></path>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                    </svg>
+                </button>
+            </header>
+            <main class="home-scroll-area">
+                <div id="rss-news-list" style="padding-top:16px;"></div>
+                <div class="bottom-spacer"></div>
+            </main>
+        </div>
+
         <div id="view-browser" class="app-view full-screen-view">
             <header class="notes-header">
                 <button id="btn-browser-close" class="header-btn back-btn">
@@ -324,23 +292,7 @@
                     </svg>
                 </button>
                 <div id="browser-title" class="header-title" style="flex:1; text-align:center;">Loading...</div>
-                <div style="display: flex; align-items: center;">
-                    <button id="btn-browser-save" class="header-btn icon-btn" style="padding: 8px;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                            <polyline points="7 3 7 8 15 8"></polyline>
-                        </svg>
-                    </button>
-                    <button id="btn-browser-refresh" class="header-btn icon-btn" style="padding: 8px;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M23 4v6h-6"></path>
-                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                        </svg>
-                    </button>
-                </div>
+                <div style="width:44px;"></div>
             </header>
             <main style="flex:1; background:#fff; overflow:hidden;">
                 <iframe id="browser-iframe" style="width:100%; height:100%; border:none;"
@@ -348,378 +300,168 @@
             </main>
         </div>
 
-    </div>
-
-    <!-- API Settings Dialog -->
-    <div id="api-settings-dialog" class="action-sheet-overlay hidden">
-        <div class="action-sheet"
-            style="max-height: 80vh; display: flex; flex-direction: column; background: white; border-radius: 16px 16px 0 0; padding: 0;">
-            <!-- Scrollable Body -->
-            <div style="padding: 24px 20px; overflow-y: auto; flex: 1;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                    <h3 style="margin: 0; font-size: 20px; font-weight: 700;">App Settings</h3>
-                </div>
-
-                <h4
-                    style="margin: 0 0 12px 0; font-size: 13px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;">
-                    AI Config</h4>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #666;">API Key</label>
-                    <input type="text" id="input-api-key" placeholder="Enter your API key"
-                        style="width: 100%; padding: 12px; border: 1px solid #efeff4; background: #f2f2f7; border-radius: 10px; font-size: 16px;">
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #666;">Base URL</label>
-                    <input type="text" id="input-base-url" placeholder="https://api.deepseek.com"
-                        style="width: 100%; padding: 12px; border: 1px solid #efeff4; background: #f2f2f7; border-radius: 10px; font-size: 16px;">
-                </div>
-
-                <div style="margin-bottom: 24px;">
-                    <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #666;">Model</label>
-                    <input type="text" id="input-model" placeholder="deepseek-chat"
-                        style="width: 100%; padding: 12px; border: 1px solid #efeff4; background: #f2f2f7; border-radius: 10px; font-size: 16px;">
-                </div>
-
-                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f2f2f7;">
-                    <button id="btn-reset-data"
-                        style="width: 100%; padding: 14px; border-radius: 12px; border: none; background: #fff5f5; color: #ff3b30; font-weight: 600; font-size: 14px;">
-                        Reset Local Data (Danger)
-                    </button>
-                    <p style="font-size: 12px; color: #999; text-align: center; margin-top: 8px;">Deletes all local
-                        notes/settings.</p>
-                </div>
-            </div>
-
-            <!-- Fixed Footer -->
-            <div
-                style="padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px)); border-top: 0.5px solid #eee; background: #fff;">
-                <button id="btn-save-api-settings" class="action-btn"
-                    style="width: 100%; background: var(--ios-blue); color: white; border-radius: 12px; margin-bottom: 10px; height: 50px; font-weight: 600;">
-                    Save Settings
-                </button>
-                <button id="btn-cancel-api-settings" class="action-btn cancel-btn"
-                    style="width: 100%; background: #f2f2f7; color: #333; border-radius: 12px; height: 50px; font-weight: 500;">
-                    Cancel
-                </button>
-            </div>
+        <!-- ============================== -->
+        <!-- FLOATING CAPSULE DOCK          -->
+        <!-- ============================== -->
+        <div class="floating-capsule-dock" id="global-nav-bar">
+            <button class="dock-tab active" id="nav-tab-home">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+                <span class="tab-label">Home</span>
+            </button>
+            <button class="dock-tab" id="nav-tab-notes">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                <span class="tab-label">Notes</span>
+            </button>
+            <button class="dock-tab" id="nav-tab-reader">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                <span class="tab-label">Reader</span>
+            </button>
+            <button class="dock-tab" id="nav-tab-rss">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="5" cy="19" r="1"></circle>
+                    <path d="M4 4a16 16 0 0 1 16 16"></path>
+                    <path d="M4 11a9 9 0 0 1 9 9"></path>
+                </svg>
+                <span class="tab-label">RSS</span>
+            </button>
+            <button class="dock-tab" id="nav-tab-settings">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                <span class="tab-label">Settings</span>
+            </button>
         </div>
-    </div>
 
-    <!-- Google Drive API Settings Dialog -->
-    <div id="gdrive-settings-dialog" class="action-sheet-overlay hidden">
-        <div class="action-sheet">
-            <div style="padding: 20px; background: white; border-radius: 12px 12px 0 0;">
-                <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">Google Drive API Config</h3>
-
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Google Client
-                        ID</label>
-                    <input type="text" id="input-gd-client-id" placeholder="804554...apps.googleusercontent.com"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
-                </div>
-
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Google API
-                        Key</label>
-                    <input type="text" id="input-gd-api-key" placeholder="AIzaSy..."
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
-                </div>
-
-                <div style="margin-bottom: 24px;">
-                    <label style="display: block; margin-bottom: 6px; font-size: 14px; color: #666;">Root Folder
-                        Name</label>
-                    <input type="text" id="input-gd-root" placeholder="Highlighti_Data"
-                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
-                </div>
-
-                <button id="btn-save-gd-settings" class="action-btn"
-                    style="width: 100%; background: var(--ios-blue); color: white; margin-bottom: 8px;">
-                    Save GDrive Settings
-                </button>
-                <button id="btn-cancel-gd-settings" class="action-btn cancel-btn" style="width: 100%;">
-                    Cancel
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actions -->
-    <div id="action-sheet-overlay" class="action-sheet-overlay hidden">
-        <div class="action-sheet">
-            <div class="action-btn-group">
-                <button class="action-btn" id="act-save-note">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    Save Note
-                </button>
-                <button class="action-btn" id="act-sync">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M21 2v6h-6"></path>
-                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                        <path d="M3 22v-6h6"></path>
-                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                    </svg>
-                    Google Drive
-                </button>
-                <button class="action-btn" id="act-sync-webdav">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    WebDAV (API)
-                </button>
-                <button class="action-btn" id="act-gd-settings">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path
-                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                        </path>
-                    </svg>
-                    GDrive Settings
-                </button>
-                <button class="action-btn" id="act-ai">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path
-                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                        </path>
-                    </svg>
-                    App Settings
-                </button>
-            </div>
-            <button class="action-btn cancel-btn" id="act-cancel">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Chat Menu Action Sheet (New Chat / History) -->
-    <div id="chat-menu-overlay" class="action-sheet-overlay hidden">
-        <div class="action-sheet">
-            <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; text-align: center;">Chat Options</h3>
-            <div class="action-btn-group">
-                <button class="action-btn" id="act-menu-new-chat">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 12px;">
+        <!-- Universal Chat Hub (V12.0 Swapped Layout) -->
+        <div class="core-hub" id="universal-chat-hub">
+            <div class="input-capsule">
+                <button id="btn-global-add" class="plus-btn-line">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    New Chat
                 </button>
-                <button class="action-btn" id="act-menu-history">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 12px;">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    History
-                </button>
+                <input type="text" id="global-input" class="universal-core-input" placeholder="Ask Assistant...">
             </div>
-            <button class="action-btn cancel-btn" id="act-menu-chat-cancel">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Attachment Action Sheet -->
-    <div id="attachment-sheet-overlay" class="action-sheet-overlay hidden">
-        <div class="action-sheet">
-            <div class="action-btn-group">
-                <button class="action-btn" id="att-camera">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
-                        </path>
-                        <circle cx="12" cy="13" r="4"></circle>
-                    </svg>
-                    Take Photo
-                </button>
-                <button class="action-btn" id="att-gallery">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <polyline points="21 15 16 10 5 21"></polyline>
-                    </svg>
-                    Photo Library
-                </button>
-                <button class="action-btn" id="att-voice">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                        <line x1="12" y1="19" x2="12" y2="23"></line>
-                        <line x1="8" y1="23" x2="16" y2="23"></line>
-                    </svg>
-                    Voice Thought
-                </button>
-                <button class="action-btn" id="att-file">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                        <polyline points="13 2 13 9 20 9"></polyline>
-                    </svg>
-                    Choose File
-                </button>
-            </div>
-            <button class="action-btn cancel-btn" id="att-cancel">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Editor Menu Action Sheet -->
-    <div id="editor-menu-overlay" class="action-sheet-overlay hidden">
-        <div class="action-sheet">
-            <div class="action-btn-group">
-                <button class="action-btn" id="act-editor-share">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                        <polyline points="16 6 12 2 8 6"></polyline>
-                        <line x1="12" y1="2" x2="12" y2="15"></line>
-                    </svg>
-                    Share Note
-                </button>
-                <button class="action-btn" id="act-editor-read">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                    </svg>
-                    Read Aloud
-                </button>
-                <button class="action-btn" id="act-editor-save">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    Save Note
-                </button>
-                <button class="action-btn" id="act-editor-delete" style="color: #ff3b30;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round"
-                        style="vertical-align: middle; margin-right: 8px;">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                    Delete Note
-                </button>
-            </div>
-            <button class="action-btn cancel-btn" id="act-editor-cancel">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Hidden OCR/File Inputs -->
-    <input type="file" id="chat-file-input" class="hidden" multiple>
-    <input type="file" id="chat-camera-input" class="hidden" accept="image/*" capture="camera">
-    <input type="file" id="global-gallery-input" class="hidden" accept="image/*" multiple>
-    <input type="file" id="editor-ocr-input" class="hidden" accept="image/*" capture="camera">
-
-    <!-- Google API & Identity (GIS) for Web Sync -->
-    <!-- Google API & Identity (GIS) for Web Sync - REMOVED: Now lazy loaded in mobile-gdrive.js -->
-    <!-- <script src="https://apis.google.com/js/api.js"></script> -->
-    <!-- <script src="https://accounts.google.com/gsi/client"></script> -->
-
-    <div id="attachment-preview-container" class="attachment-preview-container hidden"></div>
-
-    <div class="core-hub" id="global-nav-bar">
-        <!-- Voice Indicator Overlay -->
-        <div id="dock-voice-indicator" class="hidden"
-            style="position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(255, 59, 48, 0.9); color: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15); pointer-events: none; z-index: 2000;">
-            Recording...
-        </div>
-
-        <button class="core-dock-btn btn-go-home" id="nav-btn-home">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-        </button>
-
-        <div class="input-capsule">
-            <input type="text" class="universal-core-input" id="global-input" placeholder="Ask AI or search...">
-            <!-- Attachment Button moved inside input right -->
-            <button class="btn-input-add-attachment" id="btn-global-add">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
+            <button id="btn-dock-action" class="send-btn-line mic-btn">
+                <svg id="icon-dock-mic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                </svg>
+                <svg id="icon-dock-send" class="hidden" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
             </button>
         </div>
 
-        <!-- Dynamic Action Button: Mic (Default) -->
-        <button class="core-dock-btn" id="btn-dock-action" style="margin-left:8px;">
-            <!-- Mic Icon -->
-            <svg id="icon-dock-mic" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                <line x1="12" y1="19" x2="12" y2="23"></line>
-                <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
-            <!-- Send Icon (Hidden) -->
-            <svg id="icon-dock-send" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-        </button>
     </div>
+
+    <!-- ============================== -->
+    <!-- MODALS & ACTION SHEETS         -->
+    <!-- ============================== -->
+
+    <!-- Attachment Action Sheet (V12.0) -->
+    <div id="attachment-sheet-overlay" class="action-sheet-overlay hidden">
+        <div class="action-sheet">
+            <div class="action-btn-group">
+                <button id="att-camera" class="action-btn">Camera / 相机</button>
+                <button id="att-gallery" class="action-btn">Photo Gallery / 图库</button>
+                <button id="att-file" class="action-btn">Files / 文件</button>
+            </div>
+            <button id="att-cancel" class="action-btn cancel-btn">Cancel</button>
+        </div>
+    </div>
+
+    <!-- AI Settings Dialog (V12.0) -->
+    <div id="api-settings-dialog" class="action-sheet-overlay hidden">
+        <div class="action-sheet" style="background:#f2f2f7; border-radius: 20px 20px 0 0; padding: 20px;">
+            <h3 style="margin-top:0;">AI Settings</h3>
+            <div style="background:white; border-radius:12px; padding:12px; margin-bottom:16px;">
+                <label style="font-size:12px; color:#8e8e93;">API Key</label>
+                <input type="password" id="input-api-key"
+                    style="width:100%; border:none; padding:8px 0; font-size:16px;" placeholder="sk-...">
+                <div style="height:0.5px; background:#eee; margin:8px 0;"></div>
+                <label style="font-size:12px; color:#8e8e93;">Base URL</label>
+                <input type="text" id="input-base-url" style="width:100%; border:none; padding:8px 0; font-size:16px;"
+                    placeholder="https://api.deepseek.com">
+                <div style="height:0.5px; background:#eee; margin:8px 0;"></div>
+                <label style="font-size:12px; color:#8e8e93;">Model</label>
+                <input type="text" id="input-model" style="width:100%; border:none; padding:8px 0; font-size:16px;"
+                    placeholder="deepseek-chat">
+            </div>
+            <button id="btn-save-api-settings" class="action-btn"
+                style="background:var(--ios-blue); color:white; border-radius:12px; margin-bottom:8px; border:none; width:100%;">Save
+                Settings</button>
+            <button id="btn-cancel-api-settings" class="action-btn" style="border:none; width:100%;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- GDrive/Cloud Config (V12.0) -->
+    <div id="gdrive-settings-dialog" class="action-sheet-overlay hidden">
+        <div class="action-sheet" style="background:#f2f2f7; border-radius: 20px 20px 0 0; padding: 20px;">
+            <h3 style="margin-top:0;">Cloud Sync Config</h3>
+            <div style="background:white; border-radius:12px; padding:12px; margin-bottom:16px;">
+                <label style="font-size:12px; color:#8e8e93;">Client ID</label>
+                <input type="text" id="input-gd-client-id"
+                    style="width:100%; border:none; padding:8px 0; font-size:16px;">
+                <div style="height:0.5px; background:#eee; margin:8px 0;"></div>
+                <label style="font-size:12px; color:#8e8e93;">API Key</label>
+                <input type="password" id="input-gd-api-key"
+                    style="width:100%; border:none; padding:8px 0; font-size:16px;">
+            </div>
+            <button id="btn-save-gd-settings" class="action-btn"
+                style="background:var(--ios-blue); color:white; border-radius:12px; margin-bottom:8px; border:none; width:100%;">Save
+                Cloud Config</button>
+            <button id="btn-cancel-gd-settings" class="action-btn" style="border:none; width:100%;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Voice Recording Overlay -->
+    <div id="hold-to-talk" class="hidden"
+        style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:160px; height:160px; background:rgba(0,0,0,0.7); backdrop-filter:blur(10px); border-radius:30px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; z-index:9999;">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+        </svg>
+        <div id="voice-status-text" style="margin-top:16px; font-weight:600; text-align:center; padding:0 20px;">
+            Listening...</div>
+    </div>
+
+    <!-- Hidden Functional Inputs -->
+    <input type="file" id="chat-camera-input" accept="image/*" capture="camera" style="display:none;">
+    <input type="file" id="global-gallery-input" accept="image/*" multiple style="display:none;">
+    <input type="file" id="chat-file-input" style="display:none;">
 
     <!-- Scripts -->
-    <!-- Scripts - Deferred for performance -->
-    <!-- Tesseract & Readability are now Lazy Loaded by mobile-chat.js -->
-
-    <!-- Image Preview Modal (Lightbox) -->
-    <div id="image-modal-overlay" class="action-sheet-overlay hidden"
-        style="justify-content: center; align-items: center; background: rgba(0,0,0,0.9);">
-        <div style="position: absolute; top: 40px; right: 20px; color: white; font-size: 30px; cursor: pointer;"
-            id="btn-close-image-modal">&times;</div>
-        <img id="modal-image-full" src=""
-            style="max-width: 95%; max-height: 85%; object-fit: contain; border-radius: 8px;">
-    </div>
     <script src="modules/idb-utils.js?v=10.9" defer></script>
     <script src="modules/storage-bridge.js?v=10.9" defer></script>
     <script src="ai-core-mobile.js?v=11.0" defer></script>
     <script src="modules/memory-agent.js?v=11.0" defer></script>
     <script src="mobile-browser.js?v=11.0" defer></script>
-    <script src="mobile-core.js?v=11.0" defer></script>
-    <script src="mobile-editor.js?v=11.0" defer></script>
-    <script src="mobile-attachment-manager.js?v=11.0" defer></script>
-    <script src="modules/chat-skills-engine.js?v=11.0" defer></script>
-    <script src="mobile-chat.js?v=11.0" defer></script>
-    <script src="mobile-gdrive.js?v=11.0" defer></script>
-    <script src="mobile-sync.js?v=11.0" defer></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW registered:', reg.scope))
-                    .catch(e => console.log('SW failed:', e));
-            });
-        }
-    </script>
+    <script src="mobile-core.js?v=12.0" defer></script>
+    <script src="mobile-editor.js?v=11.6" defer></script>
+    <script src="mobile-attachment-manager.js?v=11.6" defer></script>
+    <script src="modules/chat-skills-engine.js?v=11.6" defer></script>
+    <script src="mobile-chat.js?v=11.6" defer></script>
+    <script src="mobile-gdrive.js?v=11.6" defer></script>
+    <script src="modules/rss-service.js?v=11.6" defer></script>
+    <script src="mobile-sync.js?v=11.6" defer></script>
 </body>
-
 
 </html>
